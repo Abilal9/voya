@@ -1,0 +1,11 @@
+{
+  "name": "voya",
+  "private": true,
+  "packageManager": "pnpm@9.12.0",
+  "scripts": {
+    "mobile": "pnpm --filter @voya/mobile",
+    "start": "pnpm --filter @voya/mobile start",
+    "typecheck": "pnpm --filter @voya/mobile typecheck",
+    "lint": "pnpm --filter @voya/mobile lint"
+  }
+}

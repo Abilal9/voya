@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "Voya",
+    "slug": "voya",
+    "scheme": "voya",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFF8EE"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "ae.voya.app"
+    },
+    "android": {
+      "package": "ae.voya.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#CEBDF3"
+      },
+      "edgeToEdgeEnabled": true
+    },
+    "web": { "bundler": "metro", "favicon": "./assets/favicon.png" },
+    "plugins": [
+      "expo-router",
+      ["expo-splash-screen", {
+        "image": "./assets/splash-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#FFF8EE"
+      }]
+    ],
+    "experiments": { "typedRoutes": true }
+  }
+}
