@@ -48,7 +48,17 @@ Do not scaffold `apps/api`, `apps/admin` or any `packages/*` yet.
 6. **No fake success.** Never show a success state for something that did not
    happen. Never claim a device test, a provider call or a passing test that was
    not actually run.
-7. **One vertical slice per branch**, merged within ~3 days.
+7. **`main` is the only branch.** No feature branches, no PRs for routine work.
+   Small, focused commits; never force-push or discard work.
+
+## Commits
+
+Conventional Commits with a monorepo scope: `type(scope): summary`.
+Types: `feat`, `fix`, `refactor`, `chore`, `test`, `docs`.
+Scopes: `mobile`, `api`, `admin`, `db`, `contracts`, `config`, `infra`,
+`architecture` (docs), `integration` (spans areas). Split multi-area changes
+into separate commits where it makes sense. Run
+`pnpm typecheck && pnpm lint && pnpm test` before pushing to `origin/main`.
 
 ## Architecture boundary
 
@@ -91,6 +101,7 @@ pnpm install            # at the repo root
 pnpm start              # expo start
 pnpm typecheck          # tsc --noEmit
 pnpm lint
+pnpm test               # jest (jest-expo) — mock services and pure rules
 ```
 
 If dependency versions conflict, run `npx expo install --fix` inside
