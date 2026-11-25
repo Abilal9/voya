@@ -6,6 +6,7 @@
     "mobile": "pnpm --filter @voya/mobile",
     "start": "pnpm --filter @voya/mobile start",
     "typecheck": "pnpm --filter @voya/mobile typecheck",
-    "lint": "pnpm --filter @voya/mobile lint"
+    "lint": "pnpm --filter @voya/mobile lint",
+    "test": "pnpm --filter @voya/mobile test"
   }
 }
