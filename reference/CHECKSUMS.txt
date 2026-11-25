@@ -1,0 +1,3 @@
+9fa340308d87503668bf98dce5f665a5030f0b6ee3cfd331d6722c2515ca9f5c  reference/voya-design-v1.html
+7e1e9f3194bb95691402ac5168c8f2093ab8de25312a35510ff34cd76aa96dd5  reference/voya-emblem.svg
+590eb8317c591412bf4d586be883634b275a7c809f932c66a5b1c3daf9faef77  reference/voya-logo-primary.svg
