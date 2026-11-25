@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { VoyaEmblem } from '@/components/brand';
+import { VoyaLogo } from '@/components/brand';
 import { Button, Screen, Text } from '@/components/ui';
 import { board, colors } from '@/theme';
 
@@ -9,8 +9,7 @@ const W = board.welcome;
 
 /**
  * A01 Welcome — board figure "A01".
- * The board shows the full lockup here; per the owner's direction the app uses
- * the emblem alone everywhere except the native splash.
+ * Full lockup, sized to the same height the emblem had (owner direction).
  */
 export default function Welcome() {
   const router = useRouter();
@@ -18,7 +17,7 @@ export default function Welcome() {
     <Screen edges={['top', 'left', 'right', 'bottom']} contentStyle={styles.screen}>
       <View style={styles.hero}>
         <View style={styles.mark}>
-          <VoyaEmblem size={W.emblemSize} />
+          <VoyaLogo width={W.emblemSize * board.emblemAspect * board.logoAspect} />
         </View>
         <Text style={styles.title}>{'Plan less.\nLive more.'}</Text>
         <Text style={styles.body}>Trips, hangouts and events — beautifully planned together.</Text>

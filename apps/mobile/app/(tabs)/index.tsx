@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Bell } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { VoyaEmblem } from '@/components/brand';
+import { VoyaLogo } from '@/components/brand';
 import { AvatarStack, EmptyState, ErrorState, LoadingState, Text } from '@/components/ui';
 import { PHOTO_TINT } from '@/features/explore/PlaceCard';
 import {
@@ -44,7 +44,7 @@ export default function Home() {
         }
       >
         <View style={styles.brandRow}>
-          <VoyaEmblem size={H.brandHeight} />
+          <VoyaLogo width={H.brandHeight * board.emblemAspect * board.logoAspect} />
           {/* KNOWN GAP: Activity (38) is not built yet, so the bell opens Profile. */}
           <Pressable
             accessibilityRole="button"

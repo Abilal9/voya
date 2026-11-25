@@ -149,15 +149,6 @@ export const layout = {
   minTouchTarget: 44,
 } as const;
 
-/**
- * Brand mark sizes. In-app surfaces use the emblem alone; the full lockup is
- * reserved for the native splash (owner direction, 2026-11-25).
- */
-export const brandMark = {
-  header: 32,
-  hero: 88,
-} as const;
-
 /** Icon sizing. The board uses a 24×24 outline set at stroke-width 1.7. */
 export const icon = {
   strokeWidth: 1.7,
@@ -172,6 +163,9 @@ export const icon = {
  * one to one. These are NOT normalised: each value is read from the board CSS.
  */
 export const board = {
+  /** Approved lockup viewBox aspect (787.36 × 206) and emblem aspect (305 × 293). */
+  logoAspect: 787.3623693379791 / 206,
+  emblemAspect: 293 / 305,
   screenPaddingX: 27,
   /** Board `small` / `.muted`: 12px at line-height 1.5. */
   small: { fontSize: 12, lineHeight: 18 },

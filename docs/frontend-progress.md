@@ -20,14 +20,17 @@ not when files exist or TypeScript compiles.
 
 | Gate | Result |
 |---|---|
-| App launches with correct branding and navigation | ⚠️ Not verified — no simulator or device available in this environment |
-| User can enter through the auth flows and return without repeating onboarding | ⚠️ Code complete, not device-verified |
-| Primary navigation and common UI behave as designed | ⚠️ Code complete, not device-verified |
-| Discover → save → revisit works on fixtures | ⚠️ Code complete, not device-verified |
+| App launches with correct branding and navigation | ✅ Launched on iOS Simulator (iPhone 17 Pro, iOS 26.5, Expo Go 54.0.7), 2026-11-25 |
+| User can enter through the auth flows and return without repeating onboarding | ⚠️ Screens render on device; flows not tapped through (checked by screenshot + deep link only) |
+| Primary navigation and common UI behave as designed | ⚠️ Home, Explore, Profile, Create, Saved, Past Plans render and match the board; taps not exercised |
+| Discover → save → revisit works on fixtures | ⚠️ Code path reviewed; not tapped through on device |
 
-**Nothing below has been run.** No `npm install`, no Metro bundler, no simulator,
-no device. The environment this was built in has no package-registry access.
-First run on a Mac is the real first test — see "First run" below.
+`pnpm install`, `pnpm typecheck` and `pnpm lint` all pass. Android has not been run.
+
+**Matched to the board (spacing/sizes from board CSS, `board` in `src/theme/tokens.ts`):**
+Home, Explore (E01), Saved (39), Profile (03), Create a Plan (02), Past Plans (V11),
+Welcome (A01), Sign in (A03), Create account (A02), tab bar, Button, TextField.
+Home and Welcome use the full logo at the emblem's former height (owner direction).
 
 ## Built in this slice
 
