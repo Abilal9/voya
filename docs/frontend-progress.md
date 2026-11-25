@@ -8,7 +8,7 @@ TypeScript compiles. Item-level detail lives in `docs/product-backlog.md`.
 | Phase | Scope | Status |
 |---|---|---|
 | **F1 — Foundation** | Main-only workflow, data consistency, fixture boundaries, tests, inventory, device verification | 🟡 Active — fixes and tests done; tap-through blocked on Simulator control |
-| F2 — Auth & onboarding | A01–A12, separate mock accounts, resume, logout/restart | 🟡 A01–A03 board-matched; rest pending |
+| F2 — Auth & onboarding | A01–A12, separate mock accounts, resume, logout/restart | 🟡 All A01–A12 built to the board with local accounts and resume; on-device tap-through pending |
 | F3 — Explore, Saved, Place details | E01–E12, Saved, map, Add to Plan | 🟡 E01, Saved board-matched; search, filters, map, details pending |
 | F4 — Profile & Settings | 03, V01–V13 | 🟡 Profile, Past Plans done; settings screens pending |
 | F5 — Hangouts | 13–17, 37, H01–H07 | ⬜ Not started (needs shared mock world, F1-10) |

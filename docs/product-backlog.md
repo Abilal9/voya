@@ -42,10 +42,10 @@ integration or enhancement.
 | ID | Item | P | Status | Type | Design | Depends | Acceptance |
 |---|---|---|---|---|---|---|---|
 | F2-01 | Welcome, Sign in, Create account at board fidelity | P1 | Implemented | Mock | A01–A03 | — | Matches board; validation messages shown inline |
-| F2-02 | Forgot password, Reset link sent, Verify email at board fidelity | P1 | Not Started | Mock | A04–A06 | F2-01 | Matches board; code 424242 verifies, wrong code errors |
-| F2-03 | Set new password + Password updated | P1 | Not Started | Mock | A11–A12 | F2-02 | Reachable from reset flow; mismatch validation |
-| F2-04 | Sign-up creates a separate local mock account (names persisted, no real password stored) | P1 | Not Started | Mock | A02, A07 | F1-10 | New account has empty saved/plans; seeded users untouched |
-| F2-05 | Onboarding A07–A10 at board fidelity, resumable mid-way | P1 | Not Started | Mock | A07–A10 | F2-04 | Quit at A08, relaunch → resumes A08 |
+| F2-02 | Forgot password, Reset link sent, Verify email at board fidelity | P1 | Implemented | Mock | A04–A06 | F2-01 | Matches board; code 424242 verifies, wrong code errors |
+| F2-03 | Set new password + Password updated | P1 | Implemented | Mock | A11–A12 | F2-02 | Reachable from reset flow; mismatch validation |
+| F2-04 | Sign-up creates a separate local mock account (names persisted, no real password stored) | P1 | Implemented | Mock | A02, A07 | — | New account has empty saved/plans; seeded users untouched |
+| F2-05 | Onboarding A07–A10 at board fidelity, resumable mid-way | P1 | Implemented | Mock | A07–A10 | F2-04 | Quit at A08, relaunch → resumes A08 |
 | F2-06 | Mock Apple / Google sign-in journeys | P1 | Implemented | Mock | A02, A03 | — | Lands on correct next step; labelled as simulated |
 | F2-07 | Returning-user and logout/restart journeys verified on device | P1 | Not Started | Mock | — | F1-08 | Logout → Welcome; relaunch keeps session |
 

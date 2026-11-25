@@ -4,7 +4,7 @@ Source: `reference/voya-design-v1.html` — 97 presentations (96 screens/states 
 They are not 97 React Native screens: many are variants, sheets or states of one screen.
 Updated 2026-11-26 from the rendered board.
 
-**Coverage:** 22 implemented · 8 partial · 67 missing (of 97).
+**Coverage:** 24 implemented · 8 partial · 65 missing (of 97).
 
 **Columns.** *Implementation*: Implemented / Partial / Missing. *Interaction check*: how it was
 checked — "Screenshot" means rendered on the iOS Simulator and inspected by screenshot or deep link
@@ -24,17 +24,17 @@ were taken from the board CSS and compared side by side.
 | Code | Board caption | Kind | Route / component | Implementation | Interaction check | Visual | Gap | Backlog |
 |---|---|---|---|---|---|---|---|---|
 | `A01` | Welcome | Screen | app/(auth)/welcome.tsx | Implemented | Screenshot | Board-matched | Full logo per owner direction | F2-01 |
-| `A02` | Create account | Screen | app/(auth)/sign-up.tsx | Implemented | Screenshot | Board-matched | Names not persisted; no separate account | F2-01, F2-04 |
+| `A02` | Create account | Screen | app/(auth)/sign-up.tsx | Implemented | Screenshot + unit tests | Board-matched | | F2-01, F2-04 |
 | `A03` | Sign in | Screen | app/(auth)/sign-in.tsx | Implemented | Screenshot + unit tests | Board-matched |  | F2-01 |
-| `A04` | Forgot password | Screen | app/(auth)/forgot-password.tsx | Implemented | Not tested | Not matched | Restyle to board | F2-02 |
-| `A05` | Reset link sent | Screen | app/(auth)/reset-sent.tsx | Implemented | Not tested | Not matched | Restyle to board | F2-02 |
-| `A06` | Verify email | Screen | app/(auth)/verify.tsx | Implemented | Not tested | Not matched | Restyle; code 424242 | F2-02 |
-| `A07` | Basic profile | Screen | app/(onboarding)/profile.tsx | Implemented | Not tested | Not matched | Restyle; resume | F2-05 |
-| `A08` | Interests | Screen | app/(onboarding)/interests.tsx | Implemented | Not tested | Not matched | Restyle; interests via catalog service | F2-05 |
-| `A09` | Location permission | Screen | app/(onboarding)/location.tsx | Implemented | Not tested | Not matched | Restyle | F2-05 |
-| `A10` | Notification permission | Screen | app/(onboarding)/notifications.tsx | Implemented | Not tested | Not matched | Restyle | F2-05 |
-| `A11` | Set new password | Screen | — | Missing | — | — | Set new password | F2-03 |
-| `A12` | Password updated | State | — | Missing | — | — | Password updated | F2-03 |
+| `A04` | Forgot password | Screen | app/(auth)/forgot-password.tsx | Implemented | Screenshot | Board-matched | | F2-02 |
+| `A05` | Reset link sent | Screen | app/(auth)/reset-sent.tsx | Implemented | Screenshot | Board-matched | Preview reset link opens A11, as on the board | F2-02 |
+| `A06` | Verify email | Screen | app/(auth)/verify.tsx | Implemented | Unit tests | Built to board CSS; not yet seen on device | Needs a signed-up session to reach | F2-02 |
+| `A07` | Basic profile | Screen | app/(onboarding)/profile.tsx | Implemented | Unit tests | Built to board CSS; not yet seen on device | Change photo waits for F4-03 | F2-05 |
+| `A08` | Interests | Screen | app/(onboarding)/interests.tsx | Implemented | Unit tests | Built to board CSS; not yet seen on device | | F2-05 |
+| `A09` | Location permission | Screen | app/(onboarding)/location.tsx | Implemented | Not tested | Built to board CSS; not yet seen on device | Mocked: no OS prompt | F2-05 |
+| `A10` | Notification permission | Screen | app/(onboarding)/notifications.tsx | Implemented | Not tested | Built to board CSS; not yet seen on device | Mocked: no OS prompt | F2-05 |
+| `A11` | Set new password | Screen | app/(auth)/set-password.tsx | Implemented | Screenshot + unit tests | Board-matched | | F2-03 |
+| `A12` | Password updated | State | app/(auth)/password-updated.tsx | Implemented | Screenshot | Board-matched | | F2-03 |
 
 ## Home, Profile and Settings
 
