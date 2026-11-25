@@ -1,79 +1,87 @@
 import * as React from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bookmark, ChevronRight, FlaskConical, History, LogOut } from 'lucide-react-native';
-import { Avatar, Card, Divider, Text } from '@/components/ui';
+import { ChevronRight, FlaskConical, Heart, History, LogOut, type LucideIcon } from 'lucide-react-native';
+import { Text } from '@/components/ui';
 import { useServices } from '@/services/ServicesProvider';
+import type { PlanType } from '@/services';
 import { useSession } from '@/stores/session';
-import { colors, icon, layout, spacing } from '@/theme';
+import { board, colors, icon } from '@/theme';
 
-/** 03 Profile. */
+const P = board.profile;
+
+function initials(first?: string, last?: string) {
+  if (!first) return '';
+  return `${first[0] ?? ''}${last?.[0] ?? first[1] ?? ''}`.toUpperCase();
+}
+
+/**
+ * 03 Profile — board figure "03".
+ * KNOWN GAP: Edit profile (V01), Settings (V02) and Manage interests (V13) are
+ * not built, so their controls are not shown yet. Log out lives here until
+ * Settings exists (the board puts it under V02 → V09).
+ */
 export default function Profile() {
   const router = useRouter();
   const services = useServices();
   const account = useSession((s) => s.account);
   const signOut = useSession((s) => s.signOut);
 
-  const saved = useQuery({ queryKey: ['saved'], queryFn: () => services.saved.list() });
+  const upcoming = useQuery({ queryKey: ['plans', 'upcoming'], queryFn: () => services.plans.listUpcoming() });
   const past = useQuery({ queryKey: ['plans', 'past'], queryFn: () => services.plans.listPast() });
+  const all = [...(upcoming.data ?? []), ...(past.data ?? [])];
+  const count = (t: PlanType) => all.filter((p) => p.type === t).length;
 
-  const rows = [
-    { icon: Bookmark, label: 'Saved Places', value: `${saved.data?.length ?? 0}`, onPress: () => router.push('/saved') },
-    { icon: History, label: 'Past Plans', value: `${past.data?.length ?? 0}`, onPress: () => router.push('/(tabs)') },
-    { icon: FlaskConical, label: 'Developer menu', value: '', onPress: () => router.push('/dev') },
+  const links: { Icon: LucideIcon; label: string; onPress: () => void; danger?: boolean }[] = [
+    { Icon: Heart, label: 'Saved places', onPress: () => router.push('/saved') },
+    { Icon: History, label: 'Past Plans', onPress: () => router.push('/past-plans') },
+    ...(__DEV__ ? [{ Icon: FlaskConical, label: 'Developer menu', onPress: () => router.push('/dev') }] : []),
+    { Icon: LogOut, label: 'Log out', onPress: () => void signOut(), danger: true },
   ];
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.root}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.identity}>
-          <Avatar name={account?.displayName ?? 'Voya'} size={72} />
-          <Text variant="h1">{account?.displayName ?? ''}</Text>
-          <Text variant="footnote" tone="secondary">{account?.city}</Text>
+        <Text style={styles.h1}>Profile</Text>
+        <View style={styles.avatar} accessibilityRole="image" accessibilityLabel={account?.displayName}>
+          <Text style={styles.avatarText}>{initials(account?.firstName, account?.lastName)}</Text>
+        </View>
+        <Text style={styles.name} numberOfLines={1}>{account?.firstName ?? ''}</Text>
+        {account?.city ? <Text style={styles.city}>{account.city}</Text> : null}
+
+        <View style={styles.stats}>
+          {([['trip', 'Trips'], ['hangout', 'Hangouts'], ['event', 'Events']] as const).map(([t, label]) => (
+            <View key={t} style={styles.stat}>
+              <Text style={styles.statValue}>{count(t)}</Text>
+              <Text style={styles.small}>{label}</Text>
+            </View>
+          ))}
         </View>
 
-        <Card padded={false}>
-          {rows.map((row, i) => (
-            <React.Fragment key={row.label}>
-              {i > 0 ? <Divider inset={spacing.md} /> : null}
-              <View style={styles.rowWrap}>
-                <Text
-                  variant="bodyLg"
-                  onPress={row.onPress}
-                  style={styles.rowLabel}
-                  accessibilityRole="button"
-                >
-                  {row.label}
-                </Text>
-                <View style={styles.rowRight}>
-                  {row.value ? <Text variant="footnote" tone="tertiary">{row.value}</Text> : null}
-                  <ChevronRight size={icon.md} color={colors.text.tertiary} strokeWidth={icon.strokeWidth} />
-                </View>
-              </View>
-            </React.Fragment>
+        <Text style={styles.h3}>Your preferences</Text>
+        <Text style={styles.small}>You seem to like</Text>
+        <View style={styles.tags}>
+          {(account?.interests ?? []).map((tag) => (
+            <View key={tag} style={styles.tag}>
+              <Text style={styles.tagText}>{tag}</Text>
+            </View>
           ))}
-        </Card>
+        </View>
 
-        <Card padded={false}>
-          <View style={styles.rowWrap}>
-            <Text
-              variant="bodyLg"
-              tone="danger"
-              accessibilityRole="button"
-              onPress={() => void signOut()}
-              style={styles.rowLabel}
-            >
-              Log out
-            </Text>
-            <LogOut size={icon.md} color={colors.status.danger} strokeWidth={icon.strokeWidth} />
-          </View>
-        </Card>
+        {links.map(({ Icon, label, onPress, danger }) => {
+          const tone = danger ? colors.status.danger : colors.brand.plum;
+          return (
+            <Pressable key={label} accessibilityRole="button" onPress={onPress} style={styles.link}>
+              <Icon size={icon.md} color={tone} strokeWidth={icon.strokeWidth} />
+              <Text style={[styles.linkText, { color: tone }]}>{label}</Text>
+              <ChevronRight size={icon.md} color={tone} strokeWidth={icon.strokeWidth} />
+            </Pressable>
+          );
+        })}
 
-        <Text variant="caption" tone="tertiary" center>
-          Mock build · no real account, no backend, no provider calls.
-        </Text>
+        <Text style={styles.tiny}>The more you explore, the more it feels like you.</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -82,14 +90,42 @@ export default function Profile() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.surface.base },
   content: {
-    paddingHorizontal: layout.screenPadding, paddingBottom: 140,
-    gap: spacing.lg, paddingTop: spacing.md,
+    paddingHorizontal: board.screenPaddingX,
+    paddingBottom: board.fab.bottomAboveTabBar,
   },
-  identity: { alignItems: 'center', gap: spacing.xxs },
-  rowWrap: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing.md, minHeight: 56,
+  h1: { ...board.h1, color: colors.brand.plum, marginTop: P.titleMarginTop },
+  avatar: {
+    width: P.avatar.size, height: P.avatar.size, borderRadius: P.avatar.size / 2,
+    alignSelf: 'center', marginTop: P.avatar.marginTop, marginBottom: P.avatar.marginBottom,
+    backgroundColor: colors.brand.lavender, alignItems: 'center', justifyContent: 'center',
   },
-  rowLabel: { flex: 1, paddingVertical: spacing.md },
-  rowRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  avatarText: { fontSize: P.avatar.fontSize, lineHeight: P.avatar.lineHeight, fontWeight: '600', color: colors.brand.violet },
+  name: {
+    ...board.home.title, fontSize: P.nameSize, textAlign: 'center',
+    color: colors.brand.plum, marginBottom: board.h2MarginBottom,
+  },
+  city: { ...board.small, textAlign: 'center', color: colors.text.secondary },
+  stats: {
+    flexDirection: 'row', justifyContent: 'center', gap: P.statsGap,
+    marginTop: P.statsMarginTop, marginBottom: P.statsMarginBottom,
+  },
+  stat: { alignItems: 'center' },
+  statValue: { fontSize: P.statSize, lineHeight: P.statLineHeight, fontWeight: '700', color: colors.brand.plum, marginBottom: P.statGap },
+  small: { ...board.small, color: colors.text.secondary },
+  h3: { ...board.home.sectionTitle, color: colors.brand.plum },
+  tags: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: P.tags.gap,
+    marginTop: P.tags.marginTop, marginBottom: P.tags.marginBottom,
+  },
+  tag: {
+    paddingVertical: P.tags.paddingY, paddingHorizontal: P.tags.paddingX,
+    borderRadius: P.tags.radius, backgroundColor: P.tags.background,
+  },
+  tagText: { fontSize: board.small.fontSize, color: colors.brand.plum },
+  link: {
+    flexDirection: 'row', alignItems: 'center', gap: P.link.gap, paddingVertical: P.link.paddingY,
+    borderBottomWidth: 1, borderBottomColor: P.link.borderColor,
+  },
+  linkText: { flex: 1, fontSize: P.link.fontSize },
+  tiny: { ...board.tinyCenter, textAlign: 'center', marginTop: P.tags.marginBottom },
 });

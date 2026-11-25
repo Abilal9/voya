@@ -27,7 +27,7 @@ export default function ForgotPassword() {
       <View style={styles.head}>
         <Text variant="h1">Reset your password</Text>
         <Text variant="body" tone="secondary">
-          Enter your email and we'll send you a reset link.
+          Enter your email and we&apos;ll send you a reset link.
         </Text>
       </View>
       <View style={styles.form}>

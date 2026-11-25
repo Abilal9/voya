@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
-import { colors, layout, radius, spacing } from '@/theme';
+import { ActivityIndicator, Pressable, StyleSheet, View, type TextStyle, type ViewStyle } from 'react-native';
+import { board, colors } from '@/theme';
 import { Text } from './Text';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -14,6 +14,7 @@ type Props = {
   full?: boolean;
   icon?: React.ReactNode;
   style?: ViewStyle;
+  labelStyle?: TextStyle;
   testID?: string;
 };
 
@@ -26,6 +27,7 @@ export function Button({
   full = true,
   icon,
   style,
+  labelStyle,
   testID,
 }: Props) {
   const inactive = disabled || loading;
@@ -50,7 +52,7 @@ export function Button({
       ) : (
         <View style={styles.row}>
           {icon ? <View style={styles.icon}>{icon}</View> : null}
-          <Text variant="subtitle" style={{ color: VARIANTS[variant].label }}>
+          <Text style={[styles.label, { color: VARIANTS[variant].label }, labelStyle]}>
             {label}
           </Text>
         </View>
@@ -60,19 +62,17 @@ export function Button({
 }
 
 const VARIANTS: Record<Variant, { container: ViewStyle; label: string; spinner: string }> = {
+  // Board `.action`: peach with plum label.
   primary: {
-    container: { backgroundColor: colors.brand.violet },
-    label: colors.text.onViolet,
-    spinner: colors.text.onViolet,
+    container: { backgroundColor: colors.brand.peach },
+    label: colors.brand.plum,
+    spinner: colors.brand.plum,
   },
+  // Board `.action.secondary`: pale lavender with violet label.
   secondary: {
-    container: {
-      backgroundColor: colors.surface.raised,
-      borderWidth: 1,
-      borderColor: colors.border.strong,
-    },
-    label: colors.text.primary,
-    spinner: colors.text.primary,
+    container: { backgroundColor: board.action.secondaryBackground },
+    label: colors.brand.violet,
+    spinner: colors.brand.violet,
   },
   ghost: {
     container: { backgroundColor: 'transparent' },
@@ -80,23 +80,25 @@ const VARIANTS: Record<Variant, { container: ViewStyle; label: string; spinner: 
     spinner: colors.brand.violet,
   },
   danger: {
-    container: { backgroundColor: colors.status.dangerSurface },
-    label: colors.status.danger,
-    spinner: colors.status.danger,
+    container: { backgroundColor: board.action.dangerBackground },
+    label: board.action.dangerText,
+    spinner: board.action.dangerText,
   },
 };
 
 const styles = StyleSheet.create({
   base: {
-    minHeight: 52,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radius.pill,
+    minHeight: board.action.minHeight,
+    paddingVertical: board.action.paddingY,
+    paddingHorizontal: board.action.paddingX,
+    borderRadius: board.action.radius,
     alignItems: 'center',
     justifyContent: 'center',
   },
   full: { alignSelf: 'stretch' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  icon: { minWidth: layout.minTouchTarget / 2 },
+  label: { fontSize: board.action.fontSize, fontWeight: board.action.fontWeight },
+  row: { flexDirection: 'row', alignItems: 'center', gap: board.form.social.iconGap },
+  icon: { alignItems: 'center' },
   pressed: { opacity: 0.85 },
   disabled: { opacity: 0.45 },
 });

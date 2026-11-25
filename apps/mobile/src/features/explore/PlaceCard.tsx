@@ -1,11 +1,12 @@
 import * as React from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Star } from 'lucide-react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from '@/components/ui';
 import type { Place } from '@/services';
-import { colors, icon, radius, shadow, spacing } from '@/theme';
+import { board, colors } from '@/theme';
 
-const PHOTO_TINT: Record<string, string> = {
+/** Flat tints standing in for the board's photography until production imagery exists. */
+export const PHOTO_TINT: Record<string, string> = {
   restaurant: '#E6DBE3',
   activity: '#D9DFC7',
   uffizi: '#F0DFE1',
@@ -13,68 +14,83 @@ const PHOTO_TINT: Record<string, string> = {
   wedding: '#FFE9D2',
 };
 
+const E = board.explore;
+
+/** Rating line, board style "4.6 ★ · $$$". Missing rating is "No rating yet", never 0. */
+export function ratingLine(place: Place) {
+  const rating = place.rating === undefined ? 'No rating yet' : `${place.rating.toFixed(1)} ★`;
+  return [rating, place.price].filter(Boolean).join('  ·  ');
+}
+
 /**
- * E01 discovery card. Rating, price and photo are all OPTIONAL — roughly a
- * third of the fixtures omit them on purpose, because provider data does.
+ * E01 discovery card: full-bleed photo, "Picked for you" tag, details over a
+ * dark scrim. Rating, price, photo and hours are all OPTIONAL — roughly a third
+ * of the fixtures omit them on purpose, because provider data does.
  */
-export function PlaceCard({ place }: { place: Place }) {
-  const tint = PHOTO_TINT[place.photo ?? ''] ?? colors.surface.sunken;
+export function PlaceCard({ place, onOpen }: { place: Place; onOpen?: () => void }) {
+  const tint = place.photo ? (PHOTO_TINT[place.photo] ?? E.card.placeholder) : E.card.placeholder;
+  const descriptor = [place.type, place.area].filter(Boolean).join(' · ');
   return (
-    <View style={styles.card}>
-      <View style={[styles.photo, { backgroundColor: tint }]}>
-        {!place.photo ? (
-          <Text variant="caption" tone="tertiary">No photo available</Text>
-        ) : null}
-      </View>
-
-      <View style={styles.body}>
-        <Text variant="h2" numberOfLines={2}>{place.name}</Text>
-        {place.type ? (
-          <Text variant="footnote" tone="secondary" numberOfLines={1}>{place.type}</Text>
-        ) : null}
-
-        <View style={styles.meta}>
-          {place.rating !== undefined ? (
-            <View style={styles.metaItem}>
-              <Star size={icon.sm} color={colors.brand.peach} fill={colors.brand.peach} strokeWidth={0} />
-              <Text variant="footnote">{place.rating.toFixed(1)}</Text>
-            </View>
-          ) : (
-            <Text variant="footnote" tone="tertiary">No rating yet</Text>
-          )}
-          {place.price ? <Text variant="footnote" tone="secondary">{place.price}</Text> : null}
-          {place.area ? <Text variant="footnote" tone="secondary">{place.area}</Text> : null}
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${place.name}. Open details`}
+      onPress={onOpen}
+      disabled={!onOpen}
+      style={[styles.card, { backgroundColor: tint }]}
+    >
+      {!place.photo ? (
+        <View style={styles.noPhoto}>
+          <Text style={styles.noPhotoText}>No photo available</Text>
         </View>
+      ) : null}
 
-        {place.openNow === undefined ? (
-          <Text variant="caption" tone="tertiary">Hours unknown</Text>
-        ) : (
-          <Text variant="caption" tone={place.openNow ? 'violet' : 'tertiary'}>
-            {place.openNow ? 'Open now' : 'Closed'}
-          </Text>
-        )}
+      {place.reason ? (
+        <View style={styles.match}>
+          <Text style={styles.matchText}>Picked for you</Text>
+        </View>
+      ) : null}
 
-        {place.reason ? (
-          <View style={styles.reason}>
-            <Text variant="footnote" tone="violet" numberOfLines={2}>{place.reason}</Text>
-          </View>
-        ) : null}
+      <View style={styles.meta}>
+        <LinearGradient
+          pointerEvents="none"
+          style={StyleSheet.absoluteFill}
+          colors={[`${E.meta.scrim}00`, `${E.meta.scrim}${E.meta.scrimAlphaHex}`]}
+        />
+        <Text style={styles.name} numberOfLines={2}>{place.name}</Text>
+        {descriptor ? <Text style={styles.line} numberOfLines={1}>{descriptor}</Text> : null}
+        <Text style={styles.line}>
+          {place.permanentlyClosed ? 'Permanently closed' : ratingLine(place)}
+        </Text>
+        {place.reason ? <Text style={styles.reason} numberOfLines={2}>{place.reason}</Text> : null}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    flex: 1, borderRadius: radius.xl, backgroundColor: colors.surface.raised,
-    overflow: 'hidden', ...shadow.card,
+  card: { flex: 1, borderRadius: E.card.radius, overflow: 'hidden' },
+  noPhoto: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  noPhotoText: { fontSize: E.match.fontSize, color: colors.text.secondary },
+  match: {
+    position: 'absolute', top: E.match.top, left: E.match.left, maxWidth: '85%',
+    borderRadius: E.match.radius, paddingVertical: E.match.paddingY, paddingHorizontal: E.match.paddingX,
+    backgroundColor: E.match.background,
   },
-  photo: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  body: { padding: spacing.md, gap: spacing.xxs },
-  meta: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xxs },
-  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  matchText: { fontSize: E.match.fontSize, fontWeight: '500', color: colors.brand.plum },
+  meta: {
+    position: 'absolute', left: 0, right: 0, bottom: 0,
+    paddingTop: E.meta.paddingTop, paddingHorizontal: E.meta.paddingX, paddingBottom: E.meta.paddingBottom,
+  },
+  name: {
+    fontSize: E.meta.nameSize, lineHeight: E.meta.nameLineHeight, fontWeight: '700',
+    letterSpacing: board.home.title.letterSpacing, color: colors.text.inverse, marginBottom: E.meta.nameMarginBottom,
+  },
+  line: {
+    fontSize: E.meta.lineSize, lineHeight: E.meta.lineSize * 1.5,
+    color: E.meta.lineColor, marginBottom: E.meta.lineGap,
+  },
   reason: {
-    marginTop: spacing.xs, padding: spacing.xs,
-    backgroundColor: colors.surface.accent, borderRadius: radius.sm,
+    fontSize: E.meta.reasonSize, lineHeight: E.meta.reasonSize * 1.5,
+    color: E.meta.reasonColor, marginTop: E.meta.reasonMarginTop - E.meta.lineGap,
   },
 });

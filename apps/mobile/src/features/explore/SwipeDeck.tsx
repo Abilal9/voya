@@ -10,7 +10,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import type { Place } from '@/services';
-import { spacing } from '@/theme';
+import { board } from '@/theme';
 import { PlaceCard } from './PlaceCard';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -28,6 +28,7 @@ interface Props {
   places: Place[];
   onSwipe: (place: Place, direction: SwipeDirection) => void;
   onEmpty?: () => void;
+  onOpen?: (place: Place) => void;
 }
 
 /**
@@ -38,7 +39,7 @@ interface Props {
  * difference between 60fps and visible stutter.
  */
 export const SwipeDeck = React.forwardRef<SwipeDeckHandle, Props>(function SwipeDeck(
-  { places, onSwipe, onEmpty },
+  { places, onSwipe, onEmpty, onOpen },
   ref,
 ) {
   const [index, setIndex] = React.useState(0);
@@ -88,7 +89,10 @@ export const SwipeDeck = React.forwardRef<SwipeDeckHandle, Props>(function Swipe
     [fling],
   );
 
+  // Horizontal drags swipe; vertical drags fall through to the page scroll.
   const pan = Gesture.Pan()
+    .activeOffsetX([-12, 12])
+    .failOffsetY([-14, 14])
     .onChange((e) => {
       x.value += e.changeX;
       y.value += e.changeY;
@@ -132,6 +136,8 @@ export const SwipeDeck = React.forwardRef<SwipeDeckHandle, Props>(function Swipe
 
   return (
     <View style={styles.wrap}>
+      {/* Board: lavender card peeking out behind the deck, rotated 2.5°. */}
+      <View style={styles.backing} pointerEvents="none" />
       {next ? (
         <Animated.View style={[styles.layer, nextStyle]} pointerEvents="none">
           <PlaceCard place={next} />
@@ -140,7 +146,7 @@ export const SwipeDeck = React.forwardRef<SwipeDeckHandle, Props>(function Swipe
 
       <GestureDetector gesture={pan}>
         <Animated.View style={[styles.layer, topStyle]}>
-          <PlaceCard place={current} />
+          <PlaceCard place={current} onOpen={onOpen ? () => onOpen(current) : undefined} />
           <Animated.View style={[styles.badge, styles.like, likeStyle]} pointerEvents="none" />
           <Animated.View style={[styles.badge, styles.nope, nopeStyle]} pointerEvents="none" />
         </Animated.View>
@@ -150,9 +156,19 @@ export const SwipeDeck = React.forwardRef<SwipeDeckHandle, Props>(function Swipe
 });
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, marginVertical: spacing.sm },
+  wrap: { height: board.explore.card.height, marginTop: board.explore.card.marginTop },
+  backing: {
+    position: 'absolute',
+    top: board.explore.backing.inset.top,
+    left: board.explore.backing.inset.x,
+    right: board.explore.backing.inset.x,
+    bottom: board.explore.backing.inset.bottom,
+    borderRadius: board.explore.backing.radius,
+    backgroundColor: board.explore.backing.color,
+    transform: [{ rotate: board.explore.backing.rotate }],
+  },
   layer: { ...StyleSheet.absoluteFillObject },
-  badge: { ...StyleSheet.absoluteFillObject, borderRadius: 26, borderWidth: 4 },
+  badge: { ...StyleSheet.absoluteFillObject, borderRadius: board.explore.card.radius, borderWidth: 4 },
   like: { borderColor: '#4F7A5B' },
   nope: { borderColor: '#8E414C' },
 });

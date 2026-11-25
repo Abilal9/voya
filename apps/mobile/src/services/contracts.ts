@@ -9,7 +9,6 @@ import type {
   PlaceCategory,
   PlaceSignal,
   Plan,
-  PlanType,
   RSVP,
   SavedPlace,
   TimelineItem,
@@ -136,5 +135,3 @@ export interface Services {
   trips: TripsService;
   notifications: NotificationsService;
 }
-
-export type { PlanType };

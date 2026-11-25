@@ -1,23 +1,40 @@
 import * as React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Button, Screen, Text, TextField } from '@/components/ui';
+import { Button, Screen, Text, TextField, TopBar } from '@/components/ui';
+import { AuthIntro, ShowToggle, SocialSignIn, authStyles } from '@/features/auth/AuthParts';
 import { useServices } from '@/services/ServicesProvider';
-import { spacing } from '@/theme';
+import { board, colors } from '@/theme';
 
-/** A02 Create account. Verification (A06) follows. */
+type Errors = Partial<Record<'first' | 'last' | 'email' | 'password' | 'confirm', string>>;
+
+/**
+ * A02 Create account — board figure "A02". Verification (A06) follows.
+ * KNOWN GAP: the mock auth service signs every new account into the seeded
+ * user, so first/last name are validated here but not yet persisted.
+ */
 export default function SignUp() {
   const router = useRouter();
   const services = useServices();
+  const [first, setFirst] = React.useState('');
+  const [last, setLast] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
-  const [error, setError] = React.useState<string | undefined>();
+  const [confirm, setConfirm] = React.useState('');
+  const [show, setShow] = React.useState(false);
+  const [showConfirm, setShowConfirm] = React.useState(false);
+  const [errors, setErrors] = React.useState<Errors>({});
   const [busy, setBusy] = React.useState(false);
 
   const submit = async () => {
-    setError(undefined);
-    if (!email.includes('@')) return setError('Enter a valid email address.');
-    if (password.length < 6) return setError('Password must be at least 6 characters.');
+    const next: Errors = {};
+    if (!first.trim()) next.first = 'Enter your first name.';
+    if (!last.trim()) next.last = 'Enter your last name.';
+    if (!email.includes('@')) next.email = 'Enter a valid email address.';
+    if (password.length < 6) next.password = 'Password must be at least 6 characters.';
+    if (confirm !== password) next.confirm = 'Passwords do not match.';
+    setErrors(next);
+    if (Object.keys(next).length > 0) return;
     setBusy(true);
     try {
       await services.auth.signUp(email, password);
@@ -28,27 +45,36 @@ export default function SignUp() {
   };
 
   return (
-    <Screen scroll>
-      <View style={styles.head}>
-        <Text variant="h1">Create your account</Text>
-        <Text variant="body" tone="secondary">A few details and you&apos;re in.</Text>
+    <Screen scroll edges={['top', 'left', 'right', 'bottom']} contentStyle={authStyles.screen}>
+      <TopBar title="Welcome to Voya" />
+      <AuthIntro tight title={'Make room for\ngood plans.'} body="Create your account to get started." />
+      <SocialSignIn />
+      <View style={[authStyles.fields, { gap: board.form.fieldsGapTight }]}>
+        <TextField label="First name" value={first} onChangeText={setFirst} autoComplete="given-name" error={errors.first} />
+        <TextField label="Last name" value={last} onChangeText={setLast} autoComplete="family-name" error={errors.last} />
+        <TextField
+          label="Email" value={email} onChangeText={setEmail} error={errors.email}
+          autoCapitalize="none" autoComplete="email" keyboardType="email-address"
+        />
+        <TextField
+          label="Password" value={password} onChangeText={setPassword} error={errors.password}
+          secureTextEntry={!show} autoComplete="new-password"
+          right={<ShowToggle shown={show} onToggle={() => setShow((v) => !v)} />}
+        />
+        <TextField
+          label="Confirm password" value={confirm} onChangeText={setConfirm} error={errors.confirm}
+          secureTextEntry={!showConfirm} autoComplete="new-password"
+          right={<ShowToggle shown={showConfirm} onToggle={() => setShowConfirm((v) => !v)} />}
+        />
       </View>
-      <View style={styles.form}>
-        <TextField
-          label="Email" value={email} onChangeText={setEmail}
-          autoCapitalize="none" keyboardType="email-address" placeholder="you@example.com"
-        />
-        <TextField
-          label="Password" value={password} onChangeText={setPassword}
-          secureTextEntry placeholder="At least 6 characters" error={error}
-        />
-        <Button label="Continue" onPress={submit} loading={busy} />
+      <View style={authStyles.foot}>
+        <Text style={authStyles.legal}>
+          By continuing, you agree to our{' '}
+          <Text style={[authStyles.legal, { color: colors.brand.violet }]}>Terms of Service</Text> and{' '}
+          <Text style={[authStyles.legal, { color: colors.brand.violet }]}>Privacy Policy</Text>.
+        </Text>
+        <Button label="Create account" onPress={submit} loading={busy} />
       </View>
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  head: { gap: spacing.xxs, paddingTop: spacing.xxl, paddingBottom: spacing.lg },
-  form: { gap: spacing.md },
-});

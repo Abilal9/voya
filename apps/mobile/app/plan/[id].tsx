@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Button, Card, ErrorState, LoadingState, Screen, Text } from '@/components/ui';
 import { useServices } from '@/services/ServicesProvider';
 import type { Hangout, TimelineItem, Trip, VoyaEvent } from '@/services';
-import { colors, spacing } from '@/theme';
+import { spacing } from '@/theme';
 
 function timeOf(item: TimelineItem) {
   return new Date(item.startsAt).toLocaleTimeString(undefined, {

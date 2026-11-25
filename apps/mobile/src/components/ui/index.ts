@@ -8,3 +8,4 @@ export { Screen } from './Screen';
 export { EmptyState, ErrorState, LoadingState, OfflineState } from './States';
 export { Text } from './Text';
 export { TextField } from './TextField';
+export { TopBar } from './TopBar';
