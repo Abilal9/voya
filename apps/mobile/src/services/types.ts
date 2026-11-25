@@ -186,6 +186,8 @@ export interface Invitation {
 export interface ActivityEntry {
   id: ID;
   planId?: ID;
+  /** Who caused it, when it was a person. */
+  actorId?: ID;
   type: string;
   message: string;
   createdAt: string;

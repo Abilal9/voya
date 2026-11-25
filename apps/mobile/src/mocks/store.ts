@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ServiceError } from '@/services/types';
 import * as fx from './fixtures';
+import { fixtureWeekOffset, shiftFixtureDates } from './clock';
 import type { Account, ActivityEntry, Plan, SavedPlace, PlaceSignal, ID } from '@/services/types';
 
 /**
@@ -14,9 +15,12 @@ import type { Account, ActivityEntry, Plan, SavedPlace, PlaceSignal, ID } from '
  * must never import it.
  */
 
-const VERSION = 'v1';
+// v2: fixture dates are week-shifted at seed time and Florence moved after the Wedding.
+const VERSION = 'v2';
 const key = (accountId: string, slice: string) => `voya:${VERSION}:${accountId}:${slice}`;
-const GLOBAL_SESSION_KEY = `voya:${VERSION}:session`;
+// The session is not versioned: a data reseed should not sign the user out.
+const GLOBAL_SESSION_KEY = 'voya:session';
+const LEGACY_SESSION_KEYS = ['voya:v1:session'];
 
 export interface MockState {
   account: Account;
@@ -26,14 +30,18 @@ export interface MockState {
   activity: ActivityEntry[];
 }
 
-function seed(accountId: string): MockState {
-  const base = structuredClone({
-    account: fx.account,
-    plans: fx.plans,
-    saved: [] as SavedPlace[],
-    signals: {} as Record<ID, PlaceSignal>,
-    activity: fx.activity,
-  }) as MockState;
+/** Fresh state for an account, with fixture dates moved up to the current week. */
+export function seed(accountId: string, now: number = Date.now()): MockState {
+  const base = shiftFixtureDates(
+    {
+      account: fx.account,
+      plans: fx.plans,
+      saved: [] as SavedPlace[],
+      signals: {} as Record<ID, PlaceSignal>,
+      activity: fx.activity,
+    },
+    fixtureWeekOffset(now),
+  ) as MockState;
 
   if (accountId !== fx.SIGNED_IN_ACCOUNT_ID) {
     // A second seeded identity: same world, different membership and no saves.
@@ -75,7 +83,18 @@ async function delay() {
 let cache: { accountId: string; state: MockState } | null = null;
 
 export async function currentAccountId(): Promise<string | null> {
-  return AsyncStorage.getItem(GLOBAL_SESSION_KEY);
+  const id = await AsyncStorage.getItem(GLOBAL_SESSION_KEY);
+  if (id) return id;
+  // One-time carry-over from the versioned key used before v2.
+  for (const legacy of LEGACY_SESSION_KEYS) {
+    const old = await AsyncStorage.getItem(legacy);
+    if (old) {
+      await AsyncStorage.setItem(GLOBAL_SESSION_KEY, old);
+      await AsyncStorage.removeItem(legacy);
+      return old;
+    }
+  }
+  return null;
 }
 
 export async function setCurrentAccountId(id: string | null) {
@@ -129,7 +148,9 @@ export async function resetAccount(accountId: string) {
 export async function resetAll() {
   cache = null;
   const keys = await AsyncStorage.getAllKeys();
-  await AsyncStorage.multiRemove(keys.filter((k) => k.startsWith(`voya:${VERSION}:`)));
+  await AsyncStorage.multiRemove(
+    keys.filter((k) => k.startsWith(`voya:${VERSION}:`) || k === GLOBAL_SESSION_KEY || LEGACY_SESSION_KEYS.includes(k)),
+  );
 }
 
 export function bumpVersion(plan: Plan): Plan {

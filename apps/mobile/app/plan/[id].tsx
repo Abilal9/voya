@@ -2,6 +2,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Button, Card, ErrorState, LoadingState, Screen, Text } from '@/components/ui';
+import { headcountLabel } from '@/services/planRules';
 import { useServices } from '@/services/ServicesProvider';
 import type { Hangout, TimelineItem, Trip, VoyaEvent } from '@/services';
 import { spacing } from '@/theme';
@@ -64,7 +65,7 @@ export default function PlanDetail() {
           <Text variant="overline" tone="tertiary">{p.type.toUpperCase()}</Text>
           <Text variant="h1">{p.title}</Text>
           <Text variant="footnote" tone="secondary">
-            {`${p.city} · ${p.members.length} people · v${p.version}`}
+            {`${p.city} · ${headcountLabel(p)}`}
           </Text>
         </View>
 

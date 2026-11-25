@@ -1,26 +1,10 @@
 import type { Plan } from '@/services';
-import { people } from '@/mocks/fixtures';
-
-// KNOWN GAP: member names still come from the fixture graph because there is
-// no people/directory service yet. Kept in this one file so the import is easy
-// to replace when that contract lands.
 
 export const PLAN_LABEL: Record<Plan['type'], string> = {
   trip: 'Trip',
   hangout: 'Hangout',
   event: 'Event',
 };
-
-export function memberNames(plan: Plan): string[] {
-  return plan.members
-    .map((m) => people.find((p) => p.id === m.personId)?.displayName)
-    .filter(Boolean) as string[];
-}
-
-/** Board: "4 people" for trips/hangouts, guest count for events. */
-export function headcount(plan: Plan) {
-  return plan.type === 'event' ? `${plan.guests.length} guests` : `${plan.members.length} people`;
-}
 
 const time = (d: Date) => d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 

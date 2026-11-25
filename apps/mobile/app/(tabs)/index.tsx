@@ -8,8 +8,10 @@ import { VoyaLogo } from '@/components/brand';
 import { AvatarStack, EmptyState, ErrorState, LoadingState, Text } from '@/components/ui';
 import { PHOTO_TINT } from '@/features/explore/PlaceCard';
 import {
-  PLAN_LABEL, greeting, headcount, memberNames, rowWhen, shortWhen,
+  PLAN_LABEL, greeting, rowWhen, shortWhen,
 } from '@/features/home/planFormat';
+import { usePeople } from '@/features/catalog';
+import { headcountLabel } from '@/services/planRules';
 import { useServices } from '@/services/ServicesProvider';
 import type { Plan } from '@/services';
 import { useSession } from '@/stores/session';
@@ -24,6 +26,7 @@ export default function Home() {
   const router = useRouter();
   const services = useServices();
   const account = useSession((s) => s.account);
+  const { memberNames } = usePeople();
 
   const plans = useQuery({ queryKey: ['plans', 'upcoming'], queryFn: () => services.plans.listUpcoming() });
   const past = useQuery({ queryKey: ['plans', 'past'], queryFn: () => services.plans.listPast() });
@@ -45,12 +48,11 @@ export default function Home() {
       >
         <View style={styles.brandRow}>
           <VoyaLogo width={H.brandHeight * board.emblemAspect * board.logoAspect} />
-          {/* KNOWN GAP: Activity (38) is not built yet, so the bell opens Profile. */}
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Activity"
             hitSlop={layout.minTouchTarget / 4}
-            onPress={() => router.push('/(tabs)/profile')}
+            onPress={() => router.push('/activity')}
           >
             <Bell size={icon.lg} color={colors.brand.plum} strokeWidth={icon.strokeWidth} />
             {(unread.data ?? 0) > 0 ? <View style={styles.dot} /> : null}
@@ -81,7 +83,7 @@ export default function Home() {
               <Text style={styles.upNextTitle} numberOfLines={2}>{upNext.title}</Text>
               <View style={[styles.between, styles.upNextFooter]}>
                 <AvatarStack names={memberNames(upNext)} />
-                <Text style={styles.small}>{headcount(upNext)}</Text>
+                <Text style={styles.small}>{headcountLabel(upNext)}</Text>
               </View>
             </Pressable>
 

@@ -5,6 +5,7 @@ import type {
   ID,
   Invitation,
   OnboardingStep,
+  Person,
   Place,
   PlaceCategory,
   PlaceSignal,
@@ -117,6 +118,16 @@ export interface TripsService {
   replaceItem(tripId: ID, itemId: ID, placeId: ID): Promise<Trip>;
 }
 
+/**
+ * Reference data the UI needs to render pickers and names. Today it is read
+ * from fixtures; later it comes from the API (people from plan membership).
+ */
+export interface CatalogService {
+  cities(): Promise<string[]>;
+  interests(): Promise<PlaceCategory[]>;
+  people(): Promise<Person[]>;
+}
+
 export interface NotificationsService {
   list(): Promise<ActivityEntry[]>;
   markAllRead(): Promise<void>;
@@ -134,4 +145,5 @@ export interface Services {
   events: EventsService;
   trips: TripsService;
   notifications: NotificationsService;
+  catalog: CatalogService;
 }

@@ -8,8 +8,7 @@ import { EmptyState, ErrorState, LoadingState, Text } from '@/components/ui';
 import { SwipeDeck, type SwipeDeckHandle } from '@/features/explore/SwipeDeck';
 import { PlaceCard } from '@/features/explore/PlaceCard';
 import { useServices } from '@/services/ServicesProvider';
-// KNOWN GAP (pre-existing): city and category lists come from fixtures; there is no catalogue service yet.
-import { CITIES, INTERESTS } from '@/mocks/fixtures';
+import { useCities, useInterests } from '@/features/catalog';
 import type { Place, PlaceCategory } from '@/services';
 import { board, colors, icon } from '@/theme';
 
@@ -28,7 +27,13 @@ export default function Explore() {
   const qc = useQueryClient();
   const deck = React.useRef<SwipeDeckHandle>(null);
 
-  const [city, setCity] = React.useState<string>(CITIES[0]);
+  const citiesQuery = useCities();
+  const interestsQuery = useInterests();
+  const cities = citiesQuery.data ?? [];
+  const interests = interestsQuery.data ?? [];
+  const homeCity = cities[0] ?? '';
+  const [chosenCity, setCity] = React.useState<string | undefined>();
+  const city = chosenCity ?? homeCity;
   const [category, setCategory] = React.useState<PlaceCategory | 'All'>('All');
   const [view, setView] = React.useState<ExploreView>('deck');
   const [top, setTop] = React.useState(0);
@@ -36,6 +41,7 @@ export default function Explore() {
   const places = useQuery({
     queryKey: ['places', city, category],
     queryFn: () => services.places.discover({ city, category }),
+    enabled: !!city,
   });
   const saved = useQuery({ queryKey: ['saved'], queryFn: () => services.saved.list() });
 
@@ -60,11 +66,11 @@ export default function Explore() {
   };
 
   const chooseCity = () => {
-    const options = [...CITIES];
+    const options = [...cities];
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         { title: 'Choose a city', options: [...options, 'Cancel'], cancelButtonIndex: options.length },
-        (i) => { if (i < options.length) setCity(options[i]!); },
+        (i) => { if (i < options.length) setCity(options[i]); },
       );
     } else {
       Alert.alert('Choose a city', undefined, [
@@ -83,7 +89,7 @@ export default function Explore() {
         <Pressable accessibilityRole="button" accessibilityLabel={`Location: ${city}. Change city`} onPress={chooseCity} style={styles.location}>
           <MapPin size={icon.md} color={colors.brand.plum} strokeWidth={icon.strokeWidth} />
           <Text style={styles.city}>{city}</Text>
-          <Text style={styles.small}>{city === CITIES[0] ? 'Near me' : 'Change'}</Text>
+          <Text style={styles.small}>{city === homeCity ? 'Near me' : 'Change'}</Text>
           <ChevronDown size={icon.sm} color={colors.brand.plum} strokeWidth={icon.strokeWidth} />
         </Pressable>
         <Text style={styles.note}>Discover places you&apos;ll love</Text>
@@ -94,7 +100,7 @@ export default function Explore() {
           style={styles.categoriesRow}
           contentContainerStyle={styles.categories}
         >
-          {(['All', ...INTERESTS] as const).map((c) => {
+          {(['All', ...interests] as const).map((c) => {
             const selected = category === c;
             return (
               <Pressable
@@ -121,7 +127,7 @@ export default function Explore() {
             actionLabel="Reset filters"
             onAction={() => {
               setCategory('All');
-              setCity(CITIES[0]);
+              setCity(undefined);
               void places.refetch();
             }}
           />

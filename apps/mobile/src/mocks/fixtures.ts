@@ -22,6 +22,19 @@ import type {
 
 export const SIGNED_IN_ACCOUNT_ID = 'p-ahmad';
 
+/**
+ * The "today" the fixture graph was authored against. When state is seeded the
+ * store shifts every fixture timestamp forward by whole weeks so that, relative
+ * to the real clock, upcoming plans are still upcoming and weekdays still match
+ * the board (Friday Night stays a Friday). After seeding, persisted dates age
+ * normally, so a plan whose dates pass moves to Past Plans.
+ *
+ * Board note: the board labels the Florence trip "Nov 18–22". It is authored
+ * here as Dec 16–20 (same weekdays) so it sits after the Wedding as it does in
+ * the board's Upcoming list, instead of being a past trip shown as upcoming.
+ */
+export const FIXTURE_ANCHOR = '2026-11-25T12:00:00';
+
 export const people: Person[] = [
   { id: 'p-ahmad', firstName: 'Ahmad', displayName: 'Ahmad', city: 'Riyadh' },
   { id: 'p-khaled', firstName: 'Khaled', lastName: 'Kadri', displayName: 'Khaled Kadri', city: 'Riyadh' },
@@ -180,7 +193,7 @@ const iso = (d: string) => new Date(d).toISOString();
 export const florenceTrip: Trip = {
   id: 'plan-florence', type: 'trip', title: 'Florence', destination: 'Florence',
   city: 'Florence', lifecycle: 'active', ownerId: 'p-ahmad', version: 4,
-  startsAt: iso('2026-11-18T09:00:00'), endsAt: iso('2026-11-22T20:00:00'),
+  startsAt: iso('2026-12-16T09:00:00'), endsAt: iso('2026-12-20T20:00:00'),
   coverPhoto: 'florence', generated: true, mustDoPlaceIds: ['uffizi', 'duomo'],
   members: [
     { personId: 'p-ahmad', role: 'organizer', capabilities: ['plan.edit', 'plan.delete', 'member.manage', 'invite.create'], joinedAt: iso('2026-10-02') },
@@ -190,20 +203,20 @@ export const florenceTrip: Trip = {
   ],
   days: [
     {
-      date: '2026-11-18',
+      date: '2026-12-16',
       items: [
-        { id: 'it-1', startsAt: iso('2026-11-18T10:00:00'), title: 'Uffizi Gallery', subtitle: 'Museum · Culture', placeId: 'uffizi', locked: true, travelMinutes: 0 },
-        { id: 'it-2', startsAt: iso('2026-11-18T13:00:00'), title: 'Mercato Centrale', subtitle: 'Lunch', placeId: 'mercato', travelMinutes: 12 },
-        { id: 'it-3', startsAt: iso('2026-11-18T18:00:00'), title: 'Hotel / break', subtitle: 'A little time to recharge', placeId: 'savoy', travelMinutes: 9 },
-        { id: 'it-4', startsAt: iso('2026-11-18T20:30:00'), title: 'Dinner', subtitle: 'Santo Spirito', placeId: 'santo-spirito', travelMinutes: 14 },
+        { id: 'it-1', startsAt: iso('2026-12-16T10:00:00'), title: 'Uffizi Gallery', subtitle: 'Museum · Culture', placeId: 'uffizi', locked: true, travelMinutes: 0 },
+        { id: 'it-2', startsAt: iso('2026-12-16T13:00:00'), title: 'Mercato Centrale', subtitle: 'Lunch', placeId: 'mercato', travelMinutes: 12 },
+        { id: 'it-3', startsAt: iso('2026-12-16T18:00:00'), title: 'Hotel / break', subtitle: 'A little time to recharge', placeId: 'savoy', travelMinutes: 9 },
+        { id: 'it-4', startsAt: iso('2026-12-16T20:30:00'), title: 'Dinner', subtitle: 'Santo Spirito', placeId: 'santo-spirito', travelMinutes: 14 },
       ],
     },
     {
-      date: '2026-11-19',
+      date: '2026-12-17',
       items: [
-        { id: 'it-5', startsAt: iso('2026-11-19T09:30:00'), title: 'Caffè Gilli', subtitle: 'Breakfast', placeId: 'gilli' },
-        { id: 'it-6', startsAt: iso('2026-11-19T11:00:00'), title: 'Piazza del Duomo', subtitle: 'Landmark', placeId: 'duomo', locked: true, travelMinutes: 6 },
-        { id: 'it-7', startsAt: iso('2026-11-19T19:30:00'), title: "Buca dell'Orafo", subtitle: 'Dinner', placeId: 'buca', travelMinutes: 10 },
+        { id: 'it-5', startsAt: iso('2026-12-17T09:30:00'), title: 'Caffè Gilli', subtitle: 'Breakfast', placeId: 'gilli' },
+        { id: 'it-6', startsAt: iso('2026-12-17T11:00:00'), title: 'Piazza del Duomo', subtitle: 'Landmark', placeId: 'duomo', locked: true, travelMinutes: 6 },
+        { id: 'it-7', startsAt: iso('2026-12-17T19:30:00'), title: "Buca dell'Orafo", subtitle: 'Dinner', placeId: 'buca', travelMinutes: 10 },
       ],
     },
   ],
@@ -278,9 +291,9 @@ export const completedHangout: Hangout = {
 };
 
 export const activity: ActivityEntry[] = [
-  { id: 'ac-1', planId: 'plan-friday', type: 'vote', message: 'Khaled voted on Friday Night', createdAt: iso('2026-11-24T18:20:00') },
-  { id: 'ac-2', planId: 'plan-florence', type: 'join', message: 'Faisal joined the Florence trip', createdAt: iso('2026-11-23T11:02:00') },
-  { id: 'ac-3', planId: 'plan-wedding', type: 'rsvp', message: 'Omar is going to the wedding', createdAt: iso('2026-11-22T09:14:00'), readAt: iso('2026-11-22T10:00:00') },
+  { id: 'ac-1', actorId: 'p-khaled', planId: 'plan-friday', type: 'vote', message: 'Khaled voted on Friday Night', createdAt: iso('2026-11-24T18:20:00') },
+  { id: 'ac-2', actorId: 'p-faisal', planId: 'plan-florence', type: 'join', message: 'Faisal joined the Florence trip', createdAt: iso('2026-11-23T11:02:00') },
+  { id: 'ac-3', actorId: 'p-omar', planId: 'plan-wedding', type: 'rsvp', message: 'Omar is going to the wedding', createdAt: iso('2026-11-22T09:14:00'), readAt: iso('2026-11-22T10:00:00') },
 ];
 
 export const plans = [florenceTrip, fridayHangout, wedding, completedHangout];

@@ -3,13 +3,14 @@ import { StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Button, Chip, Screen, Text } from '@/components/ui';
 import { useServices } from '@/services/ServicesProvider';
-import { INTERESTS } from '@/mocks/fixtures';
+import { useInterests } from '@/features/catalog';
 import { spacing } from '@/theme';
 
 /** A08 Interests. */
 export default function OnboardingInterests() {
   const router = useRouter();
   const services = useServices();
+  const interests = useInterests();
   const [picked, setPicked] = React.useState<string[]>([]);
   const [busy, setBusy] = React.useState(false);
 
@@ -35,7 +36,7 @@ export default function OnboardingInterests() {
         <Text variant="body" tone="secondary">We use this to suggest places you&apos;ll like.</Text>
       </View>
       <View style={styles.chips}>
-        {INTERESTS.map((i) => (
+        {(interests.data ?? []).map((i) => (
           <Chip key={i} label={i} selected={picked.includes(i)} onPress={() => toggle(i)} />
         ))}
       </View>

@@ -268,6 +268,11 @@ export const board = {
     orSize: 11, orColor: '#8A8191',
   },
   welcome: { emblemSize: 64, bodyMaxWidth: 295, logoWidth: 220, logoMarginBottom: 39, titleSize: 36, titleLineHeight: 42, bodySize: 15, bodyLineHeight: 25.5, paddingBottom: 66 },
+  activity: {
+    rowPaddingY: 22, rowGap: 14, avatar: 42, titleSize: 15, titleLineHeight: 21, titleMarginBottom: 6,
+    bodySize: 12, bodyLineHeight: 19, timeSize: 10, timeColor: '#97879C', dot: 5,
+    dayLabelSize: 11, dayLabelTracking: 1.4, dayLabelColor: '#96819E', dayLabelMarginTop: 25,
+  },
   pastPlans: { introMarginBottom: 18, introBodySize: 13, cardMarginBottom: 24, photoHeight: 120, photoMarginBottom: 11, titleSize: 17 },
   tabBar: {
     height: 88, paddingX: 28, paddingTop: 10, paddingBottom: 24, borderColor: '#E9DFE8',

@@ -1,6 +1,7 @@
 import type {
   AuthService,
   AuthSession,
+  CatalogService,
   EventsService,
   HangoutsService,
   InvitationsService,
@@ -25,6 +26,7 @@ import {
   type Trip,
   type VoyaEvent,
 } from '@/services/types';
+import { classifyPlan, sortPast, sortUpcoming } from '@/services/planRules';
 import * as fx from './fixtures';
 import {
   currentAccountId,
@@ -198,13 +200,13 @@ const saved: SavedService = {
 const plans: PlansService = {
   async listUpcoming() {
     const { state } = await read();
-    return state.plans
-      .filter((p) => p.lifecycle === 'active' || p.lifecycle === 'draft')
-      .sort((a, b) => (a.startsAt ?? '').localeCompare(b.startsAt ?? ''));
+    const now = Date.now();
+    return state.plans.filter((p) => classifyPlan(p, now) === 'upcoming').sort(sortUpcoming);
   },
   async listPast() {
     const { state } = await read();
-    return state.plans.filter((p) => p.lifecycle === 'completed' || p.lifecycle === 'cancelled');
+    const now = Date.now();
+    return state.plans.filter((p) => classifyPlan(p, now) === 'past').sort(sortPast);
   },
   async get(id) {
     const { state } = await read();
@@ -563,8 +565,20 @@ const notifications: NotificationsService = {
   },
 };
 
+const catalog: CatalogService = {
+  async cities() {
+    return [...fx.CITIES];
+  },
+  async interests() {
+    return [...fx.INTERESTS];
+  },
+  async people() {
+    return structuredClone(fx.people);
+  },
+};
+
 export const mockServices: Services = {
-  auth, profile, places, saved, plans, invitations, hangouts, events, trips, notifications,
+  auth, profile, places, saved, plans, invitations, hangouts, events, trips, notifications, catalog,
 };
 
 export const devTools = { resetAll, setCurrentAccountId };
