@@ -1,39 +1,48 @@
 import * as React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Bell } from 'lucide-react-native';
-import { Button, Screen, Text } from '@/components/ui';
+import { CalendarDays } from 'lucide-react-native';
+import { Button, Screen, Text, TopBar } from '@/components/ui';
+import { StateHero, authStyles } from '@/features/auth/AuthParts';
 import { useServices } from '@/services/ServicesProvider';
 import { useSession } from '@/stores/session';
-import { colors, spacing } from '@/theme';
+import { board, colors } from '@/theme';
 
-/** A10 Notification permission — the last onboarding step. */
+/**
+ * A10 Notification permission — board figure "A10", the last onboarding step.
+ * Mocked: no OS prompt is shown and nothing is registered for push.
+ */
 export default function OnboardingNotifications() {
   const services = useServices();
   const refresh = useSession((s) => s.refresh);
+  const [busy, setBusy] = React.useState(false);
 
   const finish = async () => {
-    await services.profile.completeOnboardingStep('notifications');
-    await refresh();
+    setBusy(true);
+    try {
+      await services.profile.completeOnboardingStep('notifications');
+      await refresh(); // the session guard takes the user Home
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
-    <Screen>
-      <View style={styles.body}>
-        <Bell size={40} color={colors.brand.violet} strokeWidth={1.7} />
-        <Text variant="h1" center>Stay in the loop</Text>
-        <Text variant="body" tone="secondary" center>
-          Get notified when friends vote, join or change a plan.
-        </Text>
-      </View>
-      <View style={styles.actions}>
-        <Button label="Turn on notifications" onPress={finish} />
-        <Button label="Not now" variant="ghost" onPress={finish} />
+    <Screen edges={['top', 'left', 'right', 'bottom']} contentStyle={authStyles.screen}>
+      <TopBar title="One last thing" />
+      <StateHero
+        Icon={CalendarDays}
+        title="Stay in the loop"
+        body="Know when friends join, someone suggests a place, or an itinerary is ready. We’ll also keep you up to date when plans or event details change."
+      />
+      <Text style={styles.note}>Choose what you hear about in Settings.</Text>
+      <View style={authStyles.foot}>
+        <Button label="Turn on notifications" onPress={() => void finish()} loading={busy} />
+        <Button label="Not now" variant="ghost" onPress={() => void finish()} disabled={busy} />
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  body: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
-  actions: { gap: spacing.xs, paddingBottom: spacing.xl },
+  note: { ...board.small, color: colors.text.secondary, marginTop: board.stateHero.paddingTop * 2 },
 });

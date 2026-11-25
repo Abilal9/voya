@@ -1,21 +1,20 @@
 import * as React from 'react';
 import { View } from 'react-native';
-import { useRouter } from 'expo-router';
 import { Button, Screen, Text, TextField, TopBar } from '@/components/ui';
 import { AuthIntro, ShowToggle, SocialSignIn, authStyles } from '@/features/auth/AuthParts';
 import { useServices } from '@/services/ServicesProvider';
+import { useSession } from '@/stores/session';
 import { board, colors } from '@/theme';
 
 type Errors = Partial<Record<'first' | 'last' | 'email' | 'password' | 'confirm', string>>;
 
 /**
- * A02 Create account — board figure "A02". Verification (A06) follows.
- * KNOWN GAP: the mock auth service signs every new account into the seeded
- * user, so first/last name are validated here but not yet persisted.
+ * A02 Create account — board figure "A02". Creates a separate local mock
+ * account (no password is stored), then Verify (A06) follows.
  */
 export default function SignUp() {
-  const router = useRouter();
   const services = useServices();
+  const refresh = useSession((s) => s.refresh);
   const [first, setFirst] = React.useState('');
   const [last, setLast] = React.useState('');
   const [email, setEmail] = React.useState('');
@@ -37,8 +36,11 @@ export default function SignUp() {
     if (Object.keys(next).length > 0) return;
     setBusy(true);
     try {
-      await services.auth.signUp(email, password);
-      router.push('/(auth)/verify');
+      await services.auth.signUp(email, password, { firstName: first, lastName: last });
+      // The session guard sees an unverified account and routes to Verify.
+      await refresh();
+    } catch (e) {
+      setErrors({ email: e instanceof Error ? e.message : 'We could not create your account.' });
     } finally {
       setBusy(false);
     }

@@ -2,11 +2,15 @@ import * as React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MapPin } from 'lucide-react-native';
-import { Button, Screen, Text } from '@/components/ui';
+import { Button, Screen, Text, TopBar } from '@/components/ui';
+import { StateHero, authStyles } from '@/features/auth/AuthParts';
 import { useServices } from '@/services/ServicesProvider';
-import { colors, spacing } from '@/theme';
+import { board, colors } from '@/theme';
 
-/** A09 Location permission. Declining is NOT an error — onboarding continues. */
+/**
+ * A09 Location permission — board figure "A09". Mocked: no OS prompt is shown
+ * and no location is read. Declining is not an error; onboarding continues.
+ */
 export default function OnboardingLocation() {
   const router = useRouter();
   const services = useServices();
@@ -17,23 +21,22 @@ export default function OnboardingLocation() {
   };
 
   return (
-    <Screen>
-      <View style={styles.body}>
-        <MapPin size={40} color={colors.brand.violet} strokeWidth={1.7} />
-        <Text variant="h1" center>Discover what&apos;s near you</Text>
-        <Text variant="body" tone="secondary" center>
-          Voya uses your location to show nearby places. You can always pick a city manually instead.
-        </Text>
-      </View>
-      <View style={styles.actions}>
-        <Button label="Allow location" onPress={next} />
-        <Button label="Not now" variant="ghost" onPress={next} />
+    <Screen edges={['top', 'left', 'right', 'bottom']} contentStyle={authStyles.screen}>
+      <TopBar title="Nearby discoveries" />
+      <StateHero
+        Icon={MapPin}
+        title={'Find good things\nnearby'}
+        body="Voya can use your location to recommend places and experiences around you."
+      />
+      <Text style={styles.note}>You can also choose a city yourself.</Text>
+      <View style={authStyles.foot}>
+        <Button label="Allow location" onPress={() => void next()} />
+        <Button label="Not now" variant="ghost" onPress={() => void next()} />
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  body: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
-  actions: { gap: spacing.xs, paddingBottom: spacing.xl },
+  note: { ...board.small, color: colors.text.secondary, marginTop: board.stateHero.paddingTop * 2 },
 });

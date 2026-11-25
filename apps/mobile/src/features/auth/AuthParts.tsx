@@ -4,16 +4,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button, Text } from '@/components/ui';
 import { useServices } from '@/services/ServicesProvider';
 import { useSession } from '@/stores/session';
-import { board, colors } from '@/theme';
+import { board, colors, icon } from '@/theme';
 
 const F = board.form;
 
 /** Board `.xp-intro`: h1 then a 13px muted line. */
-export function AuthIntro({ title, body, tight }: { title: string; body: string; tight?: boolean }) {
+export function AuthIntro({ title, body, tight }: { title: string; body?: string; tight?: boolean }) {
   return (
     <View style={{ marginBottom: tight ? F.fieldsMarginTop : F.introMarginBottom }}>
       <Text style={styles.h1}>{title}</Text>
-      <Text style={styles.introBody}>{body}</Text>
+      {body ? <Text style={styles.introBody}>{body}</Text> : null}
     </View>
   );
 }
@@ -98,4 +98,54 @@ const styles = StyleSheet.create({
   link: { paddingVertical: F.linkPaddingY, alignSelf: 'flex-start' },
   linkText: { fontSize: F.linkSize, color: colors.brand.violet },
   toggle: { fontSize: board.field.toggleSize, color: colors.brand.violet, paddingVertical: board.inlineGap },
+});
+
+/** Board `.xp-state`: lavender symbol tile, h1, explanatory body. */
+export function StateHero({
+  Icon, title, body,
+}: { Icon: React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>; title: string; body?: React.ReactNode }) {
+  const H = board.stateHero;
+  return (
+    <View style={{ paddingTop: H.paddingTop }}>
+      <View style={heroStyles.symbol}>
+        <Icon size={H.symbolIcon} color={colors.brand.violet} strokeWidth={icon.strokeWidth} />
+      </View>
+      <Text style={heroStyles.h1}>{title}</Text>
+      {body ? <Text style={heroStyles.body}>{body}</Text> : null}
+    </View>
+  );
+}
+
+/** Board `.xp-chips` toggle chip. */
+export function ToggleChip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      onPress={onPress}
+      style={[heroStyles.chip, selected && heroStyles.chipSelected]}
+    >
+      <Text style={[heroStyles.chipText, selected && heroStyles.chipTextSelected]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+const heroStyles = StyleSheet.create({
+  symbol: {
+    width: board.stateHero.symbolSize, height: board.stateHero.symbolSize, borderRadius: board.stateHero.symbolRadius,
+    backgroundColor: board.stateHero.symbolBackground, alignItems: 'center', justifyContent: 'center',
+    marginBottom: board.stateHero.symbolMarginBottom,
+  },
+  h1: { ...board.h1, color: colors.brand.plum },
+  body: {
+    fontSize: board.stateHero.bodySize, lineHeight: board.stateHero.bodyLineHeight,
+    color: colors.text.secondary, maxWidth: board.stateHero.bodyMaxWidth,
+  },
+  chip: {
+    minHeight: board.chips.minHeight, justifyContent: 'center', borderWidth: 1, borderColor: board.chips.border,
+    borderRadius: board.chips.radius, paddingVertical: board.chips.paddingY, paddingHorizontal: board.chips.paddingX,
+  },
+  chipSelected: { backgroundColor: board.chips.selectedBackground, borderColor: colors.brand.lavender },
+  chipText: { fontSize: board.chips.fontSize, color: colors.brand.plum },
+  chipTextSelected: { color: colors.brand.violet },
 });

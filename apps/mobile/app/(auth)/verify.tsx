@@ -1,51 +1,108 @@
 import * as React from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Button, Screen, Text, TextField } from '@/components/ui';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Button, Screen, Text, TopBar } from '@/components/ui';
+import { AuthIntro, TextLink, authStyles } from '@/features/auth/AuthParts';
 import { useServices } from '@/services/ServicesProvider';
 import { useSession } from '@/stores/session';
-import { spacing } from '@/theme';
+import { board, colors } from '@/theme';
 
-/** A06 Verify email — the frozen design verifies with a CODE here. */
+const LENGTH = 6;
+const C = board.code;
+
+/**
+ * A06 Verify email — board figure "A06". Six one-digit boxes backed by one
+ * input, so paste and one-time-code autofill work. Development code: 424242.
+ */
 export default function Verify() {
+  const router = useRouter();
   const services = useServices();
   const refresh = useSession((s) => s.refresh);
+  const signOut = useSession((s) => s.signOut);
+  const email = useSession((s) => s.account?.email);
+  const input = React.useRef<TextInput>(null);
   const [code, setCode] = React.useState('');
   const [error, setError] = React.useState<string | undefined>();
+  const [note, setNote] = React.useState<string | undefined>();
   const [busy, setBusy] = React.useState(false);
 
   const submit = async () => {
     setError(undefined);
+    if (code.length < LENGTH) return setError('Enter all 6 digits.');
     setBusy(true);
     try {
       await services.auth.verifyEmailCode(code);
-      await refresh();
-    } catch {
-      setError('That code is not correct.');
+      await refresh(); // routes on to onboarding
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'That code is not correct.');
     } finally {
       setBusy(false);
     }
   };
 
+  const resend = async () => {
+    await services.auth.resendVerificationCode();
+    setCode('');
+    setError(undefined);
+    setNote('New code sent. In development it is always 424242.');
+  };
+
+  const changeEmail = async () => {
+    await services.auth.abandonSignUp();
+    await signOut();
+    router.replace('/(auth)/sign-up');
+  };
+
   return (
-    <Screen scroll>
-      <View style={styles.head}>
-        <Text variant="h1">Verify your email</Text>
-        <Text variant="body" tone="secondary">
-          We sent you a 6-digit code. In development the code is 424242.
-        </Text>
-      </View>
-      <View style={styles.form}>
-        <TextField
-          label="Verification code" value={code} onChangeText={setCode}
-          keyboardType="number-pad" maxLength={6} placeholder="424242" error={error}
+    <Screen edges={['top', 'left', 'right', 'bottom']} contentStyle={authStyles.screen}>
+      <TopBar title="Create account" onBack={() => void changeEmail()} />
+      <AuthIntro tight title="Verify your email" body="Enter the code we sent to your email." />
+      {email ? <Text style={styles.email}>{email}</Text> : null}
+
+      <Pressable accessibilityLabel="Verification code" onPress={() => input.current?.focus()} style={styles.boxes}>
+        {Array.from({ length: LENGTH }, (_, i) => (
+          <View key={i} style={[styles.box, i === code.length && styles.boxActive]}>
+            <Text style={styles.digit}>{code[i] ?? ''}</Text>
+          </View>
+        ))}
+        <TextInput
+          ref={input}
+          value={code}
+          onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, LENGTH))}
+          keyboardType="number-pad"
+          textContentType="oneTimeCode"
+          autoComplete="one-time-code"
+          maxLength={LENGTH}
+          autoFocus
+          style={styles.hiddenInput}
         />
-        <Button label="Verify" onPress={submit} loading={busy} />
+      </Pressable>
+
+      <View style={styles.links}>
+        <TextLink label="Resend code" onPress={() => void resend()} />
+        <TextLink label="Change email" onPress={() => void changeEmail()} />
+      </View>
+      {error ? <Text style={styles.error} accessibilityRole="alert">{error}</Text> : null}
+      {note && !error ? <Text style={styles.note}>{note}</Text> : null}
+
+      <View style={authStyles.foot}>
+        <Button label="Continue" onPress={submit} loading={busy} />
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  head: { gap: spacing.xxs, paddingTop: spacing.xxl, paddingBottom: spacing.lg },
-  form: { gap: spacing.md },
+  email: { ...board.small, color: colors.text.secondary },
+  boxes: { flexDirection: 'row', gap: C.gap, marginTop: C.marginTop, marginBottom: C.marginBottom },
+  box: {
+    flex: 1, height: C.height, borderRadius: C.radius, borderWidth: 1, borderColor: C.border,
+    backgroundColor: board.field.background, alignItems: 'center', justifyContent: 'center',
+  },
+  boxActive: { borderColor: colors.brand.lavender },
+  digit: { fontSize: C.fontSize, color: colors.brand.plum },
+  hiddenInput: { position: 'absolute', opacity: 0, width: 1, height: 1 },
+  links: { flexDirection: 'row', justifyContent: 'space-between' },
+  error: { ...board.small, color: colors.status.danger, marginTop: board.inlineGap },
+  note: { ...board.small, color: colors.text.secondary, marginTop: board.inlineGap },
 });

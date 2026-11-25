@@ -26,8 +26,8 @@ export default function SignIn() {
     try {
       const session = await services.auth.signIn(email, password);
       await setSession(session);
-    } catch {
-      setError('We could not sign you in.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'We could not sign you in.');
     } finally {
       setBusy(false);
     }

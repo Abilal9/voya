@@ -267,6 +267,20 @@ export const board = {
     social: { gap: 8, marginTop: 8, marginBottom: 12, minHeight: 44, fontSize: 13, iconGap: 12, icon: 19 },
     orSize: 11, orColor: '#8A8191',
   },
+  /** Board `.xp-state`: confirmation / permission screens. */
+  stateHero: {
+    paddingTop: 30, symbolSize: 67, symbolRadius: 22, symbolMarginBottom: 27, symbolIcon: 28,
+    symbolBackground: '#E4D6F5', bodySize: 14, bodyLineHeight: 23.8, bodyMaxWidth: 330,
+  },
+  /** Board `.xp-code`: six one-digit boxes. */
+  code: { gap: 9, height: 60, radius: 14, border: '#DED4DF', fontSize: 23, marginTop: 26, marginBottom: 20 },
+  /** Board `.xp-chips` (onboarding interests). */
+  chips: {
+    gap: 10, marginTop: 18, marginBottom: 20, paddingY: 12, paddingX: 15, radius: 12, fontSize: 13,
+    minHeight: 42, border: '#E2D6E5', selectedBackground: '#EDE2F7',
+  },
+  /** Board `.xp-photo-edit`. */
+  photoEdit: { avatar: 76, avatarFontSize: 25, gap: 18, marginTop: 8, marginBottom: 23 },
   welcome: { emblemSize: 64, bodyMaxWidth: 295, logoWidth: 220, logoMarginBottom: 39, titleSize: 36, titleLineHeight: 42, bodySize: 15, bodyLineHeight: 25.5, paddingBottom: 66 },
   activity: {
     rowPaddingY: 22, rowGap: 14, avatar: 42, titleSize: 15, titleLineHeight: 21, titleMarginBottom: 6,
