@@ -31,8 +31,11 @@ import * as fx from './fixtures';
 import {
   currentAccountId,
   mutate,
+  createLocalAccount,
+  deleteLocalAccount,
   peek,
   read,
+  readAccountRegistry,
   resetAll,
   setCurrentAccountId,
 } from './store';
@@ -64,34 +67,77 @@ function can(plan: Plan, personId: ID, capability: string): boolean {
 
 // ---------------------------------------------------------------- auth
 
+/** Seeded identities sign in as `<firstname>@example.com`. */
+function seededPersonFor(email: string) {
+  return fx.people.find((p) => `${p.firstName.toLowerCase()}@example.com` === email.toLowerCase());
+}
+
 const auth: AuthService = {
   async getSession() {
     const id = await currentAccountId();
     if (!id) return null;
-    const person = fx.people.find((p) => p.id === id);
-    return { accountId: id, email: `${person?.firstName.toLowerCase() ?? 'user'}@example.com` };
+    const snapshot = await peek();
+    return { accountId: id, email: snapshot?.state.account.email ?? '' };
   },
   async signIn(email) {
-    const person =
-      fx.people.find((p) => `${p.firstName.toLowerCase()}@example.com` === email.toLowerCase()) ??
-      fx.people[0]!;
-    await setCurrentAccountId(person.id);
-    return { accountId: person.id, email } satisfies AuthSession;
+    // The mock checks the account exists; it never stores or checks passwords.
+    const seeded = seededPersonFor(email);
+    const local = (await readAccountRegistry())[email.toLowerCase()];
+    const accountId = seeded?.id ?? local;
+    if (!accountId) {
+      throw new ServiceError('no_account', 'No account uses that email. Create one instead.', false);
+    }
+    await setCurrentAccountId(accountId);
+    return { accountId, email } satisfies AuthSession;
   },
-  async signUp(email) {
-    await setCurrentAccountId(fx.SIGNED_IN_ACCOUNT_ID);
-    return { accountId: fx.SIGNED_IN_ACCOUNT_ID, email };
+  async signUp(email, _password, names) {
+    const normalized = email.trim().toLowerCase();
+    if (seededPersonFor(normalized) || (await readAccountRegistry())[normalized]) {
+      throw new ServiceError('email_taken', 'An account already uses that email.', false);
+    }
+    const firstName = names.firstName.trim();
+    const lastName = names.lastName.trim();
+    const id = uid('acct');
+    await createLocalAccount({
+      id,
+      firstName,
+      lastName,
+      displayName: `${firstName} ${lastName}`.trim(),
+      email: normalized,
+      emailVerified: false,
+      onboardingStep: 'profile',
+      onboardingComplete: false,
+      interests: [],
+    });
+    await setCurrentAccountId(id);
+    return { accountId: id, email: normalized };
   },
   async verifyEmailCode(code) {
     if (code !== DEV_VERIFICATION_CODE) {
       throw new ServiceError('bad_code', 'That code is not correct.', true);
     }
+    await mutate((s) => {
+      s.account.emailVerified = true;
+    });
+  },
+  async resendVerificationCode() {
+    // Nothing is sent. In development the code is always 424242.
+  },
+  async abandonSignUp() {
+    const snapshot = await peek();
+    if (snapshot && snapshot.state.account.emailVerified === false) {
+      await deleteLocalAccount(snapshot.accountId);
+    }
+    await setCurrentAccountId(null);
   },
   async requestPasswordReset() {
     // The frozen design sends a reset LINK here (A04 → A05). Nothing is emailed.
   },
-  async setNewPassword() {
-    // No credential is ever stored by the mock.
+  async setNewPassword(password) {
+    // No credential is ever stored by the mock; only the board's rule is enforced.
+    if (password.length < 8) {
+      throw new ServiceError('weak_password', 'Use at least 8 characters.', false);
+    }
   },
   async signInWithApple() {
     await setCurrentAccountId(fx.SIGNED_IN_ACCOUNT_ID);
@@ -569,8 +615,11 @@ const catalog: CatalogService = {
   async cities() {
     return [...fx.CITIES];
   },
+  async categories() {
+    return [...fx.CATEGORIES];
+  },
   async interests() {
-    return [...fx.INTERESTS];
+    return [...fx.TASTE_INTERESTS];
   },
   async people() {
     return structuredClone(fx.people);

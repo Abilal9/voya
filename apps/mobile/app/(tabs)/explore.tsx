@@ -8,7 +8,7 @@ import { EmptyState, ErrorState, LoadingState, Text } from '@/components/ui';
 import { SwipeDeck, type SwipeDeckHandle } from '@/features/explore/SwipeDeck';
 import { PlaceCard } from '@/features/explore/PlaceCard';
 import { useServices } from '@/services/ServicesProvider';
-import { useCities, useInterests } from '@/features/catalog';
+import { useCategories, useCities } from '@/features/catalog';
 import type { Place, PlaceCategory } from '@/services';
 import { board, colors, icon } from '@/theme';
 
@@ -28,9 +28,9 @@ export default function Explore() {
   const deck = React.useRef<SwipeDeckHandle>(null);
 
   const citiesQuery = useCities();
-  const interestsQuery = useInterests();
+  const categoriesQuery = useCategories();
   const cities = citiesQuery.data ?? [];
-  const interests = interestsQuery.data ?? [];
+  const categories = categoriesQuery.data ?? [];
   const homeCity = cities[0] ?? '';
   const [chosenCity, setCity] = React.useState<string | undefined>();
   const city = chosenCity ?? homeCity;
@@ -100,7 +100,7 @@ export default function Explore() {
           style={styles.categoriesRow}
           contentContainerStyle={styles.categories}
         >
-          {(['All', ...interests] as const).map((c) => {
+          {(['All', ...categories] as const).map((c) => {
             const selected = category === c;
             return (
               <Pressable

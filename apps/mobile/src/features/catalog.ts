@@ -10,6 +10,11 @@ export function useCities() {
   return useQuery({ queryKey: ['catalog', 'cities'], queryFn: () => services.catalog.cities(), ...STATIC });
 }
 
+export function useCategories() {
+  const services = useServices();
+  return useQuery({ queryKey: ['catalog', 'categories'], queryFn: () => services.catalog.categories(), ...STATIC });
+}
+
 export function useInterests() {
   const services = useServices();
   return useQuery({ queryKey: ['catalog', 'interests'], queryFn: () => services.catalog.interests(), ...STATIC });

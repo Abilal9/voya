@@ -139,6 +139,35 @@ export async function mutate<T>(fn: (state: MockState) => T): Promise<T> {
   return result;
 }
 
+// ---------------------------------------------------------- local accounts
+
+const REGISTRY_KEY = `voya:${VERSION}:accounts`;
+
+/** Locally created accounts: lower-cased email → account id. No passwords. */
+export async function readAccountRegistry(): Promise<Record<string, string>> {
+  const raw = await AsyncStorage.getItem(REGISTRY_KEY);
+  return raw ? (JSON.parse(raw) as Record<string, string>) : {};
+}
+
+/** Registers a new local account with an empty world of its own. */
+export async function createLocalAccount(account: Account) {
+  const registry = await readAccountRegistry();
+  registry[account.email.toLowerCase()] = account.id;
+  await AsyncStorage.setItem(REGISTRY_KEY, JSON.stringify(registry));
+  const state: MockState = { account, plans: [], saved: [], signals: {}, activity: [] };
+  await AsyncStorage.setItem(key(account.id, 'state'), JSON.stringify(state));
+  cache = null;
+}
+
+/** Removes a local account and its data (used when sign-up is abandoned). */
+export async function deleteLocalAccount(accountId: string) {
+  const registry = await readAccountRegistry();
+  for (const [email, id] of Object.entries(registry)) if (id === accountId) delete registry[email];
+  await AsyncStorage.setItem(REGISTRY_KEY, JSON.stringify(registry));
+  await AsyncStorage.removeItem(key(accountId, 'state'));
+  cache = null;
+}
+
 /** Dev menu: reset this account back to the seeded fixture graph. */
 export async function resetAccount(accountId: string) {
   cache = null;

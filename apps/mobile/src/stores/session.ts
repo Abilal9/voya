@@ -2,7 +2,13 @@ import { create } from 'zustand';
 import { services } from '@/services';
 import type { Account, AuthSession } from '@/services';
 
-type Status = 'booting' | 'signed-out' | 'onboarding' | 'ready';
+type Status = 'booting' | 'signed-out' | 'verifying' | 'onboarding' | 'ready';
+
+/** Where an account belongs, from its own state — never from the last button pressed. */
+export function statusFor(account: Account): Status {
+  if (account.emailVerified === false) return 'verifying';
+  return account.onboardingComplete ? 'ready' : 'onboarding';
+}
 
 interface SessionState {
   status: Status;
@@ -36,26 +42,20 @@ export const useSession = create<SessionState>((set, get) => ({
       return;
     }
     const account = await services.profile.getAccount();
-    set({
-      session,
-      account,
-      status: account.onboardingComplete ? 'ready' : 'onboarding',
-    });
+    set({ session, account, status: statusFor(account) });
   },
 
   async refresh() {
-    if (!get().session) return;
+    // Also picks up a session created outside the store (e.g. sign-up → verify).
+    const session = get().session ?? (await services.auth.getSession());
+    if (!session) return;
     const account = await services.profile.getAccount();
-    set({ account, status: account.onboardingComplete ? 'ready' : 'onboarding' });
+    set({ session, account, status: statusFor(account) });
   },
 
   async setSession(session) {
     const account = await services.profile.getAccount();
-    set({
-      session,
-      account,
-      status: account.onboardingComplete ? 'ready' : 'onboarding',
-    });
+    set({ session, account, status: statusFor(account) });
   },
 
   async signOut() {

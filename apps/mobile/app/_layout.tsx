@@ -22,6 +22,7 @@ const queryClient = new QueryClient({
  */
 function useProtectedRoute() {
   const status = useSession((s) => s.status);
+  const step = useSession((s) => s.account?.onboardingStep);
   const segments = useSegments();
   const router = useRouter();
 
@@ -30,15 +31,20 @@ function useProtectedRoute() {
     const group = segments[0];
     const inAuth = group === '(auth)';
     const inOnboarding = group === '(onboarding)';
+    const onVerify = inAuth && segments[1] === 'verify';
 
     if (status === 'signed-out' && !inAuth) {
       router.replace('/(auth)/welcome');
+    } else if (status === 'verifying' && !onVerify) {
+      router.replace('/(auth)/verify');
     } else if (status === 'onboarding' && !inOnboarding) {
-      router.replace('/(onboarding)/profile');
+      // Resume where the account left off.
+      const resume = step && step !== 'done' ? step : 'profile';
+      router.replace(`/(onboarding)/${resume}`);
     } else if (status === 'ready' && (inAuth || inOnboarding)) {
       router.replace('/(tabs)');
     }
-  }, [status, segments, router]);
+  }, [status, step, segments, router]);
 }
 
 function RootNavigator() {

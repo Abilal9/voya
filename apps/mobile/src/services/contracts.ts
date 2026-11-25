@@ -34,9 +34,17 @@ export interface AuthSession {
 export interface AuthService {
   getSession(): Promise<AuthSession | null>;
   signIn(email: string, password: string): Promise<AuthSession>;
-  signUp(email: string, password: string): Promise<AuthSession>;
+  /**
+   * Creates a separate local account. The mock never stores the password; it
+   * only checks the email is free. The new account starts unverified.
+   */
+  signUp(email: string, password: string, profile: { firstName: string; lastName: string }): Promise<AuthSession>;
   /** The frozen design verifies with a code (A06) and resets with a link (A04/A05). */
   verifyEmailCode(code: string): Promise<void>;
+  /** Mock: "sends" a new code; nothing leaves the device. */
+  resendVerificationCode(): Promise<void>;
+  /** Change email (A06): drops the unverified account so sign-up can start over. */
+  abandonSignUp(): Promise<void>;
   requestPasswordReset(email: string): Promise<void>;
   setNewPassword(password: string): Promise<void>;
   signInWithApple(): Promise<AuthSession>;
@@ -46,7 +54,7 @@ export interface AuthService {
 
 export interface ProfileService {
   getAccount(): Promise<Account>;
-  updateProfile(patch: Partial<Pick<Account, 'firstName' | 'lastName' | 'city' | 'bio'>>): Promise<Account>;
+  updateProfile(patch: Partial<Pick<Account, 'firstName' | 'lastName' | 'displayName' | 'city' | 'bio'>>): Promise<Account>;
   setInterests(interests: string[]): Promise<Account>;
   completeOnboardingStep(step: OnboardingStep): Promise<Account>;
 }
@@ -124,7 +132,10 @@ export interface TripsService {
  */
 export interface CatalogService {
   cities(): Promise<string[]>;
-  interests(): Promise<PlaceCategory[]>;
+  /** Explore category chips (E01/E03). */
+  categories(): Promise<PlaceCategory[]>;
+  /** Taste interests offered in onboarding (A08) and Manage interests (V13). */
+  interests(): Promise<string[]>;
   people(): Promise<Person[]>;
 }
 

@@ -36,7 +36,7 @@ export const SIGNED_IN_ACCOUNT_ID = 'p-ahmad';
 export const FIXTURE_ANCHOR = '2026-11-25T12:00:00';
 
 export const people: Person[] = [
-  { id: 'p-ahmad', firstName: 'Ahmad', displayName: 'Ahmad', city: 'Riyadh' },
+  { id: 'p-ahmad', firstName: 'Ahmad', lastName: 'Bilal', displayName: 'Ahmad Bilal', city: 'Riyadh' },
   { id: 'p-khaled', firstName: 'Khaled', lastName: 'Kadri', displayName: 'Khaled Kadri', city: 'Riyadh' },
   { id: 'p-omar', firstName: 'Omar', lastName: 'Hassan', displayName: 'Omar Hassan', city: 'Riyadh' },
   { id: 'p-faisal', firstName: 'Faisal', lastName: 'Ahmed', displayName: 'Faisal Ahmed', city: 'Jeddah' },
@@ -48,12 +48,19 @@ export const account: Account = {
   email: 'ahmad@example.com',
   onboardingStep: 'done',
   onboardingComplete: true,
-  interests: ['Food', 'Coffee', 'Culture', 'Experiences'],
+  interests: ['Japanese food', 'Coffee', 'Culture', 'Outdoor activities'],
 };
 
-export const INTERESTS = [
+/** Explore category chips (E01). */
+export const CATEGORIES = [
   'Food', 'Coffee', 'Dessert', 'Activities', 'Culture',
   'Shopping', 'Nature', 'Nightlife', 'Experiences',
+] as const;
+
+/** Taste interests from the board's onboarding (A08). */
+export const TASTE_INTERESTS = [
+  'Japanese food', 'Coffee', 'Fine dining', 'Culture', 'Museums', 'Outdoor activities',
+  'Padel', 'Shopping', 'Dessert', 'Experiences', 'Hidden gems', 'Nature',
 ] as const;
 
 export const CITIES = ['Riyadh', 'Jeddah', 'Dubai', 'Florence'] as const;

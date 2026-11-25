@@ -45,6 +45,8 @@ export interface Person {
 
 export interface Account extends Person {
   email: string;
+  /** false until the A06 code is entered. Seeded accounts are verified. */
+  emailVerified?: boolean;
   onboardingStep: OnboardingStep;
   onboardingComplete: boolean;
   interests: string[];
