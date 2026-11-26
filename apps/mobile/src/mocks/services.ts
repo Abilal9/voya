@@ -569,13 +569,39 @@ const plans: PlansService = {
       plan.version += 1;
       return { added: true };
     }),
-  /** Leaving removes this person's membership or guest entry; the plan stays for everyone else. */
+  /**
+   * Leaving removes this person's membership or guest entry; the plan stays for
+   * everyone else. A leaving organizer hands the plan to the next member, and
+   * a hangout drops their invite and votes (their suggestions stay). A plan
+   * with nobody left on it goes.
+   */
   leave: (id) =>
     mutate((s) => {
+      const who = me(s);
       const plan = s.plans.find((p) => p.id === id);
-      if (!plan || !canSee(plan, me(s))) throw new ServiceError('not_found', 'Plan not found.', false);
-      plan.members = plan.members.filter((m) => m.personId !== me(s));
-      if (plan.type === 'event') plan.guests = plan.guests.filter((g) => g.personId !== me(s));
+      if (!plan || !canSee(plan, who)) throw new ServiceError('not_found', 'Plan not found.', false);
+      const leaving = plan.members.find((m) => m.personId === who);
+      plan.members = plan.members.filter((m) => m.personId !== who);
+      if (plan.type === 'event') plan.guests = plan.guests.filter((g) => g.personId !== who);
+      if (plan.type === 'hangout') {
+        plan.invites = (plan.invites ?? []).filter((i) => i.personId !== who);
+        for (const sg of plan.suggestions) delete sg.votes[who];
+      }
+      if (plan.ownerId === who) {
+        const heir = plan.members[0];
+        if (heir) {
+          plan.ownerId = heir.personId;
+          if (leaving) {
+            heir.role = leaving.role;
+            heir.capabilities = Array.from(new Set([...heir.capabilities, ...leaving.capabilities]));
+          }
+          if (plan.type === 'hangout') plan.invites = (plan.invites ?? []).filter((i) => i.personId !== heir.personId);
+        }
+      }
+      if (plan.members.length === 0 && !(plan.type === 'event' && plan.guests.length > 0)) {
+        s.plans = s.plans.filter((p) => p.id !== id);
+        return;
+      }
       plan.version += 1;
     }),
 };

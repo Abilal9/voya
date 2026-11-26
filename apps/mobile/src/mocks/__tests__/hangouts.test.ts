@@ -171,6 +171,37 @@ describe('manage', () => {
     await as('khaled');
     await expect(services.plans.get('plan-friday')).rejects.toMatchObject({ code: 'not_found' });
   });
+
+  it('an organizer who leaves hands the hangout to the next member, who can then manage it', async () => {
+    await as('ahmad');
+    await services.hangouts.vote('plan-friday', 'sg-1', null);
+    await services.hangouts.vote('plan-friday', 'sg-1', 'up');
+    await services.plans.leave('plan-friday');
+    await expect(services.plans.get('plan-friday')).rejects.toMatchObject({ code: 'not_found' });
+    await as('khaled');
+    const h = await hangout('plan-friday');
+    expect(h.ownerId).toBe(h.members[0]!.personId);
+    expect(h.ownerId).not.toBe('p-ahmad');
+    expect(h.members.find((m) => m.personId === h.ownerId)?.role).toBe('organizer');
+    expect(h.suggestions.find((s) => s.id === 'sg-1')!.votes).not.toHaveProperty('p-ahmad');
+    expect(h.suggestions.find((s) => s.id === 'sg-1')!.suggestedBy).toBe('p-ahmad');
+    expect((h.invites ?? []).map((i) => i.personId)).not.toContain(h.ownerId);
+  });
+
+  it('the last person to leave takes the hangout with them', async () => {
+    await as('ahmad');
+    const solo = await services.plans.createHangout({ title: 'Solo', city: 'Riyadh', template: 'Dinner', startsAt: soon() });
+    await services.plans.leave(solo.id);
+    expect((await services.plans.listUpcoming()).map((p) => p.id)).not.toContain(solo.id);
+  });
+
+  it('muting a hangout is per account', async () => {
+    await as('ahmad');
+    await services.profile.updateSettings({ mutedPlans: ['plan-friday'] });
+    expect((await services.profile.getSettings()).mutedPlans).toEqual(['plan-friday']);
+    await as('khaled');
+    expect((await services.profile.getSettings()).mutedPlans ?? []).toEqual([]);
+  });
 });
 
 describe('the full journey across accounts', () => {
