@@ -26,3 +26,17 @@ export function removeAvatar(ref: string | undefined) {
     // A missing file is already gone.
   }
 }
+
+const COVERS = 'covers';
+
+/** Copies a picked event cover into app storage; the plan stores the reference only. */
+export function saveCover(localUri: string, eventId: string): string {
+  const dir = new Directory(Paths.document, COVERS);
+  if (!dir.exists) dir.create({ intermediates: true });
+  const ext = (localUri.split('?')[0]!.split('.').pop() ?? 'jpg').toLowerCase().slice(0, 4);
+  const name = `${eventId}-${Date.now()}.${ext}`;
+  new File(localUri).copy(new File(dir, name));
+  return `${COVERS}/${name}`;
+}
+
+export const removeCover = removeAvatar;

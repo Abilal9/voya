@@ -23,6 +23,7 @@ import {
   type Invitation,
   type Place,
   type Plan,
+  type EventScheduleItem,
   type RSVP,
   type TimelineItem,
   type Trip,
@@ -34,7 +35,11 @@ import {
 import {
   HANGOUT_TEMPLATES, VOYA_SUGGESTION, canFinalize, slotForCategory, slotMinutes, slotSummary, slotsFor,
 } from '@/services/hangoutRules';
-import { removeAvatar, saveAvatar } from './avatarStore';
+import {
+  DEFAULT_COHOST_PERMISSIONS, HOST_CAPABILITIES, ScheduleItemError, canDo, cohostCapabilities,
+  hostMember, isHost, normaliseScheduleItem, permissionsOf, sortSchedule,
+} from '@/services/eventRules';
+import { removeAvatar, removeCover, saveAvatar, saveCover } from './avatarStore';
 import { devAccountFor } from './devAccounts';
 import * as fx from './fixtures';
 import { sha256Hex } from './sha256';
@@ -105,7 +110,7 @@ function hasPlace(plan: Plan, placeId: ID): boolean {
 
 /** What a person sees of a plan: members get it whole, event guests the guest view. */
 function visibleCopy(plan: Plan, personId: ID): Plan {
-  return plan.type === 'event' && relationTo(plan, personId) === 'guest' ? guestView(plan) : plan;
+  return plan.type === 'event' && relationTo(plan, personId) === 'guest' ? guestView(plan, personId) : plan;
 }
 
 function visiblePlans(plans: Plan[], personId: ID): Plan[] {
@@ -528,21 +533,28 @@ const plans: PlansService = {
       s.plans.push(hangout);
       return hangout;
     }),
-  createEvent: (input) =>
-    mutate((s) => {
-      const event: VoyaEvent = {
-        id: uid('plan'), type: 'event', title: input.title, city: input.city,
-        lifecycle: 'active', ownerId: me(s), version: 1, startsAt: input.startsAt,
-        venue: input.venue, guests: [], schedule: [],
-        members: [{
-          personId: me(s), role: 'host',
-          capabilities: ['plan.edit', 'member.manage', 'invite.create', 'schedule.edit'],
-          joinedAt: new Date().toISOString(),
-        }],
-      };
-      s.plans.push(event);
-      return event;
-    }),
+  async createEvent(input) {
+    const id = uid('plan');
+    const fields = validEventFields(input, true);
+    const coverRef = input.coverUri ? saveCover(input.coverUri, id) : undefined;
+    try {
+      return await mutate((s) => {
+        const hosts = [...new Set(input.hosts ?? [])].filter((p) => p !== me(s) && fx.people.some((x) => x.id === p));
+        const event: VoyaEvent = {
+          id, type: 'event', lifecycle: 'active', ownerId: me(s), version: 1,
+          ...fields, city: fields.city ?? 'Riyadh', coverRef,
+          cohostPermissions: { ...DEFAULT_COHOST_PERMISSIONS },
+          guests: [], schedule: [],
+          members: [{ ...hostMember(me(s), 'host', DEFAULT_COHOST_PERMISSIONS) }, ...hosts.map((p) => hostMember(p, 'host', DEFAULT_COHOST_PERMISSIONS))],
+        } as VoyaEvent;
+        s.plans.push(event);
+        return event;
+      });
+    } catch (e) {
+      removeCover(coverRef);
+      throw e;
+    }
+  },
   async addTargets(placeId) {
     const { state } = await read();
     const now = Date.now();
@@ -856,57 +868,253 @@ const hangouts: HangoutsService = {
 
 // -------------------------------------------------------------- events
 
+/** Validates 18 / EV02 fields. `full` = creation (title, venue and date required). */
+function validEventFields(input: Partial<{ title: string; venue: string; city: string; startsAt: string; endsAt: string; description: string }>, full: boolean) {
+  const out: Partial<VoyaEvent> = {};
+  if (full || input.title !== undefined) {
+    const title = input.title?.trim() ?? '';
+    if (!title) throw new ServiceError('invalid', 'Give your event a name.', false);
+    if (title.length > 80) throw new ServiceError('invalid', 'Keep the name under 80 characters.', false);
+    out.title = title;
+  }
+  if (full || input.venue !== undefined) {
+    const venue = input.venue?.trim() ?? '';
+    if (!venue) throw new ServiceError('invalid', 'Add where it happens.', false);
+    out.venue = venue;
+  }
+  if (input.city !== undefined) out.city = input.city.trim() || undefined;
+  if (full || input.startsAt !== undefined) {
+    const start = input.startsAt ? Date.parse(input.startsAt) : Number.NaN;
+    if (Number.isNaN(start)) throw new ServiceError('invalid', 'Choose a date and time.', false);
+    if (full && start < Date.now()) throw new ServiceError('invalid', 'Choose a date that hasn’t passed.', false);
+    out.startsAt = new Date(start).toISOString();
+  }
+  if (input.endsAt !== undefined) {
+    if (!input.endsAt) out.endsAt = undefined;
+    else {
+      const start = Date.parse(out.startsAt ?? input.startsAt ?? '');
+      let end = Date.parse(input.endsAt);
+      if (Number.isNaN(end)) throw new ServiceError('invalid', 'That end time isn’t valid.', false);
+      // 7:00 PM – 1:00 AM: an end before the start runs past midnight.
+      if (!Number.isNaN(start)) while (end <= start) end += 86400000;
+      out.endsAt = new Date(end).toISOString();
+    }
+  }
+  if (input.description !== undefined) {
+    const d = input.description.trim();
+    if (d.length > 1000) throw new ServiceError('invalid', 'Keep the details under 1,000 characters.', false);
+    out.description = d || undefined;
+  }
+  return out;
+}
+
+function requireEvent(s: { plans: Plan[] }, eventId: ID, personId: ID, capability?: Capability): VoyaEvent {
+  const e = requirePlan<VoyaEvent>(s.plans, eventId, 'event', personId);
+  if (capability && !canDo(e, personId, capability)) {
+    throw new ServiceError('forbidden', 'Only hosts can do that.', false);
+  }
+  return e;
+}
+
+function requireEventOpen(e: VoyaEvent) {
+  if (e.lifecycle === 'cancelled') throw new ServiceError('invalid', 'This event was cancelled.', false);
+  if (classifyPlan(e) === 'past') throw new ServiceError('invalid', 'This event has already happened.', false);
+}
+
+function requireHost(e: VoyaEvent, personId: ID) {
+  if (!isHost(e, personId)) throw new ServiceError('forbidden', 'Only hosts can do that.', false);
+}
+
+function scheduleItem(raw: Partial<EventScheduleItem>, id: ID): EventScheduleItem {
+  try {
+    const n = normaliseScheduleItem(raw);
+    return {
+      id, title: n.title, startsAt: n.startsAt, endsAt: n.endsAt, subtitle: n.subtitle,
+      location: n.location, notes: n.notes, instructions: n.instructions, visibility: n.visibility,
+    };
+  } catch (e) {
+    if (e instanceof ScheduleItemError) throw new ServiceError('invalid', e.message, false);
+    throw e;
+  }
+}
+
 const events: EventsService = {
+  async update(eventId, patch) {
+    const fields = validEventFields(patch, false);
+    const coverRef = patch.coverUri ? saveCover(patch.coverUri, eventId) : undefined;
+    let previous: string | undefined;
+    try {
+      const e = await mutate((s) => {
+        const ev = requireEvent(s, eventId, me(s), 'plan.edit');
+        requireEventOpen(ev);
+        if (fields.startsAt && !patch.endsAt && ev.endsAt) {
+          // Keep the same length when only the start moves.
+          const length = Date.parse(ev.endsAt) - Date.parse(ev.startsAt!);
+          fields.endsAt = new Date(Date.parse(fields.startsAt) + length).toISOString();
+        }
+        Object.assign(ev, fields);
+        if (patch.coverUri !== undefined) {
+          previous = ev.coverRef;
+          ev.coverRef = coverRef;
+        }
+        ev.version += 1;
+        return ev;
+      });
+      if (previous && previous !== coverRef) removeCover(previous);
+      return e;
+    } catch (err) {
+      removeCover(coverRef);
+      throw err;
+    }
+  },
+  respond: (eventId, rsvp) =>
+    mutate((s) => {
+      const e = requirePlan<VoyaEvent>(s.plans, eventId, 'event', me(s), true);
+      const guest = e.guests.find((g) => g.personId === me(s));
+      if (!guest) throw new ServiceError('forbidden', 'Only invited guests can answer.', false);
+      requireEventOpen(e);
+      if (guest.rsvp !== rsvp) {
+        guest.rsvp = rsvp;
+        guest.respondedAt = new Date().toISOString();
+        e.version += 1;
+      }
+      return guestView(structuredClone(e) as VoyaEvent, me(s));
+    }),
   setRsvp: (eventId, guestId, rsvp: RSVP) =>
     mutate((s) => {
       const e = requirePlan<VoyaEvent>(s.plans, eventId, 'event', me(s), true);
       const guest = e.guests.find((g) => g.id === guestId);
       if (!guest) throw new ServiceError('not_found', 'Guest not found.', false);
-      if (relationTo(e, me(s)) === 'guest' && guest.personId !== me(s)) {
+      if (guest.personId !== me(s) && !canDo(e, me(s), 'member.manage')) {
         throw new ServiceError('forbidden', 'Guests can only answer for themselves.', false);
       }
+      requireEventOpen(e);
       guest.rsvp = rsvp; // one RSVP row per guest
+      guest.respondedAt = new Date().toISOString();
       e.version += 1;
+      return relationTo(e, me(s)) === 'guest' ? guestView(structuredClone(e) as VoyaEvent, me(s)) : e;
+    }),
+  invite: (eventId, personIds) =>
+    mutate((s) => {
+      const e = requireEvent(s, eventId, me(s), 'invite.create');
+      requireEventOpen(e);
+      const now = new Date().toISOString();
+      let added = 0;
+      for (const personId of new Set(personIds)) {
+        const person = fx.people.find((p) => p.id === personId);
+        if (!person) continue;
+        if (e.members.some((m) => m.personId === personId) || e.guests.some((g) => g.personId === personId)) continue;
+        e.guests.push({ id: uid('g'), personId, displayName: person.displayName, rsvp: 'pending', invitedBy: me(s), invitedAt: now });
+        added += 1;
+      }
+      if (added) e.version += 1;
       return e;
     }),
   addGuest: (eventId, displayName) =>
     mutate((s) => {
-      const e = requirePlan<VoyaEvent>(s.plans, eventId, 'event', me(s));
-      if (!can(e, me(s), 'member.manage')) {
-        throw new ServiceError('forbidden', 'Only hosts can manage guests.', false);
+      const e = requireEvent(s, eventId, me(s), 'member.manage');
+      requireEventOpen(e);
+      const name = displayName.trim();
+      if (!name) throw new ServiceError('invalid', 'Add the guest’s name.', false);
+      if (e.guests.some((g) => !g.personId && g.displayName.toLowerCase() === name.toLowerCase())) {
+        throw new ServiceError('invalid', `${name} is already on the list.`, false);
       }
-      e.guests.push({ id: uid('g'), displayName, rsvp: 'pending' });
+      e.guests.push({ id: uid('g'), displayName: name, rsvp: 'pending', invitedBy: me(s), invitedAt: new Date().toISOString() });
+      e.version += 1;
+      return e;
+    }),
+  removeGuest: (eventId, guestId) =>
+    mutate((s) => {
+      const e = requireEvent(s, eventId, me(s), 'member.manage');
+      if (!e.guests.some((g) => g.id === guestId)) throw new ServiceError('not_found', 'Guest not found.', false);
+      e.guests = e.guests.filter((g) => g.id !== guestId);
       e.version += 1;
       return e;
     }),
   upsertScheduleItem: (eventId, item) =>
     mutate((s) => {
-      const e = requirePlan<VoyaEvent>(s.plans, eventId, 'event', me(s));
-      if (!can(e, me(s), 'schedule.edit')) {
-        throw new ServiceError('forbidden', 'Only hosts can edit the schedule.', false);
-      }
+      const e = requireEvent(s, eventId, me(s), 'schedule.edit');
+      requireEventOpen(e);
       const existing = item.id ? e.schedule.find((x) => x.id === item.id) : undefined;
-      if (existing) Object.assign(existing, item);
-      else {
-        e.schedule.push({
-          id: uid('ev'),
-          startsAt: item.startsAt ?? new Date().toISOString(),
-          title: item.title ?? 'New item',
-          subtitle: item.subtitle,
-          visibility: item.visibility ?? 'all_guests',
-        });
-      }
-      e.schedule.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+      if (item.id && !existing) throw new ServiceError('not_found', 'That item was removed.', false);
+      const next = scheduleItem({ ...existing, ...item }, existing?.id ?? uid('ev'));
+      e.schedule = sortSchedule(existing ? e.schedule.map((x) => (x.id === next.id ? next : x)) : [...e.schedule, next]);
       e.version += 1;
       return e;
     }),
   removeScheduleItem: (eventId, itemId) =>
     mutate((s) => {
-      const e = requirePlan<VoyaEvent>(s.plans, eventId, 'event', me(s));
-      if (!can(e, me(s), 'schedule.edit')) {
-        throw new ServiceError('forbidden', 'Only hosts can edit the schedule.', false);
-      }
+      const e = requireEvent(s, eventId, me(s), 'schedule.edit');
+      requireEventOpen(e);
       e.schedule = e.schedule.filter((x) => x.id !== itemId);
+      e.version += 1;
+      return e;
+    }),
+  saveSchedule: (eventId, items, baseVersion) =>
+    mutate((s) => {
+      const e = requireEvent(s, eventId, me(s), 'schedule.edit');
+      requireEventOpen(e);
+      if (e.version !== baseVersion) {
+        throw new ServiceError('conflict', 'Someone else changed this event while you were editing. Your edits weren’t saved.', true);
+      }
+      const known = new Set(e.schedule.map((x) => x.id));
+      e.schedule = sortSchedule(items.map((raw) => scheduleItem(raw, raw.id && known.has(raw.id) ? raw.id : uid('ev'))));
+      e.version += 1;
+      return e;
+    }),
+  addCohosts: (eventId, personIds) =>
+    mutate((s) => {
+      const e = requireEvent(s, eventId, me(s));
+      requireHost(e, me(s));
+      requireEventOpen(e);
+      const perms = permissionsOf(e);
+      let added = 0;
+      for (const personId of new Set(personIds)) {
+        if (!fx.people.some((p) => p.id === personId) || e.members.some((m) => m.personId === personId)) continue;
+        e.guests = e.guests.filter((g) => g.personId !== personId); // hosting, not attending as a guest
+        e.members.push(hostMember(personId, 'co-host', perms));
+        added += 1;
+      }
+      if (added) e.version += 1;
+      return e;
+    }),
+  setHostRole: (eventId, personId, role) =>
+    mutate((s) => {
+      const e = requireEvent(s, eventId, me(s));
+      requireHost(e, me(s));
+      const member = e.members.find((m) => m.personId === personId);
+      if (!member) throw new ServiceError('not_found', 'That person isn’t hosting.', false);
+      if (personId === e.ownerId) throw new ServiceError('forbidden', 'The event’s creator stays a host.', false);
+      member.role = role;
+      member.capabilities = role === 'host' ? [...HOST_CAPABILITIES] : cohostCapabilities(permissionsOf(e));
+      e.version += 1;
+      return e;
+    }),
+  removeHost: (eventId, personId) =>
+    mutate((s) => {
+      const e = requireEvent(s, eventId, me(s));
+      requireHost(e, me(s));
+      if (personId === e.ownerId) throw new ServiceError('forbidden', 'The event’s creator stays a host.', false);
+      if (!e.members.some((m) => m.personId === personId)) throw new ServiceError('not_found', 'That person isn’t hosting.', false);
+      e.members = e.members.filter((m) => m.personId !== personId);
+      e.version += 1;
+      return e;
+    }),
+  setCohostPermissions: (eventId, permissions) =>
+    mutate((s) => {
+      const e = requireEvent(s, eventId, me(s));
+      requireHost(e, me(s));
+      e.cohostPermissions = { ...permissions };
+      for (const m of e.members) if (m.role === 'co-host') m.capabilities = cohostCapabilities(permissions);
+      e.version += 1;
+      return e;
+    }),
+  cancel: (eventId) =>
+    mutate((s) => {
+      const e = requireEvent(s, eventId, me(s), 'plan.delete');
+      requireHost(e, me(s));
+      requireEventOpen(e);
+      e.lifecycle = 'cancelled';
       e.version += 1;
       return e;
     }),
@@ -917,7 +1125,7 @@ const events: EventsService = {
   async guestProjection(eventId) {
     const { state } = await read();
     const e = requirePlan<VoyaEvent>(state.plans, eventId, 'event', me(state), true);
-    return guestView(structuredClone(e) as VoyaEvent);
+    return guestView(structuredClone(e) as VoyaEvent, me(state));
   },
 };
 

@@ -86,11 +86,20 @@ export function canSee(plan: Plan, personId: string): boolean {
   return relationTo(plan, personId) !== 'none';
 }
 
-/** The event as a guest may see it: no host-only schedule items, no guest identities. */
-export function guestView(event: VoyaEvent): VoyaEvent {
+/**
+ * The event as a guest may see it: no host-only schedule items and no other
+ * guests' identities (only their answers, for counts). The viewer's own row is
+ * marked with `viewerGuestId`.
+ */
+export function guestView(event: VoyaEvent, viewerId?: string): VoyaEvent {
+  const own = viewerId ? event.guests.find((g) => g.personId === viewerId) : undefined;
   return {
     ...event,
+    cohostPermissions: undefined,
+    viewerGuestId: own?.id,
     schedule: event.schedule.filter((i) => i.visibility !== 'hosts_only'),
-    guests: event.guests.map((g) => ({ ...g, personId: undefined })),
+    guests: event.guests.map((g) => ({
+      id: g.id, rsvp: g.rsvp, personId: undefined, displayName: g.id === own?.id ? g.displayName : '',
+    })),
   };
 }

@@ -45,6 +45,8 @@ export interface AccountState {
  */
 export interface World {
   plans: Plan[];
+  /** Fixture plan ids already seeded into this world, so new fixtures can be added once. */
+  seededIds?: string[];
 }
 
 /**
@@ -88,7 +90,7 @@ export function seed(accountId: string, now: number = Date.now()): AccountState 
 
 /** The shared world as authored, dates moved up to the current week. */
 export function seedWorld(now: number = Date.now()): World {
-  return { plans: shiftFixtureDates(fx.plans, fixtureWeekOffset(now)) };
+  return { plans: shiftFixtureDates(fx.plans, fixtureWeekOffset(now)), seededIds: fx.plans.map((p) => p.id) };
 }
 
 /** Deliberate latency / failure injection, driven by the dev menu. */
@@ -146,8 +148,16 @@ async function loadWorld(): Promise<World> {
   return worldCache;
 }
 
-/** Fills fields added after a world was stored (hangout invites, change requests). */
-function normalizeWorld(world: World): World {
+/**
+ * Fills fields added after a world was stored (hangout invites, change
+ * requests) and adds fixture plans introduced since it was seeded. A seeded
+ * plan the user deleted is never brought back: seeded ids are remembered.
+ */
+export function normalizeWorld(world: World, now: number = Date.now()): World {
+  const seeded = new Set(world.seededIds ?? fx.ORIGINAL_PLAN_IDS);
+  const fresh = fx.plans.filter((p) => !seeded.has(p.id) && !world.plans.some((x) => x.id === p.id));
+  if (fresh.length) world.plans.push(...shiftFixtureDates(fresh, fixtureWeekOffset(now)));
+  world.seededIds = [...new Set([...seeded, ...fx.plans.map((p) => p.id)])];
   for (const plan of world.plans) {
     if (plan.type === 'hangout') {
       plan.invites ??= plan.members
@@ -177,7 +187,7 @@ export function mergeLegacyPlans(world: World, legacy: Plan[]): World {
     if (i === -1) plans.push(plan);
     else if (plan.version > plans[i]!.version) plans[i] = plan;
   }
-  return { plans };
+  return { ...world, plans };
 }
 
 async function load(accountId: string): Promise<AccountState> {

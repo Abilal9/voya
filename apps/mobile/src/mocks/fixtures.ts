@@ -41,7 +41,7 @@ export const people: Person[] = [
   { id: 'p-khaled', firstName: 'Khaled', lastName: 'Kadri', displayName: 'Khaled Kadri', city: 'Riyadh' },
   { id: 'p-omar', firstName: 'Omar', lastName: 'Hassan', displayName: 'Omar Hassan', city: 'Riyadh' },
   { id: 'p-faisal', firstName: 'Faisal', lastName: 'Ahmed', displayName: 'Faisal Ahmed', city: 'Jeddah' },
-  { id: 'p-nisreen', firstName: 'Nisreen', displayName: 'Nisreen', city: 'Riyadh' },
+  { id: 'p-nisreen', firstName: 'Nisreen', lastName: 'Bilal', displayName: 'Nisreen', city: 'Riyadh' },
 ];
 
 export const account: Account = {
@@ -323,29 +323,56 @@ export const wedding: VoyaEvent = {
   id: 'plan-wedding', type: 'event', title: "Ahmad & Nisreen's Wedding",
   city: 'Riyadh', lifecycle: 'active', ownerId: 'p-ahmad', version: 11,
   startsAt: iso('2026-12-12T19:00:00'), endsAt: iso('2026-12-13T01:00:00'),
-  venue: 'Al Faisaliah Ballroom', coverPhoto: 'wedding',
-  description: 'Together makes a more beautiful tomorrow.',
+  venue: 'Four Seasons Riyadh', coverPhoto: 'wedding',
+  description: 'Join us for an evening with the people we love.',
   dressCode: 'Formal',
+  note: 'Please arrive by 7:30 PM.',
+  invitation: { eyebrow: 'Together with their families', headline: 'Ahmad & Nisreen', line: 'are getting married' },
+  cohostPermissions: { details: false, guests: true, schedule: true },
   members: [
-    { personId: 'p-ahmad', role: 'host', capabilities: ['plan.edit', 'member.manage', 'invite.create', 'schedule.edit'], joinedAt: iso('2026-09-01') },
-    { personId: 'p-nisreen', role: 'co-host', capabilities: ['plan.edit', 'schedule.edit'], joinedAt: iso('2026-09-01') },
+    { personId: 'p-ahmad', role: 'host', capabilities: ['plan.edit', 'plan.delete', 'member.manage', 'invite.create', 'schedule.edit'], joinedAt: iso('2026-09-01') },
+    { personId: 'p-nisreen', role: 'host', capabilities: ['plan.edit', 'plan.delete', 'member.manage', 'invite.create', 'schedule.edit'], joinedAt: iso('2026-09-01') },
   ],
   guests: [
-    { id: 'g-khaled', personId: 'p-khaled', displayName: 'Khaled Kadri', rsvp: 'going' },
-    { id: 'g-omar', personId: 'p-omar', displayName: 'Omar Hassan', rsvp: 'going' },
-    { id: 'g-faisal', personId: 'p-faisal', displayName: 'Faisal Ahmed', rsvp: 'maybe' },
-    { id: 'g-stranger', displayName: 'Salma Rahman', rsvp: 'pending' },
+    { id: 'g-khaled', personId: 'p-khaled', displayName: 'Khaled Kadri', rsvp: 'going', invitedBy: 'p-ahmad', invitedAt: iso('2026-10-01') },
+    { id: 'g-omar', personId: 'p-omar', displayName: 'Omar Hassan', rsvp: 'going', invitedBy: 'p-ahmad', invitedAt: iso('2026-10-01') },
+    { id: 'g-faisal', personId: 'p-faisal', displayName: 'Faisal Ahmed', rsvp: 'pending', invitedBy: 'p-ahmad', invitedAt: iso('2026-10-01') },
+    { id: 'g-stranger', displayName: 'Sarah Ali', rsvp: 'maybe', invitedBy: 'p-nisreen', invitedAt: iso('2026-10-02') },
   ],
   schedule: [
-    { id: 'ev-1', startsAt: iso('2026-12-12T19:00:00'), title: 'Doors open', visibility: 'all_guests' },
-    { id: 'ev-2', startsAt: iso('2026-12-12T20:00:00'), title: 'Dinner served', visibility: 'all_guests' },
-    { id: 'ev-3', startsAt: iso('2026-12-12T21:30:00'), title: 'Dancing', visibility: 'all_guests' },
-    {
-      id: 'ev-4', startsAt: iso('2026-12-12T23:15:00'), title: 'Bride & groom entrance',
-      subtitle: 'Please be seated by 11:05 PM', visibility: 'all_guests',
-    },
+    { id: 'ev-1', startsAt: iso('2026-12-12T19:00:00'), endsAt: iso('2026-12-12T20:00:00'), title: 'Guest arrival', location: 'Main Ballroom Entrance', subtitle: 'Main Ballroom Entrance', visibility: 'all_guests' },
+    { id: 'ev-2', startsAt: iso('2026-12-12T20:00:00'), endsAt: iso('2026-12-12T21:30:00'), title: 'Dinner', location: 'Grand Ballroom', subtitle: 'Grand Ballroom', visibility: 'all_guests' },
+    { id: 'ev-3', startsAt: iso('2026-12-12T21:30:00'), endsAt: iso('2026-12-12T23:15:00'), title: 'Dancing', visibility: 'all_guests' },
     // Host-only. Must never appear in guestProjection().
     { id: 'ev-5', startsAt: iso('2026-12-12T22:45:00'), title: 'Photographer briefing', visibility: 'hosts_only' },
+    {
+      id: 'ev-4', startsAt: iso('2026-12-12T23:15:00'), endsAt: iso('2026-12-12T23:30:00'), title: 'Bride & groom entrance',
+      instructions: 'Please be seated by 11:05 PM', subtitle: 'Please be seated by 11:05 PM', visibility: 'all_guests',
+    },
+    { id: 'ev-6', startsAt: iso('2026-12-12T23:30:00'), endsAt: iso('2026-12-13T00:00:00'), title: 'Cake & photographs', visibility: 'all_guests' },
+    { id: 'ev-7', startsAt: iso('2026-12-13T00:00:00'), title: 'Celebration continues', visibility: 'all_guests' },
+  ],
+};
+
+/** EV05: a finished event Ahmad attended as a guest. */
+export const graduationDinner: VoyaEvent = {
+  id: 'plan-graduation', type: 'event', title: 'Faisal’s Graduation Dinner',
+  city: 'Riyadh', lifecycle: 'completed', ownerId: 'p-faisal', version: 9,
+  startsAt: iso('2026-06-20T19:00:00'), endsAt: iso('2026-06-20T23:00:00'),
+  venue: 'Four Seasons Riyadh', coverPhoto: 'wedding',
+  cohostPermissions: { details: false, guests: true, schedule: true },
+  members: [
+    { personId: 'p-faisal', role: 'host', capabilities: ['plan.edit', 'plan.delete', 'member.manage', 'invite.create', 'schedule.edit'], joinedAt: iso('2026-05-20') },
+  ],
+  guests: [
+    { id: 'gg-ahmad', personId: 'p-ahmad', displayName: 'Ahmad Bilal', rsvp: 'going', invitedBy: 'p-faisal', invitedAt: iso('2026-05-21') },
+    { id: 'gg-khaled', personId: 'p-khaled', displayName: 'Khaled Kadri', rsvp: 'going', invitedBy: 'p-faisal', invitedAt: iso('2026-05-21') },
+    { id: 'gg-omar', personId: 'p-omar', displayName: 'Omar Hassan', rsvp: 'maybe', invitedBy: 'p-faisal', invitedAt: iso('2026-05-21') },
+  ],
+  schedule: [
+    { id: 'gd-1', startsAt: iso('2026-06-20T19:00:00'), title: 'Guest arrival', location: 'Main Ballroom', subtitle: 'Main Ballroom', visibility: 'all_guests' },
+    { id: 'gd-2', startsAt: iso('2026-06-20T20:00:00'), title: 'Dinner', location: 'Grand Ballroom', subtitle: 'Grand Ballroom', visibility: 'all_guests' },
+    { id: 'gd-3', startsAt: iso('2026-06-20T21:00:00'), title: 'Graduation toast', notes: 'A night to remember', subtitle: 'A night to remember', visibility: 'all_guests' },
   ],
 };
 
@@ -370,7 +397,10 @@ export const activity: ActivityEntry[] = [
   { id: 'ac-3', actorId: 'p-omar', planId: 'plan-wedding', type: 'rsvp', message: 'Omar is going to the wedding', createdAt: iso('2026-11-22T09:14:00'), readAt: iso('2026-11-22T10:00:00') },
 ];
 
-export const plans = [florenceTrip, fridayHangout, wedding, completedHangout];
+export const plans = [florenceTrip, fridayHangout, wedding, completedHangout, graduationDinner];
+
+/** Seeded plan ids before the shared world tracked them (see store normalizeWorld). */
+export const ORIGINAL_PLAN_IDS = ['plan-florence', 'plan-friday', 'plan-wedding', 'plan-past-hangout'];
 
 export const INVITE_TOKENS = {
   validHangout: 'inv-friday-night',

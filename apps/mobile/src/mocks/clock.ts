@@ -1,7 +1,7 @@
 import { FIXTURE_ANCHOR } from './fixtures';
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-const TIMESTAMP_KEYS = new Set(['startsAt', 'endsAt', 'joinedAt', 'createdAt', 'readAt', 'savedAt', 'expiresAt']);
+const TIMESTAMP_KEYS = new Set(['startsAt', 'endsAt', 'joinedAt', 'createdAt', 'readAt', 'savedAt', 'expiresAt', 'invitedAt', 'respondedAt']);
 
 /**
  * Whole weeks between the fixture anchor and `now`. Never negative, so a clock

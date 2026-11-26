@@ -217,9 +217,35 @@ export type RSVP = 'going' | 'maybe' | 'declined' | 'pending';
 
 export interface EventGuest {
   id: ID;
+  /** Absent for guests added by name only (not on Voya). */
   personId?: ID;
   displayName: string;
   rsvp: RSVP;
+  invitedBy?: ID;
+  invitedAt?: string;
+  respondedAt?: string;
+}
+
+/** EV06 fields. `subtitle` is kept as the line shown under the title (location or note). */
+export interface EventScheduleItem extends TimelineItem {
+  location?: string;
+  notes?: string;
+  /** Guest instructions, e.g. "Please be seated by 11:05 PM". */
+  instructions?: string;
+}
+
+/** What co-hosts may manage (EV03 "Manage permissions"). Hosts can do everything. */
+export interface CohostPermissions {
+  details: boolean;
+  guests: boolean;
+  schedule: boolean;
+}
+
+/** The invitation card's wording (20). Absent = generic wording from the event. */
+export interface EventInvitationText {
+  eyebrow?: string;
+  headline?: string;
+  line?: string;
 }
 
 export interface VoyaEvent extends PlanBase {
@@ -227,8 +253,16 @@ export interface VoyaEvent extends PlanBase {
   venue?: string;
   description?: string;
   dressCode?: string;
+  /** "Important note" (21). */
+  note?: string;
+  invitation?: EventInvitationText;
+  /** App-local picked cover ("covers/<file>"); falls back to `coverPhoto`. */
+  coverRef?: string;
+  cohostPermissions?: CohostPermissions;
   guests: EventGuest[];
-  schedule: TimelineItem[];
+  schedule: EventScheduleItem[];
+  /** Guest projection only: the viewer's own guest row. Never stored. */
+  viewerGuestId?: ID;
 }
 
 export type Plan = Trip | Hangout | VoyaEvent;

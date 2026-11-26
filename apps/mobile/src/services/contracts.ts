@@ -12,8 +12,9 @@ import type {
   PlaceSignal,
   Plan,
   RSVP,
+  CohostPermissions,
+  EventScheduleItem,
   SavedPlace,
-  TimelineItem,
   Trip,
   VoyaEvent,
 } from './types';
@@ -125,7 +126,8 @@ export interface PlansService {
   createTrip(input: { title: string; destination: string; startsAt: string; endsAt: string }): Promise<Trip>;
   /** 13: the creator becomes organizer; invitees get pending invitations. */
   createHangout(input: { title: string; city: string; template: string; startsAt: string; invitees?: ID[] }): Promise<Hangout>;
-  createEvent(input: { title: string; city: string; startsAt: string; venue?: string }): Promise<VoyaEvent>;
+  /** 18: the creator becomes host; `hosts` become hosts too. Cover is a local image URI to copy. */
+  createEvent(input: EventInput & { hosts?: ID[] }): Promise<VoyaEvent>;
   leave(id: ID): Promise<void>;
   /**
    * Add to Plan (E09): upcoming hangouts and trips the user can suggest places
@@ -166,11 +168,46 @@ export interface HangoutsService {
   proposeChange(hangoutId: ID, change: { slot: string; placeId?: ID; note?: string }): Promise<Hangout>;
 }
 
+export interface EventInput {
+  title: string;
+  /** "Location" on the board: the venue. */
+  venue: string;
+  city?: string;
+  startsAt: string;
+  endsAt?: string;
+  description?: string;
+  /** A picked image (file:// URI) to copy into app storage. */
+  coverUri?: string;
+}
+
 export interface EventsService {
+  /** EV02. Needs plan.edit. `coverUri: null` removes a picked cover. */
+  update(eventId: ID, patch: Partial<Omit<EventInput, 'coverUri'>> & { coverUri?: string | null }): Promise<VoyaEvent>;
+  /** The signed-in guest answers their own invitation (20, 21). */
+  respond(eventId: ID, rsvp: Exclude<RSVP, 'pending'>): Promise<VoyaEvent>;
+  /** Host override for a guest's answer (40), e.g. someone who answered by phone. */
   setRsvp(eventId: ID, guestId: ID, rsvp: RSVP): Promise<VoyaEvent>;
+  /** Invite Voya friends (40, EV04). People already on the list or hosting are skipped. */
+  invite(eventId: ID, personIds: ID[]): Promise<VoyaEvent>;
+  /** Add a guest by name only (not on Voya). */
   addGuest(eventId: ID, displayName: string): Promise<VoyaEvent>;
-  upsertScheduleItem(eventId: ID, item: Partial<TimelineItem> & { id?: ID }): Promise<VoyaEvent>;
+  /** 40: remove a guest or withdraw an invitation. */
+  removeGuest(eventId: ID, guestId: ID): Promise<VoyaEvent>;
+  /** EV06, one item at a time. */
+  upsertScheduleItem(eventId: ID, item: Partial<EventScheduleItem> & { id?: ID }): Promise<VoyaEvent>;
   removeScheduleItem(eventId: ID, itemId: ID): Promise<VoyaEvent>;
+  /**
+   * 23 "Save schedule": replaces the schedule. `baseVersion` is the version the
+   * editor started from; if someone saved in between, this fails with `conflict`.
+   */
+  saveSchedule(eventId: ID, items: Partial<EventScheduleItem>[], baseVersion: number): Promise<VoyaEvent>;
+  /** EV03 (hosts only). Guests who become co-hosts leave the guest list. */
+  addCohosts(eventId: ID, personIds: ID[]): Promise<VoyaEvent>;
+  setHostRole(eventId: ID, personId: ID, role: 'host' | 'co-host'): Promise<VoyaEvent>;
+  removeHost(eventId: ID, personId: ID): Promise<VoyaEvent>;
+  setCohostPermissions(eventId: ID, permissions: CohostPermissions): Promise<VoyaEvent>;
+  /** EV01 "Cancel event" (hosts only). The event stays, read-only, for everyone. */
+  cancel(eventId: ID): Promise<VoyaEvent>;
   /** Host-only fields are stripped here, exactly as the server will strip them. */
   guestProjection(eventId: ID): Promise<VoyaEvent>;
 }
