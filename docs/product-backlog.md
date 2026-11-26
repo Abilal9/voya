@@ -35,7 +35,9 @@ integration or enhancement.
 | F1-07 | Session survives mock data reseeds (unversioned session key) | P1 | Implemented | Mock | — | F1-02 | Reseed does not sign the user out; reset still signs out |
 | F1-08 | Tap-through verification of core screens on the simulator | P0 | Blocked | Ops | — | Simulator control | Welcome, Sign in, Home, Explore, Saved, Profile, Create, Logout exercised by real taps |
 | F1-09 | Accurate screen coverage inventory | P1 | Implemented | Ops | all | — | Every board frame mapped with honest status |
-| F1-10 | Shared mock world: one plan graph visible to all its members (today each account gets its own copy) | P1 | Not Started | Mock | 14–16, 19–24 | — | A vote cast as Ahmad is visible after switching to Khaled. Needed before F5 |
+| F1-10 | Shared mock world: one canonical record per plan, membership-based visibility, migration from per-account copies | P1 | Verified | Mock | 14–16, 19–24 | — | A vote cast as Ahmad is visible after switching to Khaled. Needed before F5 |
+| F1-11 | Development-only test account (owner's email; password stored only as a SHA-256 digest; absent outside `__DEV__`) | P1 | Implemented | Mock | — | F2-04 | Signs in with the owner's password, starts at onboarding, sees seeded plans as Ahmad. Unit-tested with a fake account; not yet signed in on device |
+| F1-12 | Back with no history (deep link, fresh launch) returns to the app root instead of throwing GO_BACK | P1 | Implemented | Mock | — | — | No unhandled GO_BACK in Metro logs |
 
 ### F2 — Authentication and onboarding
 
@@ -47,7 +49,7 @@ integration or enhancement.
 | F2-04 | Sign-up creates a separate local mock account (names persisted, no real password stored) | P1 | Implemented | Mock | A02, A07 | — | New account has empty saved/plans; seeded users untouched |
 | F2-05 | Onboarding A07–A10 at board fidelity, resumable mid-way | P1 | Implemented | Mock | A07–A10 | F2-04 | Quit at A08, relaunch → resumes A08 |
 | F2-06 | Mock Apple / Google sign-in journeys | P1 | Implemented | Mock | A02, A03 | — | Lands on correct next step; labelled as simulated |
-| F2-07 | Returning-user and logout/restart journeys verified on device | P1 | Not Started | Mock | — | F1-08 | Logout → Welcome; relaunch keeps session |
+| F2-07 | Returning-user and logout/restart journeys verified on device | P1 | Blocked | Mock | — | F1-08 (Simulator control) | Logout → Welcome; relaunch keeps session |
 
 ### F3 — Explore, Saved and Place details
 
@@ -55,8 +57,8 @@ integration or enhancement.
 |---|---|---|---|---|---|---|---|
 | F3-01 | Card discovery, category filter, swipe/like | P1 | Implemented | Mock | E01, E03, E04 | — | Board-matched E01; like/skip/save work |
 | F3-02 | Location selection sheet | P1 | Not Started | Mock | E02 | — | Replaces the temporary iOS action sheet |
-| F3-03 | Filters sheet | P1 | Not Started | Mock | E07 | — | Filters change results; count badge |
-| F3-04 | Search, results, no results | P1 | Not Started | Mock | E10–E12 | — | Search over mock catalogue |
+| F3-03 | Filters sheet | P1 | Implemented | Mock | E07 | — | Filters change results; count badge |
+| F3-04 | Search, results, no results | P1 | Implemented | Mock | E10–E12 | — | Search over mock catalogue |
 | F3-05 | Map view + marker preview (mock-compatible map) | P1 | Not Started | Mock | E05, E06 | map library decision | Pins from fixture coordinates; card sync |
 | F3-06 | Place details at board fidelity | P1 | Not Started | Mock | E08 | — | Handles missing rating/photo/hours |
 | F3-07 | Add place to Plan | P1 | Not Started | Mock | E09 | F5/F7 models | Adds to an eligible plan, visible there |

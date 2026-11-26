@@ -7,9 +7,9 @@ TypeScript compiles. Item-level detail lives in `docs/product-backlog.md`.
 
 | Phase | Scope | Status |
 |---|---|---|
-| **F1 — Foundation** | Main-only workflow, data consistency, fixture boundaries, tests, inventory, device verification | 🟡 Active — fixes and tests done; tap-through blocked on Simulator control |
-| F2 — Auth & onboarding | A01–A12, separate mock accounts, resume, logout/restart | 🟡 All A01–A12 built to the board with local accounts and resume; on-device tap-through pending |
-| F3 — Explore, Saved, Place details | E01–E12, Saved, map, Add to Plan | 🟡 E01, Saved board-matched; search, filters, map, details pending |
+| F1 — Foundation | Main-only workflow, data consistency, fixture boundaries, tests, inventory, device verification | 🟡 Shared plan world (F1-10) done and tested; tap-through blocked on Simulator control |
+| F2 — Auth & onboarding | A01–A12, separate mock accounts, resume, logout/restart | 🟡 Built and unit-tested; NOT simulator-verified (no tap control); dev test account added |
+| **F3 — Explore, Saved, Place details** | E01–E12, Saved, map, Add to Plan | 🟡 Active — F3-01 search (E10–E12) and filters (E07) built and tested; details, Add to Plan, location sheet, map pending |
 | F4 — Profile & Settings | 03, V01–V13 | 🟡 Profile, Past Plans done; settings screens pending |
 | F5 — Hangouts | 13–17, 37, H01–H07 | ⬜ Not started (needs shared mock world, F1-10) |
 | F6 — Events | 18–24, 40, EV01–EV06 | ⬜ Not started |
