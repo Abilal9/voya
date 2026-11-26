@@ -4,7 +4,7 @@ Source: `reference/voya-design-v1.html` — 97 presentations (96 screens/states 
 They are not 97 React Native screens: many are variants, sheets or states of one screen.
 Updated 2026-11-26 from the rendered board.
 
-**Coverage:** 43 implemented · 7 partial · 47 missing (of 97).
+**Coverage:** 56 implemented · 6 partial · 35 missing (of 97).
 
 **Columns.** *Implementation*: Implemented / Partial / Missing. *Interaction check*: how it was
 checked — "Screenshot" means rendered on the iOS Simulator and inspected by screenshot or deep link
@@ -102,19 +102,19 @@ were taken from the board CSS and compared side by side.
 
 | Code | Board caption | Kind | Route / component | Implementation | Interaction check | Visual | Gap | Backlog |
 |---|---|---|---|---|---|---|---|---|
-| `13` | Create Hangout | Screen | — | Missing | — | — |  | F5-01 |
-| `14` | Choose together | Screen | — | Missing | — | — |  | F5-03 |
-| `15` | Group suggestions | Screen | — | Missing | — | — |  | F5-04 |
-| `16` | Final timeline | Screen | app/plan/[id].tsx (read-only timeline) | Partial | Screenshot | Not matched | Not the board layout | F5-05 |
-| `17` | Join Hangout | Screen | — | Missing | — | — |  | F5-08 |
-| `37` | Hangout — Lobby | Screen | — | Missing | — | — |  | F5-02 |
-| `H01` | Hangout settings | Screen | — | Missing | — | — |  | F5-07 |
-| `H02` | Edit hangout | Screen | — | Missing | — | — |  | F5-07 |
-| `H03` | Manage people | Screen | — | Missing | — | — |  | F5-02 |
-| `H04` | Share hangout | Screen | — | Missing | — | — |  | F5-07 |
-| `H05` | Hangout completed | State | — | Missing | — | — |  | F5-07 |
-| `H06` | Hangout — Suggest a Place | Sheet | — | Missing | — | — |  | F5-03 |
-| `H07` | Hangout — Suggest a Change | Sheet | — | Missing | — | — |  | F5-06 |
+| `13` | Create Hangout | Screen | app/hangout/new.tsx | Implemented | Screenshot + unit tests | Board-matched | Date/time and destination open native pickers in sheets | F5-01 |
+| `14` | Choose together | Screen | app/hangout/[id]/choose.tsx | Implemented | Screenshot + unit tests | Board-matched | Fixture photos are tints; deck shows the slot’s suggestions first | F5-03 |
+| `15` | Group suggestions | Screen | app/hangout/[id]/suggestions.tsx | Implemented | Screenshot + unit tests | Board-matched |  | F5-04 |
+| `16` | Final timeline | Screen | app/hangout/[id]/index.tsx (Final) | Implemented | Unit tests | Board-matched in code | No drive times shown (no routing data); not screenshotted (seed has no finalized upcoming hangout) | F5-05 |
+| `17` | Join Hangout | Screen | app/hangout/[id]/index.tsx (Invitation) | Implemented | Unit tests | Board-matched in code | Shown to pending invitees; not screenshotted as Ahmad | F5-08 |
+| `37` | Hangout — Lobby | Screen | app/hangout/[id]/index.tsx (Lobby) | Implemented | Screenshot + unit tests | Board-matched | Organizer sees “Finalize plan” once every slot has a voted place (board has no explicit control) | F5-02 |
+| `H01` | Hangout settings | Screen | app/hangout/[id]/settings.tsx | Implemented | Screenshot + unit tests | Board-matched | Per-hangout mute stored in account settings | F5-07 |
+| `H02` | Edit hangout | Screen | app/hangout/[id]/edit.tsx | Implemented | Screenshot + unit tests | Board-matched | Template locked once final | F5-07 |
+| `H03` | Manage people | Screen | app/hangout/[id]/people.tsx | Implemented | Screenshot + unit tests | Board-matched | Initials are first+last (KK), board shows KH | F5-02 |
+| `H04` | Share hangout | Sheet | app/hangout/[id]/settings.tsx (share sheet) | Implemented | Code only | Board-matched in code | OS share of plan details; Copy link shows “Available when invite links go live” | F5-07 |
+| `H05` | Hangout completed | State | app/hangout/[id]/index.tsx (Completed) | Implemented | Screenshot | Board-matched | Cover is a tint (no photography) | F5-07 |
+| `H06` | Hangout — Suggest a Place | Screen | app/hangout/[id]/suggest.tsx | Implemented | Screenshot + unit tests | Board-matched |  | F5-03 |
+| `H07` | Hangout — Suggest a Change | Sheet | app/hangout/[id]/change.tsx (form sheet) | Implemented | Screenshot + unit tests | Board-matched | Slot picker is a segment, board shows a select | F5-06 |
 
 ## Events
 

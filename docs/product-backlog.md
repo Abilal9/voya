@@ -86,14 +86,16 @@ integration or enhancement.
 
 | ID | Item | P | Status | Type | Design | Depends | Acceptance |
 |---|---|---|---|---|---|---|---|
-| F5-01 | Create Hangout (details, template, people) | P1 | Not Started | Mock | 13 | F1-10 | Creates a real mock hangout, not a placeholder draft |
-| F5-02 | Lobby + manage people | P1 | Not Started | Mock | 37, H03 | F5-01 | — |
-| F5-03 | Suggest a place / choose together | P1 | Not Started | Mock | H06, 14 | F3 catalogue | — |
-| F5-04 | Group suggestions, voting, simulated participant votes | P1 | Not Started | Mock | 15 | F1-10 | Votes update counts for every member |
-| F5-05 | Finalize + final timeline | P1 | Not Started | Mock | 16 | F5-04 | Only organizer can finalize |
-| F5-06 | Suggest a change | P1 | Not Started | Mock | H07 | F5-05 | — |
-| F5-07 | Settings, edit, share, completed | P1 | Not Started | Mock | H01, H02, H04, H05 | F5-01 | — |
-| F5-08 | Join Hangout (from invite) | P1 | Not Started | Mock | 17 | F8-01 | — |
+| F5-01 | Create Hangout (details, template, people) | P1 | Implemented | Mock | 13 | F1-10 | Creates a real mock hangout, not a placeholder draft |
+| F5-02 | Lobby + manage people | P1 | Implemented | Mock | 37, H03 | F5-01 | — |
+| F5-03 | Suggest a place / choose together | P1 | Implemented | Mock | H06, 14 | F3 catalogue | — |
+| F5-04 | Group suggestions, voting, simulated participant votes | P1 | Implemented | Mock | 15 | F1-10 | Votes update counts for every member |
+| F5-05 | Finalize + final timeline | P1 | Implemented | Mock | 16 | F5-04 | Only organizer can finalize |
+| F5-06 | Suggest a change | P1 | Implemented | Mock | H07 | F5-05 | — |
+| F5-07 | Settings, edit, share, completed | P1 | Implemented | Mock | H01, H02, H04, H05 | F5-01 | — |
+| F5-08 | Join Hangout (from invite) | P1 | Implemented | Mock | 17 | F8-01 | In-app invitation for pending invitees; invite-link entry stays with F8-01 |
+| F5-09 | On-device tap-through of the hangout journey (create, vote, finalize, change, leave) | P1 | Blocked | Ops | 13–17, 37, H01–H07 | Simulator control | Exercised by real taps; screenshots + 98 unit tests so far |
+| F5-10 | Real invite links and drive-time estimates | P2 | Blocked | API | H04, 16 | backend / routing provider | Copy link and travel times appear only when real |
 
 ### F6 — Events
 
