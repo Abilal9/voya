@@ -9,8 +9,8 @@ TypeScript compiles. Item-level detail lives in `docs/product-backlog.md`.
 |---|---|---|
 | F1 — Foundation | Main-only workflow, data consistency, fixture boundaries, tests, inventory, device verification | 🟡 Shared plan world (F1-10) done and tested; tap-through blocked on Simulator control |
 | F2 — Auth & onboarding | A01–A12, separate mock accounts, resume, logout/restart | 🟡 Built and unit-tested; NOT simulator-verified (no tap control); dev test account added |
-| **F3 — Explore, Saved, Place details** | E01–E12, Saved, map, Add to Plan | 🟡 Active — F3-01 search (E10–E12) and filters (E07) built and tested; details, Add to Plan, location sheet, map pending |
-| F4 — Profile & Settings | 03, V01–V13 | 🟡 Profile, Past Plans done; settings screens pending |
+| F3 — Explore, Saved, Place details | E01–E12, Saved, map, Add to Plan | 🟡 All E01–E12 + Saved built and unit-tested; on-device tap review (F3-09) blocked on Simulator control |
+| **F4 — Profile & Settings** | 03, V01–V13 | 🟡 Next — Profile, Past Plans done; V01–V10, V13 pending |
 | F5 — Hangouts | 13–17, 37, H01–H07 | ⬜ Not started (needs shared mock world, F1-10) |
 | F6 — Events | 18–24, 40, EV01–EV06 | ⬜ Not started |
 | F7 — Trips | 03–12, 35, 36, T01–T06 | ⬜ Not started |

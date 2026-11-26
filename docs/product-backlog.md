@@ -56,13 +56,16 @@ integration or enhancement.
 | ID | Item | P | Status | Type | Design | Depends | Acceptance |
 |---|---|---|---|---|---|---|---|
 | F3-01 | Card discovery, category filter, swipe/like | P1 | Implemented | Mock | E01, E03, E04 | — | Board-matched E01; like/skip/save work |
-| F3-02 | Location selection sheet | P1 | Not Started | Mock | E02 | — | Replaces the temporary iOS action sheet |
+| F3-02 | Location selection (E02) | P1 | Implemented | Mock | E02 | — | Near me (mocked), search, recents, dream; city persists per account and drives Explore, Search, Filters (tests) |
 | F3-03 | Filters sheet | P1 | Implemented | Mock | E07 | — | Filters change results; count badge |
 | F3-04 | Search, results, no results | P1 | Implemented | Mock | E10–E12 | — | Search over mock catalogue |
-| F3-05 | Map view + marker preview (mock-compatible map) | P1 | Not Started | Mock | E05, E06 | map library decision | Pins from fixture coordinates; card sync |
-| F3-06 | Place details at board fidelity | P1 | Not Started | Mock | E08 | — | Handles missing rating/photo/hours |
-| F3-07 | Add place to Plan | P1 | Not Started | Mock | E09 | F5/F7 models | Adds to an eligible plan, visible there |
+| F3-05 | Map view + marker preview (Apple Maps via react-native-maps, no key) | P1 | Implemented | Mock | E05, E06 | — | Pins from fixture coordinates; card sync |
+| F3-06 | Place details at board fidelity, shared Save state | P1 | Implemented | Mock | E08 | — | Handles missing rating/photo/hours |
+| F3-07 | Add place to Plan (hangout suggestion / trip Must Do) | P1 | Implemented | Mock | E09 | — | Adds to an eligible plan, visible there |
 | F3-08 | Saved places | P1 | Implemented | Mock | 39 | — | Board-matched; heart removes; city filter |
+| F3-09 | Explore review on device: swipe feel, deck transitions, map preview carousel, details/save round trips | P1 | Blocked | Ops | E01, E04–E06, E08 | Simulator control | Exercised by real taps; screenshots only so far |
+| F3-10 | Recommendation reasons backed by data (e.g. "Liked by 3 of 4 friends" is fixture text, not computed from signals) | P2 | Not Started | Mock | E01, E08 | F5 shared signals | Reasons reflect real mock state or are removed |
+| F3-11 | Board's illustrated basemap (OS map used instead) | P2 | Deferred | Ops | E05 | design decision | — |
 
 ### F4 — Profile, Settings and Account
 

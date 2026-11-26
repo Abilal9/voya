@@ -92,7 +92,7 @@ This is on purpose. Every component that renders a `Place` must handle:
 | Photography | One sprite sheet in the board; no production imagery. Fixture photos are flat colour tints. |
 | Motion | The board defines **zero** transitions or keyframes. Any motion is an invention and must be flagged for review. |
 | 440pt artboard | The board is authored at 440×956. The app re-flows rather than scaling. Expect 1–3px drift from the board. |
-| Map view | Deferred until a provider is wired. The toggle switches to a list, and says so. |
+| Map view | Apple Maps via react-native-maps (bundled in Expo Go, no key). The board's illustrated basemap is not reproduced. |
 
 ## Commands
 

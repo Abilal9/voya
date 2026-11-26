@@ -4,7 +4,7 @@ Source: `reference/voya-design-v1.html` — 97 presentations (96 screens/states 
 They are not 97 React Native screens: many are variants, sheets or states of one screen.
 Updated 2026-11-26 from the rendered board.
 
-**Coverage:** 28 implemented · 8 partial · 61 missing (of 97).
+**Coverage:** 32 implemented · 7 partial · 58 missing (of 97).
 
 **Columns.** *Implementation*: Implemented / Partial / Missing. *Interaction check*: how it was
 checked — "Screenshot" means rendered on the iOS Simulator and inspected by screenshot or deep link
@@ -44,7 +44,7 @@ were taken from the board CSS and compared side by side.
 | `02` | Create a Plan | Screen | app/create.tsx | Implemented | Screenshot | Board-matched | Options create placeholder drafts until F5–F7 | F5-01, F6-01, F7-01 |
 | `03` | Profile | Screen | app/(tabs)/profile.tsx | Implemented | Screenshot | Board-matched | Edit profile, Settings, Manage hidden until built | F4-01 |
 | `38` | Activity | Screen | app/activity.tsx | Implemented | Screenshot | Close to board | Board day labels use Today/Yesterday | F1-05, F8-02 |
-| `39` | Saved Places | Screen | app/saved.tsx | Implemented | Screenshot (empty state) + unit tests | Board-matched | Add to Plan missing | F3-08, F3-07 |
+| `39` | Saved Places | Screen | app/saved.tsx | Implemented | Screenshot (empty state) + unit tests | Board-matched | | F3-08 |
 | `V01` | Edit profile | Screen | — | Missing | — | — |  | F4-03 |
 | `V02` | Settings | Screen | — | Missing | — | — |  | F4-05 |
 | `V03` | Account | Screen | — | Missing | — | — |  | F4-05 |
@@ -63,14 +63,14 @@ were taken from the board CSS and compared side by side.
 | Code | Board caption | Kind | Route / component | Implementation | Interaction check | Visual | Gap | Backlog |
 |---|---|---|---|---|---|---|---|---|
 | `E01` | Card discovery | Screen | app/(tabs)/explore.tsx | Implemented | Screenshot + unit tests | Board-matched | Search and filter buttons added; map pending | F3-01, F3-03 |
-| `E02` | Location selection | Sheet | iOS action sheet (temporary) | Partial | Not tested | Not matched | Board sheet not built | F3-02 |
+| `E02` | Location selection | Screen | app/location.tsx | Implemented | Screenshot + unit tests | Board-matched | Near me is mocked (home city) | F3-02 |
 | `E03` | Food filter selected | Variant | app/(tabs)/explore.tsx (category selected) | Implemented | Not tested | Board-matched |  | F3-01 |
 | `E04` | Swipe / like interaction | Variant | src/features/explore/SwipeDeck.tsx | Implemented | Not tested | Not matched | Swipe motion is not specified by the board | F3-01, DS-04 |
-| `E05` | Map view | Screen | — | Missing | — | — | Map pill shows a list and says so | F3-05 |
-| `E06` | Map marker + place preview | Variant | — | Missing | — | — |  | F3-05 |
+| `E05` | Map view | Variant | src/features/explore/MapExplore.tsx (Explore map mode) | Implemented | Screenshot + unit tests | Close to board | OS map instead of the illustrated basemap | F3-05, F3-11 |
+| `E06` | Map marker + place preview | Variant | MapExplore preview carousel | Implemented | Not tested on device | Built to board CSS | Needs a tap to open | F3-05 |
 | `E07` | Filters sheet | Sheet | app/filters.tsx (modal) | Implemented | Unit tests | Built to board CSS; not yet seen on device | Distance measured from the mock city centre | F3-03 |
-| `E08` | Place details | Screen | app/place/[id].tsx | Implemented | Not tested | Not matched | Restyle to board | F3-06 |
-| `E09` | Add place to Plan | Sheet | — | Missing | — | — |  | F3-07 |
+| `E08` | Place details | Screen | app/place/[id].tsx | Implemented | Screenshot + unit tests | Board-matched | Flat photo tints | F3-06 |
+| `E09` | Add place to Plan | Sheet | app/add-to-plan/[id].tsx (modal) | Implemented | Screenshot + unit tests | Board-matched | | F3-07 |
 | `E10` | Search places | Screen | app/search.tsx | Implemented | Unit tests | Built to board CSS; not yet seen on device | | F3-04 |
 | `E11` | Search results | Variant | app/search.tsx (results) | Implemented | Unit tests | Built to board CSS; not yet seen on device | | F3-04 |
 | `E12` | No search results | State | app/search.tsx (empty) | Implemented | Unit tests | Built to board CSS; not yet seen on device | | F3-04 |
