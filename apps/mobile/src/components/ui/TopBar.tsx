@@ -14,7 +14,8 @@ export function TopBar({ title, right, onBack }: { title?: string; right?: React
         accessibilityRole="button"
         accessibilityLabel="Back"
         hitSlop={layout.minTouchTarget / 4}
-        onPress={onBack ?? (() => router.back())}
+        // With no history (deep link, fresh launch) go to the app root; the session guard routes from there.
+        onPress={onBack ?? (() => (router.canGoBack() ? router.back() : router.replace('/')))}
         style={styles.side}
       >
         <ChevronLeft size={icon.xl} color={colors.brand.plum} strokeWidth={icon.strokeWidth} />

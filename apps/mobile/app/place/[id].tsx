@@ -64,7 +64,7 @@ export default function PlaceDetail() {
           variant={isSaved.data ? 'secondary' : 'primary'}
           onPress={toggle}
         />
-        <Button label="Close" variant="ghost" onPress={() => router.back()} />
+        <Button label="Close" variant="ghost" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />
       </View>
     </Screen>
   );

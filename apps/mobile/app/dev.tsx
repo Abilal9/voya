@@ -92,7 +92,7 @@ export default function DevMenu() {
         </View>
       </Card>
 
-      <Button label="Close" variant="ghost" onPress={() => router.back()} />
+      <Button label="Close" variant="ghost" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />
     </Screen>
   );
 }

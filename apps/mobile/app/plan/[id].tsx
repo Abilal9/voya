@@ -80,7 +80,7 @@ export default function PlanDetail() {
           <Timeline items={items} />
         )}
 
-        <Button label="Back" variant="ghost" onPress={() => router.back()} />
+        <Button label="Back" variant="ghost" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />
       </ScrollView>
     </Screen>
   );
