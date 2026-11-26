@@ -301,6 +301,19 @@ export const board = {
     switch: { width: 46, height: 28, knob: 22, inset: 3, off: '#E0D5E6' },
     button: { border: '#E2D6E5', radius: 15, minWidth: 49, height: 50, badge: 17, badgeFontSize: 10, badgeOffset: -4 },
   },
+  place: {
+    top: { gap: 12, marginBottom: 15, buttonPadding: 5, titleSize: 12 },
+    heroHeight: 254, heroRadius: 28, heroMarginBottom: 25,
+    titleMarginBottom: 9,
+    pill: { paddingY: 7, paddingX: 11, radius: 25, background: '#EAE0F5', fontSize: 11 },
+    section: { paddingY: 17, border: '#E9DFE5', titleSize: 16, bodySize: 13, bodyLineHeight: 19.5, bodyColor: '#837088' },
+    actions: { gap: 10, marginTop: 20, saveWidth: 64, saveRadius: 17, saveBackground: '#EEE1F6' },
+  },
+  addToPlan: {
+    radius: 34, paddingTop: 13, titleSize: 30, eyebrowMarginTop: 22,
+    pick: { gap: 14, paddingY: 23, border: '#E9DCE6', titleSize: 17, titleMarginBottom: 4 },
+    noteMarginTop: 15,
+  },
   pastPlans: { introMarginBottom: 18, introBodySize: 13, cardMarginBottom: 24, photoHeight: 120, photoMarginBottom: 11, titleSize: 17 },
   tabBar: {
     height: 88, paddingX: 28, paddingTop: 10, paddingBottom: 24, borderColor: '#E9DFE8',

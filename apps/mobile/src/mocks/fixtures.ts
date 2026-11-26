@@ -87,6 +87,8 @@ export const places: Place[] = [
     reason: 'Because you like Japanese food and upscale restaurants',
     coordinates: { latitude: 24.6981, longitude: 46.6855 }, openNow: true,
     tags: ['Popular', 'Good for groups'],
+
+    description: 'Contemporary Japanese dining, thoughtful details and a table worth sharing.', hoursText: 'Open until 12:00 AM',
   },
   {
     id: 'roka', name: 'ROKA', type: 'Japanese · Robatayaki', category: 'Food',
@@ -94,24 +96,32 @@ export const places: Place[] = [
     reason: 'Highly rated near your area',
     coordinates: { latitude: 24.6943, longitude: 46.6836 },
     openNow: true, tags: ['Popular'],
+
+    description: 'Robata grill and sharing plates in a lively, low-lit room.', hoursText: 'Open until 1:00 AM',
   },
   {
     id: 'urth', name: 'Urth Caffe', type: 'Coffee · Café', category: 'Coffee',
     city: 'Riyadh', area: 'As Sulimaniyah', rating: 4.5, price: '$$', photo: 'restaurant',
     reason: 'A little time for your next coffee discovery',
     coordinates: { latitude: 24.7021, longitude: 46.6712 }, openNow: true,
+
+    description: 'Organic coffee, pastries and a sunny terrace for slow mornings.', hoursText: 'Open until 11:00 PM',
   },
   {
     id: 'hallab', name: 'Hallab', type: 'Lebanese sweets · Dessert', category: 'Dessert',
     city: 'Riyadh', area: 'As Sulimaniyah', rating: 4.5, price: '$$', photo: 'restaurant',
     reason: 'Something sweet to share after dinner',
     coordinates: { latitude: 24.6999, longitude: 46.6801 }, openNow: true,
+
+    description: 'Lebanese sweets made the traditional way, from knafeh to maamoul.', hoursText: 'Open until 12:00 AM',
   },
   {
     id: 'finzione', name: 'Finzione', type: 'Italian · Restaurant', category: 'Food',
     city: 'Riyadh', area: 'As Sulimaniyah', rating: 4.4, price: '$$$', photo: 'restaurant',
     reason: 'A relaxed spot for your next dinner together',
     coordinates: { latitude: 24.6967, longitude: 46.6889 }, openNow: false,
+
+    description: 'Seasonal Italian cooking with fresh pasta made in-house.', hoursText: 'Opens at 6:00 PM',
   },
   {
     id: 'padel-hub', name: 'The Padel Hub', type: 'Padel · Sports', category: 'Activities',
@@ -119,6 +129,8 @@ export const places: Place[] = [
     reason: 'Liked by 3 of 4 friends',
     coordinates: { latitude: 24.7812, longitude: 46.6301 },
     openNow: true, tags: ['Good for groups'],
+
+    description: 'Indoor and outdoor padel courts with coaching and equipment hire.', hoursText: 'Open until 2:00 AM',
   },
 
   // ---- DAMAGED: no price, hours unknown (undefined !== closed)
@@ -157,6 +169,8 @@ export const places: Place[] = [
     reason: 'Great match for you',
     coordinates: { latitude: 43.7678, longitude: 11.2559 },
     openNow: true, tags: ['Popular'],
+
+    description: 'Renaissance masterpieces from Botticelli, Leonardo and Michelangelo.', hoursText: 'Open until 6:30 PM',
   },
   {
     id: 'mercato', name: 'Mercato Centrale', type: 'Food hall · Market', category: 'Food',
@@ -164,6 +178,8 @@ export const places: Place[] = [
     reason: 'Liked by 3 of 4 travelers',
     coordinates: { latitude: 43.7765, longitude: 11.2535 },
     openNow: true, tags: ['Good for groups'],
+
+    description: 'A busy food hall with Tuscan stalls, fresh pasta and wine.', hoursText: 'Open until 12:00 AM',
   },
   {
     id: 'duomo', name: 'Piazza del Duomo', type: 'Landmark · Culture', category: 'Culture',
@@ -187,6 +203,8 @@ export const places: Place[] = [
     city: 'Florence', area: 'Piazza della Repubblica', rating: 4.5, price: '$$', photo: 'restaurant',
     reason: 'A new discovery for your next day out',
     coordinates: { latitude: 43.7719, longitude: 11.2546 },
+
+    description: 'A historic café on Piazza della Repubblica, serving since 1733.',
   },
   // ---- DAMAGED: Florence, no rating/photo/price
   {

@@ -86,6 +86,10 @@ export interface Place {
   photo?: string;
   /** First-party recommendation rationale. Never provider content. */
   reason?: string;
+  /** Short "About" copy (E08). Absent for many provider records. */
+  description?: string;
+  /** Today's hours as a sentence, e.g. "Open until 12:00 AM". Absent = unknown. */
+  hoursText?: string;
   coordinates?: { latitude: number; longitude: number };
   /** undefined means UNKNOWN, which is not the same as closed. */
   openNow?: boolean;

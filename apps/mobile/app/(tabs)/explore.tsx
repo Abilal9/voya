@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { ActionSheetIOS, Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Check, ChevronDown, Heart, LayoutGrid, Map as MapIcon, MapPin, Search, SlidersHorizontal, Sparkles, X,
@@ -9,6 +9,7 @@ import {
 import { EmptyState, ErrorState, LoadingState, Text } from '@/components/ui';
 import { SwipeDeck, type SwipeDeckHandle } from '@/features/explore/SwipeDeck';
 import { PlaceCard } from '@/features/explore/PlaceCard';
+import { useSavedPlaces } from '@/features/explore/useSavedPlaces';
 import { useServices } from '@/services/ServicesProvider';
 import { useCategories, useCities } from '@/features/catalog';
 import { EMPTY_FILTERS, activeFilterCount, toQuery, useExploreFilters } from '@/features/explore/filters';
@@ -27,7 +28,6 @@ type ExploreView = 'deck' | 'list';
 export default function Explore() {
   const router = useRouter();
   const services = useServices();
-  const qc = useQueryClient();
   const deck = React.useRef<SwipeDeckHandle>(null);
 
   const citiesQuery = useCities();
@@ -53,12 +53,12 @@ export default function Explore() {
     queryFn: () => services.places.discover({ city, ...toQuery(filters) }),
     enabled: !!city,
   });
-  const saved = useQuery({ queryKey: ['saved'], queryFn: () => services.saved.list() });
+  const saved = useSavedPlaces();
 
   const results = places.data ?? [];
   React.useEffect(() => setTop(0), [places.data]);
   const current: Place | undefined = results[top];
-  const isSaved = !!current && (saved.data ?? []).some((s) => s.placeId === current.id);
+  const isSaved = !!current && saved.isSaved(current.id);
 
   const onSwipe = React.useCallback(
     async (place: Place, direction: 'like' | 'dislike') => {
@@ -69,10 +69,7 @@ export default function Explore() {
   );
 
   const toggleSave = async () => {
-    if (!current) return;
-    if (isSaved) await services.saved.unsave(current.id);
-    else await services.saved.save(current.id);
-    void qc.invalidateQueries({ queryKey: ['saved'] });
+    if (current) await saved.toggle(current.id);
   };
 
   const chooseCity = () => {

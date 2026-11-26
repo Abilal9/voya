@@ -8,8 +8,8 @@ import { AuthIntro, StateHero, ToggleChip, authStyles } from '@/features/auth/Au
 import { useCities } from '@/features/catalog';
 import { PHOTO_TINT, ratingLine } from '@/features/explore/PlaceCard';
 import { activeFilterCount, toQuery, useExploreFilters } from '@/features/explore/filters';
+import { useSavedPlaces } from '@/features/explore/useSavedPlaces';
 import { useServices } from '@/services/ServicesProvider';
-import type { Place } from '@/services';
 import { board, colors, icon } from '@/theme';
 
 const S = board.search;
@@ -32,7 +32,7 @@ export default function Search() {
 
   const recent = useQuery({ queryKey: ['search', 'recent'], queryFn: () => services.places.recentSearches() });
   const popular = useQuery({ queryKey: ['catalog', 'popular'], queryFn: () => services.catalog.popularSearches() });
-  const saved = useQuery({ queryKey: ['saved'], queryFn: () => services.saved.list() });
+  const saved = useSavedPlaces();
   const results = useQuery({
     queryKey: ['search', submitted, city, filters],
     queryFn: () => services.places.search({ query: submitted ?? '', city, ...toQuery(filters) }),
@@ -51,12 +51,6 @@ export default function Search() {
   const clear = () => {
     setText('');
     setSubmitted(null);
-  };
-
-  const toggleSave = async (p: Place, isSaved: boolean) => {
-    if (isSaved) await services.saved.unsave(p.id);
-    else await services.saved.save(p.id);
-    void qc.invalidateQueries({ queryKey: ['saved'] });
   };
 
   const field = (
@@ -150,7 +144,7 @@ export default function Search() {
           <ErrorState onRetry={() => void results.refetch()} />
         ) : (
           list.map((p) => {
-            const isSaved = (saved.data ?? []).some((s) => s.placeId === p.id);
+            const isSaved = saved.isSaved(p.id);
             const km = services.places.distanceKm(p);
             return (
               <View key={p.id} style={styles.result}>
@@ -170,7 +164,7 @@ export default function Search() {
                   accessibilityRole="button"
                   accessibilityLabel={isSaved ? `Remove ${p.name} from Saved` : `Save ${p.name}`}
                   accessibilityState={{ selected: isSaved }}
-                  onPress={() => void toggleSave(p, isSaved)}
+                  onPress={() => void saved.toggle(p.id)}
                   hitSlop={board.inlineGap}
                 >
                   <Heart
