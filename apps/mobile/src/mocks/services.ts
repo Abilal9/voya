@@ -216,16 +216,44 @@ const profile: ProfileService = {
 
 // -------------------------------------------------------------- places
 
+const KM_PER_DEG = 111.32;
+
+/** Mock distance from the city's centre (equirectangular; fine at city scale). */
+function distanceFromCentre(place: Place): number | undefined {
+  const centre = fx.CITY_CENTERS[place.city];
+  if (!centre || !place.coordinates) return undefined;
+  const dLat = (place.coordinates.latitude - centre.latitude) * KM_PER_DEG;
+  const dLon = (place.coordinates.longitude - centre.longitude) * KM_PER_DEG
+    * Math.cos((centre.latitude * Math.PI) / 180);
+  return Math.round(Math.sqrt(dLat * dLat + dLon * dLon) * 10) / 10;
+}
+
+/** Every word must appear somewhere in the place's name, type, category, area or tags. */
+function matchesQuery(place: Place, query: string): boolean {
+  const haystack = [place.name, place.type, place.category, place.area, ...(place.tags ?? [])]
+    .filter(Boolean).join(' ').toLowerCase();
+  return query.toLowerCase().split(/\s+/).filter(Boolean).every((w) => haystack.includes(w));
+}
+
 function rank(places: Place[], q: PlacesQuery): Place[] {
+  const categories = q.categories?.length
+    ? q.categories
+    : q.category && q.category !== 'All' ? [q.category] : [];
   return places
     .filter((p) => !p.permanentlyClosed)
     .filter((p) => (q.city ? p.city === q.city : true))
-    .filter((p) => (q.category && q.category !== 'All' ? p.category === q.category : true))
+    .filter((p) => (categories.length ? categories.includes(p.category) : true))
+    .filter((p) => (q.prices?.length ? !!p.price && q.prices.includes(p.price) : true))
+    .filter((p) => (q.minRating !== undefined ? (p.rating ?? 0) >= q.minRating : true))
+    // Unknown hours are not "open now"; they are excluded only when the filter is on.
     .filter((p) => (q.openNow ? p.openNow === true : true))
     .filter((p) => (q.tags?.length ? q.tags.every((t) => p.tags?.includes(t)) : true))
-    .filter((p) =>
-      q.query ? p.name.toLowerCase().includes(q.query.toLowerCase()) : true,
-    )
+    .filter((p) => {
+      if (q.maxDistanceKm === undefined) return true;
+      const d = distanceFromCentre(p);
+      return d !== undefined && d <= q.maxDistanceKm;
+    })
+    .filter((p) => (q.query?.trim() ? matchesQuery(p, q.query) : true))
     .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
 }
 
@@ -239,11 +267,23 @@ const places: PlacesService = {
     );
     return rank(fx.places, q).filter((p) => !disliked.has(p.id));
   },
-  async search(query, city) {
+  async search(q) {
     await read();
-    if (!query.trim()) return [];
-    return rank(fx.places, { query, city });
+    if (!q.query?.trim()) return [];
+    return rank(fx.places, q);
   },
+  distanceKm: (place) => distanceFromCentre(place),
+  async recentSearches() {
+    const { state } = await read();
+    return state.recentSearches ?? [];
+  },
+  rememberSearch: (query) =>
+    mutate((s) => {
+      const q = query.trim();
+      if (!q) return;
+      const rest = (s.recentSearches ?? []).filter((x) => x.toLowerCase() !== q.toLowerCase());
+      s.recentSearches = [q, ...rest].slice(0, 5);
+    }),
   async getPlace(id) {
     await read();
     const place = fx.places.find((p) => p.id === id);
@@ -675,6 +715,9 @@ const catalog: CatalogService = {
   },
   async interests() {
     return [...fx.TASTE_INTERESTS];
+  },
+  async popularSearches() {
+    return [...fx.POPULAR_SEARCHES];
   },
   async people() {
     return structuredClone(fx.people);

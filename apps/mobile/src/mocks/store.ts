@@ -28,6 +28,8 @@ export interface AccountState {
   saved: SavedPlace[];
   signals: Record<ID, PlaceSignal>;
   activity: ActivityEntry[];
+  /** Most recent first, at most 5. Optional so older stored state still loads. */
+  recentSearches?: string[];
 }
 
 /**
@@ -58,6 +60,7 @@ export function seed(accountId: string, now: number = Date.now()): AccountState 
     },
     fixtureWeekOffset(now),
   ) as AccountState;
+  base.recentSearches = [...fx.SEEDED_RECENT_SEARCHES];
 
   if (accountId !== fx.SIGNED_IN_ACCOUNT_ID) {
     // Another seeded identity: its own profile, no saves, no activity.
@@ -70,6 +73,7 @@ export function seed(accountId: string, now: number = Date.now()): AccountState 
       interests: ['Coffee', 'Padel'],
     };
     base.activity = [];
+    base.recentSearches = [];
   }
   return base;
 }

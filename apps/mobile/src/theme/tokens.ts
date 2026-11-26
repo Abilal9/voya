@@ -287,6 +287,20 @@ export const board = {
     bodySize: 12, bodyLineHeight: 19, timeSize: 10, timeColor: '#97879C', dot: 5,
     dayLabelSize: 11, dayLabelTracking: 1.4, dayLabelColor: '#96819E', dayLabelMarginTop: 25,
   },
+  search: {
+    field: { gap: 12, padding: 17, radius: 17, marginTop: 23, marginBottom: 21, minHeight: 56, background: '#F0E9E6', fontSize: 14 },
+    group: { fontSize: 11, tracking: 1.4, color: '#96819E', marginTop: 24, marginBottom: 2 },
+    row: { gap: 14, minHeight: 64, paddingY: 17, fontSize: 15, icon: 19, border: '#E6DBE3' },
+    resultsHeader: { marginTop: 21, marginBottom: 3 },
+    result: { gap: 15, paddingY: 20, photoWidth: 100, photoHeight: 111, titleSize: 17, titleMarginBottom: 5, lineSize: 11, lineMarginBottom: 6 },
+  },
+  filters: {
+    handle: { width: 38, height: 4, radius: 5, color: '#D4C8D7', marginTop: 12, marginBottom: 23 },
+    paddingX: 25, headerMarginBottom: 25, sectionMarginBottom: 23, titleSize: 15, titleMarginBottom: 12,
+    option: { gap: 8, radius: 12, paddingY: 11, paddingX: 13, minHeight: 40, fontSize: 12, border: '#DED2E2', selectedBackground: '#E5D5F3' },
+    switch: { width: 46, height: 28, knob: 22, inset: 3, off: '#E0D5E6' },
+    button: { border: '#E2D6E5', radius: 15, minWidth: 49, height: 50, badge: 17, badgeFontSize: 10, badgeOffset: -4 },
+  },
   pastPlans: { introMarginBottom: 18, introBodySize: 13, cardMarginBottom: 24, photoHeight: 120, photoMarginBottom: 11, titleSize: 17 },
   tabBar: {
     height: 88, paddingX: 28, paddingTop: 10, paddingBottom: 24, borderColor: '#E9DFE8',

@@ -61,15 +61,30 @@ export interface ProfileService {
 
 export interface PlacesQuery {
   city?: string;
+  /** Explore's single category chip. Ignored when `categories` is set. */
   category?: PlaceCategory | 'All';
+  /** Filters sheet (E07): any of these categories. */
+  categories?: PlaceCategory[];
+  /** Words to match against name, type, category, area and tags. */
   query?: string;
+  /** Any of these price levels ('$'…'$$$$'). */
+  prices?: string[];
+  /** Within this many km of where the user is (mock: the city centre). */
+  maxDistanceKm?: number;
+  minRating?: number;
   openNow?: boolean;
+  /** All of these tags ("A little more you"). */
   tags?: string[];
 }
 
 export interface PlacesService {
   discover(q: PlacesQuery): Promise<Place[]>;
-  search(q: string, city?: string): Promise<Place[]>;
+  /** Search (E10/E11): the same filters as discover, but every match, swiped or not. */
+  search(q: PlacesQuery): Promise<Place[]>;
+  /** Distance in km from where the user is (mock: city centre); undefined when unknown. */
+  distanceKm(place: Place): number | undefined;
+  recentSearches(): Promise<string[]>;
+  rememberSearch(query: string): Promise<void>;
   getPlace(id: ID): Promise<Place>;
   setSignal(placeId: ID, signal: PlaceSignal): Promise<void>;
 }
@@ -136,6 +151,8 @@ export interface CatalogService {
   categories(): Promise<PlaceCategory[]>;
   /** Taste interests offered in onboarding (A08) and Manage interests (V13). */
   interests(): Promise<string[]>;
+  /** "Popular near you" search suggestions (E10). */
+  popularSearches(): Promise<string[]>;
   people(): Promise<Person[]>;
 }
 

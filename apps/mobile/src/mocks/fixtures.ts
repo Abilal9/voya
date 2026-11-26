@@ -65,6 +65,20 @@ export const TASTE_INTERESTS = [
 
 export const CITIES = ['Riyadh', 'Jeddah', 'Dubai', 'Florence'] as const;
 
+/** Mock "where you are": distances are measured from the selected city's centre. */
+export const CITY_CENTERS: Record<string, { latitude: number; longitude: number }> = {
+  Riyadh: { latitude: 24.7136, longitude: 46.6753 },
+  Jeddah: { latitude: 21.5433, longitude: 39.1728 },
+  Dubai: { latitude: 25.2048, longitude: 55.2708 },
+  Florence: { latitude: 43.7696, longitude: 11.2558 },
+};
+
+/** Board E10 "Popular near you". */
+export const POPULAR_SEARCHES = ['Japanese food', 'Museums', 'U Walk'] as const;
+
+/** Board E10 "Recent searches" for the seeded user. */
+export const SEEDED_RECENT_SEARCHES = ['Myazu', 'Coffee', 'Padel'];
+
 export const places: Place[] = [
   // ---- Riyadh (healthy records)
   {

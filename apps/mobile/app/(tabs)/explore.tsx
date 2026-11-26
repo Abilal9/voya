@@ -3,12 +3,15 @@ import { ActionSheetIOS, Alert, Platform, Pressable, ScrollView, StyleSheet, Vie
 import { useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Check, ChevronDown, Heart, LayoutGrid, Map as MapIcon, MapPin, Sparkles, X } from 'lucide-react-native';
+import {
+  Check, ChevronDown, Heart, LayoutGrid, Map as MapIcon, MapPin, Search, SlidersHorizontal, Sparkles, X,
+} from 'lucide-react-native';
 import { EmptyState, ErrorState, LoadingState, Text } from '@/components/ui';
 import { SwipeDeck, type SwipeDeckHandle } from '@/features/explore/SwipeDeck';
 import { PlaceCard } from '@/features/explore/PlaceCard';
 import { useServices } from '@/services/ServicesProvider';
 import { useCategories, useCities } from '@/features/catalog';
+import { EMPTY_FILTERS, activeFilterCount, toQuery, useExploreFilters } from '@/features/explore/filters';
 import type { Place, PlaceCategory } from '@/services';
 import { board, colors, icon } from '@/theme';
 
@@ -16,10 +19,10 @@ const E = board.explore;
 type ExploreView = 'deck' | 'list';
 
 /**
- * E01 Explore — board figure "E01".
- * KNOWN GAPS: search (E10–E12), the filters sheet (E07) and the map (E05/E06)
- * are not built. Their controls are left out rather than shown dead; the Map
- * pill switches to a list and says so.
+ * E01 Explore — board figure "E01". Search (E10) and Filters (E07) open from
+ * the header; the category chips are the Filters sheet's categories.
+ * KNOWN GAPS: the map (E05/E06) and location sheet (E02) are not built; the
+ * Map pill switches to a list and says so, and the city uses an action sheet.
  */
 export default function Explore() {
   const router = useRouter();
@@ -32,15 +35,22 @@ export default function Explore() {
   const cities = citiesQuery.data ?? [];
   const categories = categoriesQuery.data ?? [];
   const homeCity = cities[0] ?? '';
-  const [chosenCity, setCity] = React.useState<string | undefined>();
+  const chosenCity = useExploreFilters((s) => s.city);
+  const setCity = useExploreFilters((s) => s.setCity);
+  const filters = useExploreFilters((s) => s.filters);
+  const setFilters = useExploreFilters((s) => s.setFilters);
   const city = chosenCity ?? homeCity;
-  const [category, setCategory] = React.useState<PlaceCategory | 'All'>('All');
+  const filterCount = activeFilterCount(filters);
+  // The chip row shows "All" or the single selected category.
+  const category: PlaceCategory | 'All' = filters.categories.length === 1 ? filters.categories[0]! : 'All';
+  const setCategory = (c: PlaceCategory | 'All') =>
+    setFilters({ ...filters, categories: c === 'All' ? [] : [c] });
   const [view, setView] = React.useState<ExploreView>('deck');
   const [top, setTop] = React.useState(0);
 
   const places = useQuery({
-    queryKey: ['places', city, category],
-    queryFn: () => services.places.discover({ city, category }),
+    queryKey: ['places', city, filters],
+    queryFn: () => services.places.discover({ city, ...toQuery(filters) }),
     enabled: !!city,
   });
   const saved = useQuery({ queryKey: ['saved'], queryFn: () => services.saved.list() });
@@ -85,13 +95,34 @@ export default function Explore() {
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.root}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.h1}>Explore</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel={`Location: ${city}. Change city`} onPress={chooseCity} style={styles.location}>
-          <MapPin size={icon.md} color={colors.brand.plum} strokeWidth={icon.strokeWidth} />
-          <Text style={styles.city}>{city}</Text>
-          <Text style={styles.small}>{city === homeCity ? 'Near me' : 'Change'}</Text>
-          <ChevronDown size={icon.sm} color={colors.brand.plum} strokeWidth={icon.strokeWidth} />
-        </Pressable>
+        <View style={styles.titleRow}>
+          <Text style={styles.h1}>Explore</Text>
+          <Pressable
+            accessibilityRole="button" accessibilityLabel="Search places"
+            onPress={() => router.push('/search')} hitSlop={board.inlineGap} style={styles.searchButton}
+          >
+            <Search size={icon.md} color={colors.brand.violet} strokeWidth={icon.strokeWidth} />
+          </Pressable>
+        </View>
+        <View style={styles.locationRow}>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Location: ${city}. Change city`} onPress={chooseCity} style={styles.location}>
+            <MapPin size={icon.md} color={colors.brand.plum} strokeWidth={icon.strokeWidth} />
+            <Text style={styles.city}>{city}</Text>
+            <Text style={styles.small}>{city === homeCity ? 'Near me' : 'Change'}</Text>
+            <ChevronDown size={icon.sm} color={colors.brand.plum} strokeWidth={icon.strokeWidth} />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={filterCount ? `Explore filters, ${filterCount} on` : 'Explore filters'}
+            onPress={() => router.push('/filters')}
+            style={styles.filterButton}
+          >
+            <SlidersHorizontal size={icon.md} color={colors.brand.plum} strokeWidth={icon.strokeWidth} />
+            {filterCount ? (
+              <View style={styles.filterCount}><Text style={styles.filterCountText}>{filterCount}</Text></View>
+            ) : null}
+          </Pressable>
+        </View>
         <Text style={styles.note}>Discover places you&apos;ll love</Text>
 
         <ScrollView
@@ -122,11 +153,11 @@ export default function Explore() {
           <ErrorState onRetry={() => void places.refetch()} />
         ) : results.length === 0 || (view === 'deck' && !current) ? (
           <EmptyState
-            title={results.length === 0 ? 'No places here yet' : "You've seen everything here"}
-            body="Try another city or category."
+            title={results.length === 0 ? 'No places match' : "You've seen everything here"}
+            body={filterCount ? 'Try fewer filters or another city.' : 'Try another city or category.'}
             actionLabel="Reset filters"
             onAction={() => {
-              setCategory('All');
+              setFilters(EMPTY_FILTERS);
               setCity(undefined);
               void places.refetch();
             }}
@@ -218,9 +249,21 @@ function Choice({
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.surface.base },
   content: { paddingHorizontal: board.screenPaddingX, paddingBottom: board.fab.bottomAboveTabBar },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  searchButton: { marginTop: E.titleMarginTop, padding: board.h2MarginBottom },
   h1: { ...board.h1, color: colors.brand.plum, marginTop: E.titleMarginTop, marginBottom: E.titleMarginBottom },
+  locationRow: { flexDirection: 'row', alignItems: 'center', gap: board.inlineGap },
+  filterButton: {
+    minWidth: board.filters.button.minWidth, height: board.filters.button.height, borderRadius: board.filters.button.radius,
+    borderWidth: 1, borderColor: board.filters.button.border, alignItems: 'center', justifyContent: 'center',
+  },
+  filterCount: {
+    position: 'absolute', top: board.filters.button.badgeOffset, right: board.filters.button.badgeOffset, minWidth: board.filters.button.badge, height: board.filters.button.badge,
+    borderRadius: board.filters.button.badge / 2, backgroundColor: colors.brand.violet, alignItems: 'center', justifyContent: 'center',
+  },
+  filterCountText: { fontSize: board.filters.button.badgeFontSize, color: colors.text.inverse },
   location: {
-    flexDirection: 'row', alignItems: 'center', gap: E.location.gap, minHeight: E.location.minHeight,
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: E.location.gap, minHeight: E.location.minHeight,
     paddingVertical: E.location.paddingY, paddingHorizontal: E.location.paddingX,
     borderRadius: E.location.radius, backgroundColor: E.location.background,
   },
