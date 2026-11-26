@@ -30,6 +30,10 @@ export interface AccountState {
   activity: ActivityEntry[];
   /** Most recent first, at most 5. Optional so older stored state still loads. */
   recentSearches?: string[];
+  /** Explore's chosen city, kept across launches; undefined = near me. */
+  exploreCity?: string;
+  /** Most recent first, at most 3 (E02 "Recent destinations"). */
+  recentCities?: string[];
 }
 
 /**
@@ -61,6 +65,7 @@ export function seed(accountId: string, now: number = Date.now()): AccountState 
     fixtureWeekOffset(now),
   ) as AccountState;
   base.recentSearches = [...fx.SEEDED_RECENT_SEARCHES];
+  base.recentCities = [...fx.SEEDED_RECENT_CITIES];
 
   if (accountId !== fx.SIGNED_IN_ACCOUNT_ID) {
     // Another seeded identity: its own profile, no saves, no activity.
@@ -74,6 +79,7 @@ export function seed(accountId: string, now: number = Date.now()): AccountState 
     };
     base.activity = [];
     base.recentSearches = [];
+    base.recentCities = [];
   }
   return base;
 }
@@ -173,6 +179,13 @@ async function load(accountId: string): Promise<AccountState> {
       await AsyncStorage.setItem(key(accountId, 'state'), JSON.stringify(parsed));
     }
     state = parsed;
+    // Fields added after this state was stored: take the seeded value for
+    // seeded accounts (local accounts already start with their own).
+    if (state.recentSearches === undefined || state.recentCities === undefined) {
+      const seeded = fx.people.some((p) => p.id === accountId) ? seed(accountId) : undefined;
+      state.recentSearches ??= seeded?.recentSearches ?? [];
+      state.recentCities ??= seeded?.recentCities ?? [];
+    }
   }
   cache = { accountId, state };
   return state;

@@ -294,6 +294,26 @@ const places: PlacesService = {
     const { state } = await read();
     return state.recentSearches ?? [];
   },
+  async exploreCity() {
+    const { state } = await read();
+    return state.exploreCity;
+  },
+  chooseCity: (city) =>
+    mutate((s) => {
+      if (city === null) {
+        delete s.exploreCity;
+        return;
+      }
+      if (!fx.DESTINATIONS.some((d) => d.city === city)) {
+        throw new ServiceError('not_found', 'Unknown city.', false);
+      }
+      s.exploreCity = city;
+      s.recentCities = [city, ...(s.recentCities ?? []).filter((c) => c !== city)].slice(0, 3);
+    }),
+  async recentCities() {
+    const { state } = await read();
+    return state.recentCities ?? [];
+  },
   rememberSearch: (query) =>
     mutate((s) => {
       const q = query.trim();
@@ -760,6 +780,12 @@ const catalog: CatalogService = {
   },
   async popularSearches() {
     return [...fx.POPULAR_SEARCHES];
+  },
+  async destinations() {
+    return structuredClone(fx.DESTINATIONS);
+  },
+  async dreamDestinations() {
+    return fx.DESTINATIONS.filter((d) => fx.DREAM_DESTINATIONS.includes(d.city));
   },
   async people() {
     return structuredClone(fx.people);

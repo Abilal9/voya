@@ -73,6 +73,22 @@ export const CITY_CENTERS: Record<string, { latitude: number; longitude: number 
   Florence: { latitude: 43.7696, longitude: 11.2558 },
 };
 
+/** Cities Voya knows (E02). Only those in CITIES have fixture places. */
+export const DESTINATIONS = [
+  { city: 'Riyadh', country: 'Saudi Arabia' },
+  { city: 'Jeddah', country: 'Saudi Arabia' },
+  { city: 'Dubai', country: 'United Arab Emirates' },
+  { city: 'Florence', country: 'Italy' },
+  { city: 'London', country: 'United Kingdom' },
+  { city: 'Tokyo', country: 'Japan' },
+];
+
+/** Board E02 "Somewhere to dream about". */
+export const DREAM_DESTINATIONS = ['Tokyo'];
+
+/** Board E02 "Recent destinations" for the seeded user. */
+export const SEEDED_RECENT_CITIES = ['Dubai', 'Florence', 'London'];
+
 /** Board E10 "Popular near you". */
 export const POPULAR_SEARCHES = ['Japanese food', 'Museums', 'U Walk'] as const;
 

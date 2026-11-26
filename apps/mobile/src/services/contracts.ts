@@ -85,6 +85,11 @@ export interface PlacesService {
   distanceKm(place: Place): number | undefined;
   recentSearches(): Promise<string[]>;
   rememberSearch(query: string): Promise<void>;
+  /** Explore's chosen city for this account; undefined means near me. */
+  exploreCity(): Promise<string | undefined>;
+  /** Sets Explore's city (null = back to near me) and records it as recent. */
+  chooseCity(city: string | null): Promise<void>;
+  recentCities(): Promise<string[]>;
   getPlace(id: ID): Promise<Place>;
   setSignal(placeId: ID, signal: PlaceSignal): Promise<void>;
 }
@@ -160,6 +165,10 @@ export interface CatalogService {
   interests(): Promise<string[]>;
   /** "Popular near you" search suggestions (E10). */
   popularSearches(): Promise<string[]>;
+  /** Cities the location picker knows (E02), with their country. */
+  destinations(): Promise<{ city: string; country: string }[]>;
+  /** E02 "Somewhere to dream about". */
+  dreamDestinations(): Promise<{ city: string; country: string }[]>;
   people(): Promise<Person[]>;
 }
 

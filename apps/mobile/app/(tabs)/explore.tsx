@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { ActionSheetIOS, Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,7 +11,8 @@ import { SwipeDeck, type SwipeDeckHandle } from '@/features/explore/SwipeDeck';
 import { PlaceCard } from '@/features/explore/PlaceCard';
 import { useSavedPlaces } from '@/features/explore/useSavedPlaces';
 import { useServices } from '@/services/ServicesProvider';
-import { useCategories, useCities } from '@/features/catalog';
+import { useCategories } from '@/features/catalog';
+import { useExploreCity } from '@/features/explore/useExploreCity';
 import { EMPTY_FILTERS, activeFilterCount, toQuery, useExploreFilters } from '@/features/explore/filters';
 import type { Place, PlaceCategory } from '@/services';
 import { board, colors, icon } from '@/theme';
@@ -22,24 +23,19 @@ type ExploreView = 'deck' | 'list';
 /**
  * E01 Explore — board figure "E01". Search (E10) and Filters (E07) open from
  * the header; the category chips are the Filters sheet's categories.
- * KNOWN GAPS: the map (E05/E06) and location sheet (E02) are not built; the
- * Map pill switches to a list and says so, and the city uses an action sheet.
+ * The location button opens E02. KNOWN GAP: the map (E05/E06) is not built;
+ * the Map pill switches to a list and says so.
  */
 export default function Explore() {
   const router = useRouter();
   const services = useServices();
   const deck = React.useRef<SwipeDeckHandle>(null);
 
-  const citiesQuery = useCities();
   const categoriesQuery = useCategories();
-  const cities = citiesQuery.data ?? [];
   const categories = categoriesQuery.data ?? [];
-  const homeCity = cities[0] ?? '';
-  const chosenCity = useExploreFilters((s) => s.city);
-  const setCity = useExploreFilters((s) => s.setCity);
+  const { city, isNearMe, choose: setCity } = useExploreCity();
   const filters = useExploreFilters((s) => s.filters);
   const setFilters = useExploreFilters((s) => s.setFilters);
-  const city = chosenCity ?? homeCity;
   const filterCount = activeFilterCount(filters);
   // The chip row shows "All" or the single selected category.
   const category: PlaceCategory | 'All' = filters.categories.length === 1 ? filters.categories[0]! : 'All';
@@ -72,21 +68,6 @@ export default function Explore() {
     if (current) await saved.toggle(current.id);
   };
 
-  const chooseCity = () => {
-    const options = [...cities];
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        { title: 'Choose a city', options: [...options, 'Cancel'], cancelButtonIndex: options.length },
-        (i) => { if (i < options.length) setCity(options[i]); },
-      );
-    } else {
-      Alert.alert('Choose a city', undefined, [
-        ...options.map((c) => ({ text: c, onPress: () => setCity(c) })),
-        { text: 'Cancel', style: 'cancel' as const },
-      ]);
-    }
-  };
-
   const openPlace = (p: Place) => router.push(`/place/${p.id}`);
 
   return (
@@ -102,10 +83,10 @@ export default function Explore() {
           </Pressable>
         </View>
         <View style={styles.locationRow}>
-          <Pressable accessibilityRole="button" accessibilityLabel={`Location: ${city}. Change city`} onPress={chooseCity} style={styles.location}>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Location: ${city}. Change city`} onPress={() => router.push('/location')} style={styles.location}>
             <MapPin size={icon.md} color={colors.brand.plum} strokeWidth={icon.strokeWidth} />
             <Text style={styles.city}>{city}</Text>
-            <Text style={styles.small}>{city === homeCity ? 'Near me' : 'Change'}</Text>
+            <Text style={styles.small}>{isNearMe ? 'Near me' : 'Elsewhere'}</Text>
             <ChevronDown size={icon.sm} color={colors.brand.plum} strokeWidth={icon.strokeWidth} />
           </Pressable>
           <Pressable
@@ -155,7 +136,7 @@ export default function Explore() {
             actionLabel="Reset filters"
             onAction={() => {
               setFilters(EMPTY_FILTERS);
-              setCity(undefined);
+              void setCity(null);
               void places.refetch();
             }}
           />

@@ -5,9 +5,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronRight, Heart, History, Search as SearchIcon, SlidersHorizontal } from 'lucide-react-native';
 import { Button, ErrorState, LoadingState, Screen, Text, TopBar } from '@/components/ui';
 import { AuthIntro, StateHero, ToggleChip, authStyles } from '@/features/auth/AuthParts';
-import { useCities } from '@/features/catalog';
 import { PHOTO_TINT, ratingLine } from '@/features/explore/PlaceCard';
 import { activeFilterCount, toQuery, useExploreFilters } from '@/features/explore/filters';
+import { useExploreCity } from '@/features/explore/useExploreCity';
 import { useSavedPlaces } from '@/features/explore/useSavedPlaces';
 import { useServices } from '@/services/ServicesProvider';
 import { board, colors, icon } from '@/theme';
@@ -22,10 +22,8 @@ export default function Search() {
   const router = useRouter();
   const services = useServices();
   const qc = useQueryClient();
-  const cities = useCities();
-  const chosenCity = useExploreFilters((s) => s.city);
+  const { city } = useExploreCity();
   const filters = useExploreFilters((s) => s.filters);
-  const city = chosenCity ?? cities.data?.[0];
 
   const [text, setText] = React.useState('');
   const [submitted, setSubmitted] = React.useState<string | null>(null);

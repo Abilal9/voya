@@ -74,6 +74,7 @@ function RootNavigator() {
       <Stack.Screen name="past-plans" />
       <Stack.Screen name="activity" />
       <Stack.Screen name="search" />
+      <Stack.Screen name="location" />
       <Stack.Screen name="filters" options={{ presentation: 'modal' }} />
       <Stack.Screen name="add-to-plan/[id]" options={{ presentation: 'modal' }} />
       <Stack.Screen name="place/[id]" />

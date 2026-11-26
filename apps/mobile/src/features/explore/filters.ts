@@ -54,12 +54,7 @@ export function toggle<T>(list: T[], value: T): T[] {
 export const useExploreFilters = create<{
   filters: ExploreFilters;
   setFilters: (f: ExploreFilters) => void;
-  /** Chosen city; undefined means the home city (first in the catalog). */
-  city?: string;
-  setCity: (city: string | undefined) => void;
 }>((set) => ({
   filters: EMPTY_FILTERS,
   setFilters: (filters) => set({ filters }),
-  city: undefined,
-  setCity: (city) => set({ city }),
 }));

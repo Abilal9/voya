@@ -314,6 +314,10 @@ export const board = {
     pick: { gap: 14, paddingY: 23, border: '#E9DCE6', titleSize: 17, titleMarginBottom: 4 },
     noteMarginTop: 15,
   },
+  location: {
+    row: { gap: 16, paddingY: 21, minHeight: 75, border: '#EBDFE7', symbol: 44, symbolBackground: '#EEE4F6', titleSize: 15, titleMarginBottom: 4 },
+    dreamMarginTop: 30,
+  },
   pastPlans: { introMarginBottom: 18, introBodySize: 13, cardMarginBottom: 24, photoHeight: 120, photoMarginBottom: 11, titleSize: 17 },
   tabBar: {
     height: 88, paddingX: 28, paddingTop: 10, paddingBottom: 24, borderColor: '#E9DFE8',
