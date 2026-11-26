@@ -330,6 +330,20 @@ export const board = {
       actionsGap: 35, actionsMarginTop: 15, round: 42, roundIcon: 21, labelSize: 10, labelGap: 5,
     },
   },
+  /** Board `.sheet` shadow: 0 -20px 30px #392b5717. */
+  sheetShadow: { shadowColor: '#392B57', shadowOpacity: 0.09, shadowRadius: 30, shadowOffset: { width: 0, height: -20 }, elevation: 16 },
+  settings: {
+    row: { gap: 14, minHeight: 64, paddingY: 17, border: '#E6DBE3', titleSize: 15, titleLineHeight: 21, subtitleSize: 12, subtitleMarginTop: 4, icon: 19 },
+    toggleRow: { minHeight: 53, paddingY: 13 },
+    switch: { width: 42, height: 25, knob: 19, inset: 3, off: '#DED4DF' },
+    danger: '#8E414C',
+    note: { padding: 18, background: '#EEE5F7', radius: 18, marginY: 16, fontSize: 13, lineHeight: 21.5 },
+    check: { gap: 10, fontSize: 12, lineHeight: 19, marginY: 15, box: 18, boxRadius: 4, icon: 14 },
+    rangeMarginY: 16,
+    about: { marginTop: 65, logoWidth: 166, logoMarginBottom: 25, taglineSize: 19, taglineMarginBottom: 35 },
+    sheet: { radius: 30, paddingX: 25, paddingTop: 12, paddingBottom: 33, titleSize: 26, titleLineHeight: 31, bodySize: 13, bodyLineHeight: 21.5, scrim: 'rgba(255,248,238,0.65)' },
+    bioMinHeight: 76,
+  },
   pastPlans: { introMarginBottom: 18, introBodySize: 13, cardMarginBottom: 24, photoHeight: 120, photoMarginBottom: 11, titleSize: 17 },
   tabBar: {
     height: 88, paddingX: 28, paddingTop: 10, paddingBottom: 24, borderColor: '#E9DFE8',
