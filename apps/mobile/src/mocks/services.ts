@@ -26,7 +26,9 @@ import {
   type Trip,
   type VoyaEvent,
 } from '@/services/types';
-import { classifyPlan, sortPast, sortUpcoming } from '@/services/planRules';
+import {
+  canSee, classifyPlan, guestView, relationTo, sortPast, sortUpcoming,
+} from '@/services/planRules';
 import * as fx from './fixtures';
 import {
   currentAccountId,
@@ -53,11 +55,30 @@ const DEV_VERIFICATION_CODE = '424242';
 
 const uid = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
 
-function requirePlan<T extends Plan>(plans: Plan[], id: ID, type: T['type']): T {
+/**
+ * Finds a plan the person may act on. A plan the person cannot see is reported
+ * as not found, exactly like a missing one, so records never leak.
+ * `allowGuest` lets event guests through (for their own RSVP only).
+ */
+function requirePlan<T extends Plan>(
+  plans: Plan[], id: ID, type: T['type'], personId: ID, allowGuest = false,
+): T {
   const plan = plans.find((p) => p.id === id);
-  if (!plan) throw new ServiceError('not_found', 'Plan not found.', false);
+  const relation = plan ? relationTo(plan, personId) : 'none';
+  if (!plan || relation === 'none' || (relation === 'guest' && !allowGuest)) {
+    throw new ServiceError('not_found', 'Plan not found.', false);
+  }
   if (plan.type !== type) throw new ServiceError('wrong_type', 'Unexpected plan type.', false);
   return plan as T;
+}
+
+/** What a person sees of a plan: members get it whole, event guests the guest view. */
+function visibleCopy(plan: Plan, personId: ID): Plan {
+  return plan.type === 'event' && relationTo(plan, personId) === 'guest' ? guestView(plan) : plan;
+}
+
+function visiblePlans(plans: Plan[], personId: ID): Plan[] {
+  return plans.filter((p) => canSee(p, personId)).map((p) => visibleCopy(p, personId));
 }
 
 function can(plan: Plan, personId: ID, capability: string): boolean {
@@ -247,18 +268,24 @@ const plans: PlansService = {
   async listUpcoming() {
     const { state } = await read();
     const now = Date.now();
-    return state.plans.filter((p) => classifyPlan(p, now) === 'upcoming').sort(sortUpcoming);
+    return visiblePlans(state.plans, state.account.id)
+      .filter((p) => classifyPlan(p, now) === 'upcoming')
+      .sort(sortUpcoming);
   },
   async listPast() {
     const { state } = await read();
     const now = Date.now();
-    return state.plans.filter((p) => classifyPlan(p, now) === 'past').sort(sortPast);
+    return visiblePlans(state.plans, state.account.id)
+      .filter((p) => classifyPlan(p, now) === 'past')
+      .sort(sortPast);
   },
   async get(id) {
     const { state } = await read();
     const plan = state.plans.find((p) => p.id === id);
-    if (!plan) throw new ServiceError('not_found', 'Plan not found.', false);
-    return plan;
+    if (!plan || !canSee(plan, state.account.id)) {
+      throw new ServiceError('not_found', 'Plan not found.', false);
+    }
+    return visibleCopy(plan, state.account.id);
   },
   createTrip: (input) =>
     mutate((s) => {
@@ -306,9 +333,14 @@ const plans: PlansService = {
       s.plans.push(event);
       return event;
     }),
+  /** Leaving removes this person's membership or guest entry; the plan stays for everyone else. */
   leave: (id) =>
     mutate((s) => {
-      s.plans = s.plans.filter((p) => p.id !== id);
+      const plan = s.plans.find((p) => p.id === id);
+      if (!plan || !canSee(plan, s.account.id)) throw new ServiceError('not_found', 'Plan not found.', false);
+      plan.members = plan.members.filter((m) => m.personId !== s.account.id);
+      if (plan.type === 'event') plan.guests = plan.guests.filter((g) => g.personId !== s.account.id);
+      plan.version += 1;
     }),
 };
 
@@ -347,26 +379,31 @@ const invitations: InvitationsService = {
       if (invite.expired) throw new ServiceError('expired', 'This invitation has expired.', false);
       if (invite.revoked) throw new ServiceError('revoked', 'This invitation was revoked.', false);
 
-      const plan = s.plans.find((p) => p.id === invite.planId) ?? fx.plans.find((p) => p.id === invite.planId);
-      if (!plan) throw new ServiceError('not_found', 'That plan no longer exists.', false);
+      const joined = s.plans.find((p) => p.id === invite.planId);
+      if (!joined) throw new ServiceError('not_found', 'That plan no longer exists.', false);
+      if (canSee(joined, s.account.id)) return { planId: joined.id, alreadyMember: true };
 
-      if (!s.plans.some((p) => p.id === plan.id)) s.plans.push(structuredClone(plan));
-      const joined = s.plans.find((p) => p.id === invite.planId)!;
-      if (joined.members.some((m) => m.personId === s.account.id)) {
-        return { planId: joined.id, alreadyMember: true };
+      if (joined.type === 'event') {
+        // Event invitations make you a guest, not a host.
+        joined.guests.push({
+          id: uid('g'), personId: s.account.id, displayName: s.account.displayName, rsvp: 'pending',
+        });
+      } else {
+        joined.members.push({
+          personId: s.account.id, role: invite.role,
+          capabilities: ['suggestion.create', 'vote.cast'],
+          joinedAt: new Date().toISOString(),
+        });
       }
-      joined.members.push({
-        personId: s.account.id, role: invite.role,
-        capabilities: invite.role === 'guest' ? ['rsvp.own'] : ['suggestion.create', 'vote.cast'],
-        joinedAt: new Date().toISOString(),
-      });
       joined.version += 1;
       return { planId: joined.id, alreadyMember: false };
     }),
   async createForPlan(planId) {
     const { state } = await read();
     const plan = state.plans.find((p) => p.id === planId);
-    if (!plan) throw new ServiceError('not_found', 'Plan not found.', false);
+    if (!plan || relationTo(plan, state.account.id) !== 'member') {
+      throw new ServiceError('not_found', 'Plan not found.', false);
+    }
     return {
       token: uid('inv'), planId, planType: plan.type, planTitle: plan.title,
       inviterName: state.account.displayName,
@@ -380,7 +417,7 @@ const invitations: InvitationsService = {
 const hangouts: HangoutsService = {
   suggestPlace: (id, placeId, slot) =>
     mutate((s) => {
-      const h = requirePlan<Hangout>(s.plans, id, 'hangout');
+      const h = requirePlan<Hangout>(s.plans, id, 'hangout', s.account.id);
       if (h.suggestions.some((x) => x.placeId === placeId && x.slot === slot)) {
         throw new ServiceError('duplicate', 'That place is already suggested for this slot.', false);
       }
@@ -390,7 +427,7 @@ const hangouts: HangoutsService = {
     }),
   vote: (id, suggestionId, value) =>
     mutate((s) => {
-      const h = requirePlan<Hangout>(s.plans, id, 'hangout');
+      const h = requirePlan<Hangout>(s.plans, id, 'hangout', s.account.id);
       if (!can(h, s.account.id, 'vote.cast')) {
         throw new ServiceError('forbidden', 'You cannot vote on this hangout.', false);
       }
@@ -402,7 +439,7 @@ const hangouts: HangoutsService = {
     }),
   simulateParticipantVotes: (id) =>
     mutate((s) => {
-      const h = requirePlan<Hangout>(s.plans, id, 'hangout');
+      const h = requirePlan<Hangout>(s.plans, id, 'hangout', s.account.id);
       const others = h.members.map((m) => m.personId).filter((p) => p !== s.account.id);
       h.suggestions.forEach((sg, i) => {
         const voter = others[i % Math.max(others.length, 1)];
@@ -413,7 +450,7 @@ const hangouts: HangoutsService = {
     }),
   finalize: (id) =>
     mutate((s) => {
-      const h = requirePlan<Hangout>(s.plans, id, 'hangout');
+      const h = requirePlan<Hangout>(s.plans, id, 'hangout', s.account.id);
       if (!can(h, s.account.id, 'timeline.finalize')) {
         throw new ServiceError('forbidden', 'Only the organiser can finalise.', false);
       }
@@ -440,7 +477,7 @@ const hangouts: HangoutsService = {
     }),
   proposeChange: (id, itemId, placeId) =>
     mutate((s) => {
-      const h = requirePlan<Hangout>(s.plans, id, 'hangout');
+      const h = requirePlan<Hangout>(s.plans, id, 'hangout', s.account.id);
       const item = h.timeline.find((x) => x.id === itemId);
       if (!item) throw new ServiceError('not_found', 'Timeline item not found.', false);
       const place = fx.places.find((p) => p.id === placeId);
@@ -456,16 +493,19 @@ const hangouts: HangoutsService = {
 const events: EventsService = {
   setRsvp: (eventId, guestId, rsvp: RSVP) =>
     mutate((s) => {
-      const e = requirePlan<VoyaEvent>(s.plans, eventId, 'event');
+      const e = requirePlan<VoyaEvent>(s.plans, eventId, 'event', s.account.id, true);
       const guest = e.guests.find((g) => g.id === guestId);
       if (!guest) throw new ServiceError('not_found', 'Guest not found.', false);
+      if (relationTo(e, s.account.id) === 'guest' && guest.personId !== s.account.id) {
+        throw new ServiceError('forbidden', 'Guests can only answer for themselves.', false);
+      }
       guest.rsvp = rsvp; // one RSVP row per guest
       e.version += 1;
       return e;
     }),
   addGuest: (eventId, displayName) =>
     mutate((s) => {
-      const e = requirePlan<VoyaEvent>(s.plans, eventId, 'event');
+      const e = requirePlan<VoyaEvent>(s.plans, eventId, 'event', s.account.id);
       if (!can(e, s.account.id, 'member.manage')) {
         throw new ServiceError('forbidden', 'Only hosts can manage guests.', false);
       }
@@ -475,7 +515,7 @@ const events: EventsService = {
     }),
   upsertScheduleItem: (eventId, item) =>
     mutate((s) => {
-      const e = requirePlan<VoyaEvent>(s.plans, eventId, 'event');
+      const e = requirePlan<VoyaEvent>(s.plans, eventId, 'event', s.account.id);
       if (!can(e, s.account.id, 'schedule.edit')) {
         throw new ServiceError('forbidden', 'Only hosts can edit the schedule.', false);
       }
@@ -496,7 +536,7 @@ const events: EventsService = {
     }),
   removeScheduleItem: (eventId, itemId) =>
     mutate((s) => {
-      const e = requirePlan<VoyaEvent>(s.plans, eventId, 'event');
+      const e = requirePlan<VoyaEvent>(s.plans, eventId, 'event', s.account.id);
       if (!can(e, s.account.id, 'schedule.edit')) {
         throw new ServiceError('forbidden', 'Only hosts can edit the schedule.', false);
       }
@@ -510,11 +550,8 @@ const events: EventsService = {
    */
   async guestProjection(eventId) {
     const { state } = await read();
-    const e = requirePlan<VoyaEvent>(state.plans, eventId, 'event');
-    const projected = structuredClone(e) as VoyaEvent;
-    projected.schedule = projected.schedule.filter((i) => i.visibility !== 'hosts_only');
-    projected.guests = projected.guests.map((g) => ({ ...g, personId: undefined }));
-    return projected;
+    const e = requirePlan<VoyaEvent>(state.plans, eventId, 'event', state.account.id, true);
+    return guestView(structuredClone(e) as VoyaEvent);
   },
 };
 
@@ -523,7 +560,7 @@ const events: EventsService = {
 const trips: TripsService = {
   setMustDo: (tripId, placeId, on) =>
     mutate((s) => {
-      const t = requirePlan<Trip>(s.plans, tripId, 'trip');
+      const t = requirePlan<Trip>(s.plans, tripId, 'trip', s.account.id);
       t.mustDoPlaceIds = on
         ? [...new Set([...t.mustDoPlaceIds, placeId])]
         : t.mustDoPlaceIds.filter((x) => x !== placeId);
@@ -533,7 +570,7 @@ const trips: TripsService = {
   /** Fixture-backed. NOT the production scheduler. */
   generateItinerary: (tripId) =>
     mutate((s) => {
-      const t = requirePlan<Trip>(s.plans, tripId, 'trip');
+      const t = requirePlan<Trip>(s.plans, tripId, 'trip', s.account.id);
       if (t.days.length === 0) {
         const pool = fx.places.filter((p) => p.city === t.destination && !p.permanentlyClosed);
         const must = t.mustDoPlaceIds
@@ -565,7 +602,7 @@ const trips: TripsService = {
     }),
   toggleLock: (tripId, itemId) =>
     mutate((s) => {
-      const t = requirePlan<Trip>(s.plans, tripId, 'trip');
+      const t = requirePlan<Trip>(s.plans, tripId, 'trip', s.account.id);
       for (const day of t.days) {
         const item = day.items.find((i) => i.id === itemId);
         if (item) item.locked = !item.locked;
@@ -575,7 +612,7 @@ const trips: TripsService = {
     }),
   replaceItem: (tripId, itemId, placeId) =>
     mutate((s) => {
-      const t = requirePlan<Trip>(s.plans, tripId, 'trip');
+      const t = requirePlan<Trip>(s.plans, tripId, 'trip', s.account.id);
       const place = fx.places.find((p) => p.id === placeId);
       for (const day of t.days) {
         const item = day.items.find((i) => i.id === itemId);

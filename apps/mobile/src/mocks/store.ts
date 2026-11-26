@@ -22,41 +22,61 @@ const key = (accountId: string, slice: string) => `voya:${VERSION}:${accountId}:
 const GLOBAL_SESSION_KEY = 'voya:session';
 const LEGACY_SESSION_KEYS = ['voya:v1:session'];
 
-export interface MockState {
+/** What belongs to one account only. Never shared, never visible to others. */
+export interface AccountState {
   account: Account;
-  plans: Plan[];
   saved: SavedPlace[];
   signals: Record<ID, PlaceSignal>;
   activity: ActivityEntry[];
 }
 
-/** Fresh state for an account, with fixture dates moved up to the current week. */
-export function seed(accountId: string, now: number = Date.now()): MockState {
+/**
+ * The shared mock world: ONE canonical record per plan. Membership lives on
+ * the plan (`members`, and `guests` for events). Holding a record is not
+ * permission to see it — services filter with `canSee` from planRules.
+ */
+export interface World {
+  plans: Plan[];
+}
+
+/**
+ * The view services work with: the signed-in account's own state plus the
+ * whole shared world. `plans` is the canonical list — services must filter it.
+ */
+export interface MockState extends AccountState {
+  plans: Plan[];
+}
+
+/** Fresh per-account state, with fixture dates moved up to the current week. */
+export function seed(accountId: string, now: number = Date.now()): AccountState {
   const base = shiftFixtureDates(
     {
       account: fx.account,
-      plans: fx.plans,
       saved: [] as SavedPlace[],
       signals: {} as Record<ID, PlaceSignal>,
       activity: fx.activity,
     },
     fixtureWeekOffset(now),
-  ) as MockState;
+  ) as AccountState;
 
   if (accountId !== fx.SIGNED_IN_ACCOUNT_ID) {
-    // A second seeded identity: same world, different membership and no saves.
+    // Another seeded identity: its own profile, no saves, no activity.
     const person = fx.people.find((p) => p.id === accountId) ?? fx.people[1]!;
     base.account = {
       ...person,
       email: `${person.firstName.toLowerCase()}@example.com`,
       onboardingStep: 'done',
       onboardingComplete: true,
-      interests: ['Food', 'Activities'],
+      interests: ['Coffee', 'Padel'],
     };
-    base.plans = base.plans.filter((p) => p.members.some((m) => m.personId === accountId));
     base.activity = [];
   }
   return base;
+}
+
+/** The shared world as authored, dates moved up to the current week. */
+export function seedWorld(now: number = Date.now()): World {
+  return { plans: shiftFixtureDates(fx.plans, fixtureWeekOffset(now)) };
 }
 
 /** Deliberate latency / failure injection, driven by the dev menu. */
@@ -80,7 +100,7 @@ async function delay() {
   }
 }
 
-let cache: { accountId: string; state: MockState } | null = null;
+let cache: { accountId: string; state: AccountState } | null = null;
 
 export async function currentAccountId(): Promise<string | null> {
   const id = await AsyncStorage.getItem(GLOBAL_SESSION_KEY);
@@ -103,39 +123,91 @@ export async function setCurrentAccountId(id: string | null) {
   else await AsyncStorage.removeItem(GLOBAL_SESSION_KEY);
 }
 
-async function load(accountId: string): Promise<MockState> {
+const WORLD_KEY = `voya:${VERSION}:world`;
+let worldCache: World | null = null;
+
+async function loadWorld(): Promise<World> {
+  if (worldCache) return worldCache;
+  const raw = await AsyncStorage.getItem(WORLD_KEY);
+  worldCache = raw ? (JSON.parse(raw) as World) : seedWorld();
+  if (!raw) await AsyncStorage.setItem(WORLD_KEY, JSON.stringify(worldCache));
+  return worldCache;
+}
+
+async function saveWorld(world: World) {
+  worldCache = world;
+  await AsyncStorage.setItem(WORLD_KEY, JSON.stringify(world));
+}
+
+/**
+ * Before shared plans, each account stored its own copy of every plan.
+ * Fold those copies into the shared world once: plans the world does not have
+ * (ones the user created) are added, and a copy with a newer version replaces
+ * the world's record (the user's last edits win). Then the copy is dropped.
+ */
+export function mergeLegacyPlans(world: World, legacy: Plan[]): World {
+  const plans = [...world.plans];
+  for (const plan of legacy) {
+    const i = plans.findIndex((p) => p.id === plan.id);
+    if (i === -1) plans.push(plan);
+    else if (plan.version > plans[i]!.version) plans[i] = plan;
+  }
+  return { plans };
+}
+
+async function load(accountId: string): Promise<AccountState> {
   if (cache?.accountId === accountId) return cache.state;
   const raw = await AsyncStorage.getItem(key(accountId, 'state'));
-  const state: MockState = raw ? (JSON.parse(raw) as MockState) : seed(accountId);
+  let state: AccountState;
+  if (!raw) {
+    state = seed(accountId);
+  } else {
+    const parsed = JSON.parse(raw) as AccountState & { plans?: Plan[] };
+    if (parsed.plans) {
+      await saveWorld(mergeLegacyPlans(await loadWorld(), parsed.plans));
+      delete parsed.plans;
+      await AsyncStorage.setItem(key(accountId, 'state'), JSON.stringify(parsed));
+    }
+    state = parsed;
+  }
   cache = { accountId, state };
   return state;
 }
 
-async function persist(accountId: string, state: MockState) {
+async function persist(accountId: string, state: AccountState) {
   cache = { accountId, state };
   await AsyncStorage.setItem(key(accountId, 'state'), JSON.stringify(state));
 }
 
-/** Read the signed-in account's state, applying simulated latency/failure. */
+async function view(accountId: string): Promise<MockState> {
+  const own = await load(accountId);
+  const world = await loadWorld();
+  return { ...own, plans: world.plans };
+}
+
+/** Read the signed-in account's state and the shared world, with simulated latency/failure. */
 export async function read(): Promise<{ accountId: string; state: MockState }> {
   await delay();
   const accountId = await currentAccountId();
   if (!accountId) throw new ServiceError('unauthenticated', 'No mock session.', false);
-  return { accountId, state: await load(accountId) };
+  return { accountId, state: await view(accountId) };
 }
 
 /** Read without latency — for synchronous-feeling lookups like `isSaved`. */
 export async function peek(): Promise<{ accountId: string; state: MockState } | null> {
   const accountId = await currentAccountId();
   if (!accountId) return null;
-  return { accountId, state: await load(accountId) };
+  return { accountId, state: await view(accountId) };
 }
 
+/** Applies `fn`, then writes the account's own slice and the shared world back separately. */
 export async function mutate<T>(fn: (state: MockState) => T): Promise<T> {
   const { accountId, state } = await read();
   const next = structuredClone(state) as MockState;
   const result = fn(next);
-  await persist(accountId, next);
+  const { plans, ...own } = next;
+  await persist(accountId, own);
+  await saveWorld({ plans });
   return result;
 }
 
@@ -154,7 +226,7 @@ export async function createLocalAccount(account: Account) {
   const registry = await readAccountRegistry();
   registry[account.email.toLowerCase()] = account.id;
   await AsyncStorage.setItem(REGISTRY_KEY, JSON.stringify(registry));
-  const state: MockState = { account, plans: [], saved: [], signals: {}, activity: [] };
+  const state: AccountState = { account, saved: [], signals: {}, activity: [] };
   await AsyncStorage.setItem(key(account.id, 'state'), JSON.stringify(state));
   cache = null;
 }
@@ -176,6 +248,7 @@ export async function resetAccount(accountId: string) {
 
 export async function resetAll() {
   cache = null;
+  worldCache = null;
   const keys = await AsyncStorage.getAllKeys();
   await AsyncStorage.multiRemove(
     keys.filter((k) => k.startsWith(`voya:${VERSION}:`) || k === GLOBAL_SESSION_KEY || LEGACY_SESSION_KEYS.includes(k)),

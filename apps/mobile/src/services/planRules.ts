@@ -61,3 +61,31 @@ export function headcountLabel(plan: Plan) {
   const n = plan.members.length;
   return `${n} ${n === 1 ? 'person' : 'people'}`;
 }
+
+/**
+ * How a person relates to a plan. These are UI simulation rules for the mock
+ * frontend, not authorization — the server enforces the real rules later.
+ * - member: organizer/participant/traveler, or host/co-host of an event
+ * - guest:  on an event's guest list (sees the guest view only)
+ * - none:   no access, even though the record exists
+ */
+export type PlanRelation = 'member' | 'guest' | 'none';
+
+export function relationTo(plan: Plan, personId: string): PlanRelation {
+  if (plan.members.some((m) => m.personId === personId)) return 'member';
+  if (plan.type === 'event' && plan.guests.some((g) => g.personId === personId)) return 'guest';
+  return 'none';
+}
+
+export function canSee(plan: Plan, personId: string): boolean {
+  return relationTo(plan, personId) !== 'none';
+}
+
+/** The event as a guest may see it: no host-only schedule items, no guest identities. */
+export function guestView(event: VoyaEvent): VoyaEvent {
+  return {
+    ...event,
+    schedule: event.schedule.filter((i) => i.visibility !== 'hosts_only'),
+    guests: event.guests.map((g) => ({ ...g, personId: undefined })),
+  };
+}
