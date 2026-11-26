@@ -1,5 +1,6 @@
 import type {
   Account,
+  AccountSettings,
   ActivityEntry,
   Hangout,
   Person,
@@ -73,6 +74,18 @@ export const CITY_CENTERS: Record<string, { latitude: number; longitude: number 
   Florence: { latitude: 43.7696, longitude: 11.2558 },
   London: { latitude: 51.5072, longitude: -0.1276 },
   Tokyo: { latitude: 35.6762, longitude: 139.6503 },
+};
+
+/** Board V04–V06 defaults: plan, invitation and in-plan alerts on; Voya news off. */
+export const DEFAULT_SETTINGS: AccountSettings = {
+  notifications: {
+    newSuggestions: true, votesAndDecisions: true, planChanges: true, itineraryReady: true,
+    newInvitations: true, rsvpUpdates: true,
+    upcomingActivities: true, scheduleChanges: true,
+    recommendations: false, productUpdates: false,
+  },
+  preciseLocation: true,
+  discoveryRadiusKm: 15,
 };
 
 /** Cities Voya knows (E02). Only those in CITIES have fixture places. */

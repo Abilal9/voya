@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ServiceError } from '@/services/types';
 import * as fx from './fixtures';
 import { fixtureWeekOffset, shiftFixtureDates } from './clock';
-import type { Account, ActivityEntry, Plan, SavedPlace, PlaceSignal, ID } from '@/services/types';
+import type { Account, AccountSettings, ActivityEntry, Plan, SavedPlace, PlaceSignal, ID } from '@/services/types';
 
 /**
  * Mock persistence.
@@ -34,6 +34,8 @@ export interface AccountState {
   exploreCity?: string;
   /** Most recent first, at most 3 (E02 "Recent destinations"). */
   recentCities?: string[];
+  /** V04–V06 preferences; optional so older stored state still loads. */
+  settings?: AccountSettings;
 }
 
 /**
@@ -250,6 +252,29 @@ export async function createLocalAccount(account: Account) {
   const state: AccountState = { account, saved: [], signals: {}, activity: [] };
   await AsyncStorage.setItem(key(account.id, 'state'), JSON.stringify(state));
   cache = null;
+}
+
+const DELETED_KEY = `voya:${VERSION}:deleted-people`;
+
+/** Seeded identities whose mock account was deleted (dev reset restores them). */
+export async function deletedPeople(): Promise<string[]> {
+  const raw = await AsyncStorage.getItem(DELETED_KEY);
+  return raw ? (JSON.parse(raw) as string[]) : [];
+}
+
+export async function markPersonDeleted(personId: string) {
+  const list = await deletedPeople();
+  if (!list.includes(personId)) list.push(personId);
+  await AsyncStorage.setItem(DELETED_KEY, JSON.stringify(list));
+}
+
+/** Replaces the shared world (used by account deletion's plan clean-up). */
+export async function writeWorld(world: World) {
+  await saveWorld(world);
+}
+
+export async function readWorld(): Promise<World> {
+  return structuredClone(await loadWorld());
 }
 
 /** Removes a local account and its data (used when sign-up is abandoned). */

@@ -1,5 +1,6 @@
 import type {
   Account,
+  AccountSettings,
   ActivityEntry,
   Hangout,
   ID,
@@ -50,6 +51,11 @@ export interface AuthService {
   signInWithApple(): Promise<AuthSession>;
   signInWithGoogle(): Promise<AuthSession>;
   signOut(): Promise<void>;
+  /**
+   * V10 mock account deletion: removes this account's local data and signs
+   * out. Shared plans stay consistent for everyone else (see the mock policy).
+   */
+  deleteAccount(): Promise<void>;
 }
 
 export interface ProfileService {
@@ -57,6 +63,17 @@ export interface ProfileService {
   updateProfile(patch: Partial<Pick<Account, 'firstName' | 'lastName' | 'displayName' | 'city' | 'bio'>>): Promise<Account>;
   setInterests(interests: string[]): Promise<Account>;
   completeOnboardingStep(step: OnboardingStep): Promise<Account>;
+  /**
+   * Stores a picked photo as the profile photo. The mock copies it into app
+   * storage (later: upload to storage); `null` removes the photo.
+   */
+  setAvatar(localUri: string | null): Promise<Account>;
+  getSettings(): Promise<AccountSettings>;
+  updateSettings(patch: Partial<Omit<AccountSettings, 'notifications'>> & {
+    notifications?: Partial<AccountSettings['notifications']>;
+  }): Promise<AccountSettings>;
+  /** V06 "Reset recommendation preferences": forgets likes and skips. */
+  resetRecommendations(): Promise<void>;
 }
 
 export interface PlacesQuery {

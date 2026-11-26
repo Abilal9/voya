@@ -55,6 +55,30 @@ export interface Account extends Person {
   onboardingStep: OnboardingStep;
   onboardingComplete: boolean;
   interests: string[];
+  /**
+   * Profile photo as an app-local reference ("avatars/<file>"), resolved by
+   * the UI against the app's document directory. Absent = initials.
+   */
+  avatarRef?: string;
+}
+
+/** Notification preference keys, as listed on the board (V04). */
+export type NotificationKey =
+  | 'newSuggestions' | 'votesAndDecisions' | 'planChanges' | 'itineraryReady'
+  | 'newInvitations' | 'rsvpUpdates'
+  | 'upcomingActivities' | 'scheduleChanges'
+  | 'recommendations' | 'productUpdates';
+
+/**
+ * Per-account preferences (V04–V06). Stored locally only. Nothing is sent:
+ * notifications are not delivered and location is not read in the mock.
+ */
+export interface AccountSettings {
+  notifications: Record<NotificationKey, boolean>;
+  /** V06 "Use precise location" — a preference only; no location is read. */
+  preciseLocation: boolean;
+  /** V06 discovery radius in km. */
+  discoveryRadiusKm: number;
 }
 
 export type OnboardingStep = 'profile' | 'interests' | 'location' | 'notifications' | 'done';

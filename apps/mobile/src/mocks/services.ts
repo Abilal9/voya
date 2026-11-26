@@ -16,6 +16,7 @@ import type {
 } from '@/services/contracts';
 import {
   ServiceError,
+  type AccountSettings,
   type Hangout,
   type ID,
   type Invitation,
@@ -29,6 +30,7 @@ import {
 import {
   canSee, classifyPlan, guestView, relationTo, sortPast, sortUpcoming,
 } from '@/services/planRules';
+import { removeAvatar, saveAvatar } from './avatarStore';
 import { devAccountFor } from './devAccounts';
 import * as fx from './fixtures';
 import { sha256Hex } from './sha256';
@@ -36,6 +38,10 @@ import {
   currentAccountId,
   mutate,
   createLocalAccount,
+  deletedPeople,
+  markPersonDeleted,
+  readWorld,
+  writeWorld,
   hasAccountState,
   deleteLocalAccount,
   peek,
@@ -137,7 +143,8 @@ const auth: AuthService = {
       return { accountId: dev.account.id, email: dev.email };
     }
     // Other mock accounts: the mock checks the account exists; it never stores or checks passwords.
-    const seeded = seededPersonFor(email);
+    const found = seededPersonFor(email);
+    const seeded = found && !(await deletedPeople()).includes(found.id) ? found : undefined;
     const local = (await readAccountRegistry())[email.toLowerCase()];
     const accountId = seeded?.id ?? local;
     if (!accountId) {
@@ -206,6 +213,19 @@ const auth: AuthService = {
   async signOut() {
     await setCurrentAccountId(null);
   },
+  async deleteAccount() {
+    const { accountId, state } = await read();
+    const personId = me(state);
+    if (personId === accountId) {
+      const world = await readWorld();
+      await writeWorld({ plans: removePersonFromPlans(world.plans, personId) });
+    }
+    removeAvatar(state.account.avatarRef);
+    if (fx.people.some((p) => p.id === accountId)) await markPersonDeleted(accountId);
+    // Local and dev accounts: drop the data (a dev account is recreated fresh on its next sign-in).
+    await deleteLocalAccount(accountId);
+    await setCurrentAccountId(null);
+  },
 };
 
 // ------------------------------------------------------------- profile
@@ -229,7 +249,86 @@ const profile: ProfileService = {
       s.account.onboardingComplete = next === 'done';
       return s.account;
     }),
+  async setAvatar(localUri) {
+    const { accountId, state } = await read();
+    const previous = state.account.avatarRef;
+    const ref = localUri ? saveAvatar(localUri, accountId) : undefined;
+    const account = await mutate((s) => {
+      if (ref) s.account.avatarRef = ref;
+      else delete s.account.avatarRef;
+      return s.account;
+    });
+    if (previous && previous !== ref) removeAvatar(previous);
+    return account;
+  },
+  async getSettings() {
+    const { state } = await read();
+    return settingsOf(state);
+  },
+  updateSettings: (patch) =>
+    mutate((s) => {
+      const current = settingsOf(s);
+      s.settings = {
+        ...current,
+        ...patch,
+        notifications: { ...current.notifications, ...(patch.notifications ?? {}) },
+      };
+      return s.settings;
+    }),
+  resetRecommendations: () =>
+    mutate((s) => {
+      s.signals = {};
+    }),
 };
+
+function settingsOf(state: { settings?: AccountSettings }): AccountSettings {
+  return structuredClone(state.settings ?? fx.DEFAULT_SETTINGS);
+}
+
+/**
+ * Mock account-deletion policy for the SHARED plan world (deterministic, local only):
+ * - the person's memberships and event guest entries are removed;
+ * - their votes are removed; suggestions they made stay (they are group
+ *   content) but are no longer attributed to them;
+ * - a plan they own passes to the next remaining member, who inherits the
+ *   owner's capabilities and role; a plan with nobody left is removed.
+ * Skipped when the identity is shared with another account (the dev account
+ * plans as the seeded Ahmad), so deleting it never strips Ahmad's plans.
+ */
+export function removePersonFromPlans(plans: Plan[], personId: ID): Plan[] {
+  const out: Plan[] = [];
+  for (const original of plans) {
+    const plan = structuredClone(original) as Plan;
+    const leaving = plan.members.find((m) => m.personId === personId);
+    const touched = !!leaving || (plan.type === 'event' && plan.guests.some((g) => g.personId === personId))
+      || (plan.type === 'hangout' && plan.suggestions.some((sg) => sg.suggestedBy === personId || personId in sg.votes));
+    if (!touched) {
+      out.push(plan);
+      continue;
+    }
+    plan.members = plan.members.filter((m) => m.personId !== personId);
+    if (plan.type === 'event') plan.guests = plan.guests.filter((g) => g.personId !== personId);
+    if (plan.type === 'hangout') {
+      for (const sg of plan.suggestions) {
+        delete sg.votes[personId];
+        if (sg.suggestedBy === personId) sg.suggestedBy = 'former-member';
+      }
+    }
+    if (plan.ownerId === personId) {
+      const heir = plan.members[0];
+      if (!heir) continue; // nobody left: the plan goes too
+      plan.ownerId = heir.personId;
+      if (leaving) {
+        heir.role = leaving.role;
+        heir.capabilities = Array.from(new Set([...heir.capabilities, ...leaving.capabilities]));
+      }
+    }
+    if (plan.members.length === 0 && !(plan.type === 'event' && plan.guests.length > 0)) continue;
+    plan.version += 1;
+    out.push(plan);
+  }
+  return out;
+}
 
 // -------------------------------------------------------------- places
 
