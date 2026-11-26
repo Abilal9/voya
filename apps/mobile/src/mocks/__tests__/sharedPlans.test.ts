@@ -56,7 +56,7 @@ describe('isolation', () => {
 
   it('gives a new sign-up no inherited plans, even after others create some', async () => {
     await as('ahmad@example.com');
-    await services.plans.createHangout({ title: 'Brunch', city: 'Riyadh', template: 'Brunch', startsAt: new Date(Date.now() + 86400000).toISOString() });
+    await services.plans.createHangout({ title: 'Brunch', city: 'Riyadh', template: 'Dinner', startsAt: new Date(Date.now() + 86400000).toISOString() });
     await services.auth.signUp('new@example.com', 'secret12', { firstName: 'New', lastName: 'User' });
     expect(await services.plans.listUpcoming()).toEqual([]);
     expect(await services.plans.listPast()).toEqual([]);
@@ -76,7 +76,7 @@ describe('isolation', () => {
 describe('persistence', () => {
   it('keeps shared changes and per-account saves across logout, login and restart', async () => {
     await as('ahmad@example.com');
-    const created = await services.plans.createHangout({ title: 'Brunch', city: 'Riyadh', template: 'Brunch', startsAt: new Date(Date.now() + 86400000).toISOString() });
+    const created = await services.plans.createHangout({ title: 'Brunch', city: 'Riyadh', template: 'Dinner', startsAt: new Date(Date.now() + 86400000).toISOString() });
     await services.saved.save('myazu');
     await services.auth.signOut();
     const after = restart();
