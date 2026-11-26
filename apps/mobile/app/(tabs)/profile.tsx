@@ -3,8 +3,10 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronRight, FlaskConical, Heart, History, LogOut, type LucideIcon } from 'lucide-react-native';
+import { ChevronRight, FlaskConical, Heart, History, Settings2, SlidersHorizontal, type LucideIcon } from 'lucide-react-native';
 import { Text } from '@/components/ui';
+import { ProfileAvatar } from '@/features/profile/ProfileAvatar';
+import { avatarUri } from '@/features/profile/avatar';
 import { useServices } from '@/services/ServicesProvider';
 import type { PlanType } from '@/services';
 import { useSession } from '@/stores/session';
@@ -12,22 +14,14 @@ import { board, colors, icon } from '@/theme';
 
 const P = board.profile;
 
-function initials(first?: string, last?: string) {
-  if (!first) return '';
-  return `${first[0] ?? ''}${last?.[0] ?? first[1] ?? ''}`.toUpperCase();
-}
-
 /**
- * 03 Profile — board figure "03".
- * KNOWN GAP: Edit profile (V01), Settings (V02) and Manage interests (V13) are
- * not built, so their controls are not shown yet. Log out lives here until
- * Settings exists (the board puts it under V02 → V09).
+ * 03 Profile — board figure "03". Settings (icon and row) opens V02, Edit
+ * profile opens V01, Manage opens V13. Log out lives in Settings (V09).
  */
 export default function Profile() {
   const router = useRouter();
   const services = useServices();
   const account = useSession((s) => s.account);
-  const signOut = useSession((s) => s.signOut);
 
   const upcoming = useQuery({ queryKey: ['plans', 'upcoming'], queryFn: () => services.plans.listUpcoming() });
   const past = useQuery({ queryKey: ['plans', 'past'], queryFn: () => services.plans.listPast() });
@@ -37,19 +31,30 @@ export default function Profile() {
   const links: { Icon: LucideIcon; label: string; onPress: () => void; danger?: boolean }[] = [
     { Icon: Heart, label: 'Saved places', onPress: () => router.push('/saved') },
     { Icon: History, label: 'Past Plans', onPress: () => router.push('/past-plans') },
+    { Icon: Settings2, label: 'Settings', onPress: () => router.push('/settings') },
     ...(__DEV__ ? [{ Icon: FlaskConical, label: 'Developer menu', onPress: () => router.push('/dev') }] : []),
-    { Icon: LogOut, label: 'Log out', onPress: () => void signOut(), danger: true },
   ];
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.root}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.h1}>Profile</Text>
-        <View style={styles.avatar} accessibilityRole="image" accessibilityLabel={account?.displayName}>
-          <Text style={styles.avatarText}>{initials(account?.firstName, account?.lastName)}</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.h1}>Profile</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Settings" onPress={() => router.push('/settings')} hitSlop={board.inlineGap} style={styles.settingsButton}>
+            <SlidersHorizontal size={icon.md} color={colors.brand.violet} strokeWidth={icon.strokeWidth} />
+          </Pressable>
         </View>
-        <Text style={styles.name} numberOfLines={1}>{account?.firstName ?? ''}</Text>
+        <View style={styles.avatar}>
+          <ProfileAvatar
+            uri={avatarUri(account?.avatarRef)} firstName={account?.firstName} lastName={account?.lastName}
+            size={P.avatar.size} fontSize={P.avatar.fontSize}
+          />
+        </View>
+        <Text style={styles.name} numberOfLines={2}>{account?.firstName ?? ''}</Text>
         {account?.city ? <Text style={styles.city}>{account.city}</Text> : null}
+        <Pressable accessibilityRole="button" onPress={() => router.push('/edit-profile')} style={styles.editLink} hitSlop={board.inlineGap}>
+          <Text style={styles.subtle}>Edit profile</Text>
+        </Pressable>
 
         <View style={styles.stats}>
           {([['trip', 'Trips'], ['hangout', 'Hangouts'], ['event', 'Events']] as const).map(([t, label]) => (
@@ -60,8 +65,13 @@ export default function Profile() {
           ))}
         </View>
 
-        <Text style={styles.h3}>Your preferences</Text>
-        <Text style={styles.small}>You seem to like</Text>
+        <View style={styles.prefRow}>
+          <Text style={[styles.h3, styles.noMargin]}>Your preferences</Text>
+          <Pressable accessibilityRole="button" onPress={() => router.push('/interests')} hitSlop={board.inlineGap}>
+            <Text style={styles.subtle}>Manage</Text>
+          </Pressable>
+        </View>
+        <Text style={styles.small}>{(account?.interests ?? []).length ? 'You seem to like' : 'Tell us what you enjoy to get better suggestions.'}</Text>
         <View style={styles.tags}>
           {(account?.interests ?? []).map((tag) => (
             <View key={tag} style={styles.tag}>
@@ -94,12 +104,13 @@ const styles = StyleSheet.create({
     paddingBottom: board.fab.bottomAboveTabBar,
   },
   h1: { ...board.h1, color: colors.brand.plum, marginTop: P.titleMarginTop },
-  avatar: {
-    width: P.avatar.size, height: P.avatar.size, borderRadius: P.avatar.size / 2,
-    alignSelf: 'center', marginTop: P.avatar.marginTop, marginBottom: P.avatar.marginBottom,
-    backgroundColor: colors.brand.lavender, alignItems: 'center', justifyContent: 'center',
-  },
-  avatarText: { fontSize: P.avatar.fontSize, lineHeight: P.avatar.lineHeight, fontWeight: '600', color: colors.brand.violet },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  settingsButton: { marginTop: P.titleMarginTop, padding: board.h2MarginBottom / 2 },
+  avatar: { alignSelf: 'center', marginTop: P.avatar.marginTop, marginBottom: P.avatar.marginBottom },
+  editLink: { alignSelf: 'center', marginTop: board.subtleControl.paddingY / 2 },
+  subtle: { fontSize: board.subtleControl.fontSize, color: colors.brand.violet, paddingVertical: board.subtleControl.paddingY },
+  prefRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  noMargin: { marginBottom: 0 },
   name: {
     ...board.home.title, fontSize: P.nameSize, textAlign: 'center',
     color: colors.brand.plum, marginBottom: board.h2MarginBottom,
