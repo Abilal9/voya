@@ -44,6 +44,11 @@ export interface Person {
 }
 
 export interface Account extends Person {
+  /**
+   * The identity this account uses in plan membership. Defaults to `id`.
+   * Only the development test account sets it (to plan as the seeded Ahmad).
+   */
+  personId?: ID;
   email: string;
   /** false until the A06 code is entered. Seeded accounts are verified. */
   emailVerified?: boolean;

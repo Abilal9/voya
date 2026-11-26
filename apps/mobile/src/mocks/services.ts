@@ -29,11 +29,14 @@ import {
 import {
   canSee, classifyPlan, guestView, relationTo, sortPast, sortUpcoming,
 } from '@/services/planRules';
+import { devAccountFor } from './devAccounts';
 import * as fx from './fixtures';
+import { sha256Hex } from './sha256';
 import {
   currentAccountId,
   mutate,
   createLocalAccount,
+  hasAccountState,
   deleteLocalAccount,
   peek,
   read,
@@ -81,6 +84,11 @@ function visiblePlans(plans: Plan[], personId: ID): Plan[] {
   return plans.filter((p) => canSee(p, personId)).map((p) => visibleCopy(p, personId));
 }
 
+/** The person id used for plan membership (the dev account plans as the seeded Ahmad). */
+function me(state: { account: { id: ID; personId?: ID } }): ID {
+  return state.account.personId ?? state.account.id;
+}
+
 function can(plan: Plan, personId: ID, capability: string): boolean {
   const member = plan.members.find((m) => m.personId === personId);
   return !!member?.capabilities.includes(capability as never);
@@ -100,8 +108,18 @@ const auth: AuthService = {
     const snapshot = await peek();
     return { accountId: id, email: snapshot?.state.account.email ?? '' };
   },
-  async signIn(email) {
-    // The mock checks the account exists; it never stores or checks passwords.
+  async signIn(email, password) {
+    // Development test account: checked against a stored SHA-256 digest only.
+    const dev = devAccountFor(email);
+    if (dev) {
+      if (sha256Hex(password) !== dev.passwordSha256) {
+        throw new ServiceError('bad_credentials', 'That email and password do not match.', false);
+      }
+      if (!(await hasAccountState(dev.account.id))) await createLocalAccount(structuredClone(dev.account));
+      await setCurrentAccountId(dev.account.id);
+      return { accountId: dev.account.id, email: dev.email };
+    }
+    // Other mock accounts: the mock checks the account exists; it never stores or checks passwords.
     const seeded = seededPersonFor(email);
     const local = (await readAccountRegistry())[email.toLowerCase()];
     const accountId = seeded?.id ?? local;
@@ -113,7 +131,7 @@ const auth: AuthService = {
   },
   async signUp(email, _password, names) {
     const normalized = email.trim().toLowerCase();
-    if (seededPersonFor(normalized) || (await readAccountRegistry())[normalized]) {
+    if (seededPersonFor(normalized) || devAccountFor(normalized) || (await readAccountRegistry())[normalized]) {
       throw new ServiceError('email_taken', 'An account already uses that email.', false);
     }
     const firstName = names.firstName.trim();
@@ -268,34 +286,34 @@ const plans: PlansService = {
   async listUpcoming() {
     const { state } = await read();
     const now = Date.now();
-    return visiblePlans(state.plans, state.account.id)
+    return visiblePlans(state.plans, me(state))
       .filter((p) => classifyPlan(p, now) === 'upcoming')
       .sort(sortUpcoming);
   },
   async listPast() {
     const { state } = await read();
     const now = Date.now();
-    return visiblePlans(state.plans, state.account.id)
+    return visiblePlans(state.plans, me(state))
       .filter((p) => classifyPlan(p, now) === 'past')
       .sort(sortPast);
   },
   async get(id) {
     const { state } = await read();
     const plan = state.plans.find((p) => p.id === id);
-    if (!plan || !canSee(plan, state.account.id)) {
+    if (!plan || !canSee(plan, me(state))) {
       throw new ServiceError('not_found', 'Plan not found.', false);
     }
-    return visibleCopy(plan, state.account.id);
+    return visibleCopy(plan, me(state));
   },
   createTrip: (input) =>
     mutate((s) => {
       const trip: Trip = {
         id: uid('plan'), type: 'trip', title: input.title, destination: input.destination,
-        city: input.destination, lifecycle: 'active', ownerId: s.account.id, version: 1,
+        city: input.destination, lifecycle: 'active', ownerId: me(s), version: 1,
         startsAt: input.startsAt, endsAt: input.endsAt, generated: false,
         mustDoPlaceIds: [], days: [],
         members: [{
-          personId: s.account.id, role: 'organizer',
+          personId: me(s), role: 'organizer',
           capabilities: ['plan.edit', 'plan.delete', 'member.manage', 'invite.create'],
           joinedAt: new Date().toISOString(),
         }],
@@ -307,10 +325,10 @@ const plans: PlansService = {
     mutate((s) => {
       const hangout: Hangout = {
         id: uid('plan'), type: 'hangout', title: input.title, city: input.city,
-        lifecycle: 'active', ownerId: s.account.id, version: 1, startsAt: input.startsAt,
+        lifecycle: 'active', ownerId: me(s), version: 1, startsAt: input.startsAt,
         template: input.template, finalized: false, suggestions: [], timeline: [],
         members: [{
-          personId: s.account.id, role: 'organizer',
+          personId: me(s), role: 'organizer',
           capabilities: ['plan.edit', 'member.manage', 'invite.create', 'timeline.finalize', 'suggestion.create', 'vote.cast'],
           joinedAt: new Date().toISOString(),
         }],
@@ -322,10 +340,10 @@ const plans: PlansService = {
     mutate((s) => {
       const event: VoyaEvent = {
         id: uid('plan'), type: 'event', title: input.title, city: input.city,
-        lifecycle: 'active', ownerId: s.account.id, version: 1, startsAt: input.startsAt,
+        lifecycle: 'active', ownerId: me(s), version: 1, startsAt: input.startsAt,
         venue: input.venue, guests: [], schedule: [],
         members: [{
-          personId: s.account.id, role: 'host',
+          personId: me(s), role: 'host',
           capabilities: ['plan.edit', 'member.manage', 'invite.create', 'schedule.edit'],
           joinedAt: new Date().toISOString(),
         }],
@@ -337,9 +355,9 @@ const plans: PlansService = {
   leave: (id) =>
     mutate((s) => {
       const plan = s.plans.find((p) => p.id === id);
-      if (!plan || !canSee(plan, s.account.id)) throw new ServiceError('not_found', 'Plan not found.', false);
-      plan.members = plan.members.filter((m) => m.personId !== s.account.id);
-      if (plan.type === 'event') plan.guests = plan.guests.filter((g) => g.personId !== s.account.id);
+      if (!plan || !canSee(plan, me(s))) throw new ServiceError('not_found', 'Plan not found.', false);
+      plan.members = plan.members.filter((m) => m.personId !== me(s));
+      if (plan.type === 'event') plan.guests = plan.guests.filter((g) => g.personId !== me(s));
       plan.version += 1;
     }),
 };
@@ -381,16 +399,16 @@ const invitations: InvitationsService = {
 
       const joined = s.plans.find((p) => p.id === invite.planId);
       if (!joined) throw new ServiceError('not_found', 'That plan no longer exists.', false);
-      if (canSee(joined, s.account.id)) return { planId: joined.id, alreadyMember: true };
+      if (canSee(joined, me(s))) return { planId: joined.id, alreadyMember: true };
 
       if (joined.type === 'event') {
         // Event invitations make you a guest, not a host.
         joined.guests.push({
-          id: uid('g'), personId: s.account.id, displayName: s.account.displayName, rsvp: 'pending',
+          id: uid('g'), personId: me(s), displayName: s.account.displayName, rsvp: 'pending',
         });
       } else {
         joined.members.push({
-          personId: s.account.id, role: invite.role,
+          personId: me(s), role: invite.role,
           capabilities: ['suggestion.create', 'vote.cast'],
           joinedAt: new Date().toISOString(),
         });
@@ -401,7 +419,7 @@ const invitations: InvitationsService = {
   async createForPlan(planId) {
     const { state } = await read();
     const plan = state.plans.find((p) => p.id === planId);
-    if (!plan || relationTo(plan, state.account.id) !== 'member') {
+    if (!plan || relationTo(plan, me(state)) !== 'member') {
       throw new ServiceError('not_found', 'Plan not found.', false);
     }
     return {
@@ -417,30 +435,30 @@ const invitations: InvitationsService = {
 const hangouts: HangoutsService = {
   suggestPlace: (id, placeId, slot) =>
     mutate((s) => {
-      const h = requirePlan<Hangout>(s.plans, id, 'hangout', s.account.id);
+      const h = requirePlan<Hangout>(s.plans, id, 'hangout', me(s));
       if (h.suggestions.some((x) => x.placeId === placeId && x.slot === slot)) {
         throw new ServiceError('duplicate', 'That place is already suggested for this slot.', false);
       }
-      h.suggestions.push({ id: uid('sg'), placeId, slot, suggestedBy: s.account.id, votes: {} });
+      h.suggestions.push({ id: uid('sg'), placeId, slot, suggestedBy: me(s), votes: {} });
       h.version += 1;
       return h;
     }),
   vote: (id, suggestionId, value) =>
     mutate((s) => {
-      const h = requirePlan<Hangout>(s.plans, id, 'hangout', s.account.id);
-      if (!can(h, s.account.id, 'vote.cast')) {
+      const h = requirePlan<Hangout>(s.plans, id, 'hangout', me(s));
+      if (!can(h, me(s), 'vote.cast')) {
         throw new ServiceError('forbidden', 'You cannot vote on this hangout.', false);
       }
       const sg = h.suggestions.find((x) => x.id === suggestionId);
       if (!sg) throw new ServiceError('not_found', 'Suggestion not found.', false);
-      sg.votes[s.account.id] = value; // one vote per participant per suggestion
+      sg.votes[me(s)] = value; // one vote per participant per suggestion
       h.version += 1;
       return h;
     }),
   simulateParticipantVotes: (id) =>
     mutate((s) => {
-      const h = requirePlan<Hangout>(s.plans, id, 'hangout', s.account.id);
-      const others = h.members.map((m) => m.personId).filter((p) => p !== s.account.id);
+      const h = requirePlan<Hangout>(s.plans, id, 'hangout', me(s));
+      const others = h.members.map((m) => m.personId).filter((p) => p !== me(s));
       h.suggestions.forEach((sg, i) => {
         const voter = others[i % Math.max(others.length, 1)];
         if (voter) sg.votes[voter] = i % 3 === 0 ? 'down' : 'up';
@@ -450,8 +468,8 @@ const hangouts: HangoutsService = {
     }),
   finalize: (id) =>
     mutate((s) => {
-      const h = requirePlan<Hangout>(s.plans, id, 'hangout', s.account.id);
-      if (!can(h, s.account.id, 'timeline.finalize')) {
+      const h = requirePlan<Hangout>(s.plans, id, 'hangout', me(s));
+      if (!can(h, me(s), 'timeline.finalize')) {
         throw new ServiceError('forbidden', 'Only the organiser can finalise.', false);
       }
       const slots = [...new Set(h.suggestions.map((x) => x.slot))];
@@ -477,7 +495,7 @@ const hangouts: HangoutsService = {
     }),
   proposeChange: (id, itemId, placeId) =>
     mutate((s) => {
-      const h = requirePlan<Hangout>(s.plans, id, 'hangout', s.account.id);
+      const h = requirePlan<Hangout>(s.plans, id, 'hangout', me(s));
       const item = h.timeline.find((x) => x.id === itemId);
       if (!item) throw new ServiceError('not_found', 'Timeline item not found.', false);
       const place = fx.places.find((p) => p.id === placeId);
@@ -493,10 +511,10 @@ const hangouts: HangoutsService = {
 const events: EventsService = {
   setRsvp: (eventId, guestId, rsvp: RSVP) =>
     mutate((s) => {
-      const e = requirePlan<VoyaEvent>(s.plans, eventId, 'event', s.account.id, true);
+      const e = requirePlan<VoyaEvent>(s.plans, eventId, 'event', me(s), true);
       const guest = e.guests.find((g) => g.id === guestId);
       if (!guest) throw new ServiceError('not_found', 'Guest not found.', false);
-      if (relationTo(e, s.account.id) === 'guest' && guest.personId !== s.account.id) {
+      if (relationTo(e, me(s)) === 'guest' && guest.personId !== me(s)) {
         throw new ServiceError('forbidden', 'Guests can only answer for themselves.', false);
       }
       guest.rsvp = rsvp; // one RSVP row per guest
@@ -505,8 +523,8 @@ const events: EventsService = {
     }),
   addGuest: (eventId, displayName) =>
     mutate((s) => {
-      const e = requirePlan<VoyaEvent>(s.plans, eventId, 'event', s.account.id);
-      if (!can(e, s.account.id, 'member.manage')) {
+      const e = requirePlan<VoyaEvent>(s.plans, eventId, 'event', me(s));
+      if (!can(e, me(s), 'member.manage')) {
         throw new ServiceError('forbidden', 'Only hosts can manage guests.', false);
       }
       e.guests.push({ id: uid('g'), displayName, rsvp: 'pending' });
@@ -515,8 +533,8 @@ const events: EventsService = {
     }),
   upsertScheduleItem: (eventId, item) =>
     mutate((s) => {
-      const e = requirePlan<VoyaEvent>(s.plans, eventId, 'event', s.account.id);
-      if (!can(e, s.account.id, 'schedule.edit')) {
+      const e = requirePlan<VoyaEvent>(s.plans, eventId, 'event', me(s));
+      if (!can(e, me(s), 'schedule.edit')) {
         throw new ServiceError('forbidden', 'Only hosts can edit the schedule.', false);
       }
       const existing = item.id ? e.schedule.find((x) => x.id === item.id) : undefined;
@@ -536,8 +554,8 @@ const events: EventsService = {
     }),
   removeScheduleItem: (eventId, itemId) =>
     mutate((s) => {
-      const e = requirePlan<VoyaEvent>(s.plans, eventId, 'event', s.account.id);
-      if (!can(e, s.account.id, 'schedule.edit')) {
+      const e = requirePlan<VoyaEvent>(s.plans, eventId, 'event', me(s));
+      if (!can(e, me(s), 'schedule.edit')) {
         throw new ServiceError('forbidden', 'Only hosts can edit the schedule.', false);
       }
       e.schedule = e.schedule.filter((x) => x.id !== itemId);
@@ -550,7 +568,7 @@ const events: EventsService = {
    */
   async guestProjection(eventId) {
     const { state } = await read();
-    const e = requirePlan<VoyaEvent>(state.plans, eventId, 'event', state.account.id, true);
+    const e = requirePlan<VoyaEvent>(state.plans, eventId, 'event', me(state), true);
     return guestView(structuredClone(e) as VoyaEvent);
   },
 };
@@ -560,7 +578,7 @@ const events: EventsService = {
 const trips: TripsService = {
   setMustDo: (tripId, placeId, on) =>
     mutate((s) => {
-      const t = requirePlan<Trip>(s.plans, tripId, 'trip', s.account.id);
+      const t = requirePlan<Trip>(s.plans, tripId, 'trip', me(s));
       t.mustDoPlaceIds = on
         ? [...new Set([...t.mustDoPlaceIds, placeId])]
         : t.mustDoPlaceIds.filter((x) => x !== placeId);
@@ -570,7 +588,7 @@ const trips: TripsService = {
   /** Fixture-backed. NOT the production scheduler. */
   generateItinerary: (tripId) =>
     mutate((s) => {
-      const t = requirePlan<Trip>(s.plans, tripId, 'trip', s.account.id);
+      const t = requirePlan<Trip>(s.plans, tripId, 'trip', me(s));
       if (t.days.length === 0) {
         const pool = fx.places.filter((p) => p.city === t.destination && !p.permanentlyClosed);
         const must = t.mustDoPlaceIds
@@ -602,7 +620,7 @@ const trips: TripsService = {
     }),
   toggleLock: (tripId, itemId) =>
     mutate((s) => {
-      const t = requirePlan<Trip>(s.plans, tripId, 'trip', s.account.id);
+      const t = requirePlan<Trip>(s.plans, tripId, 'trip', me(s));
       for (const day of t.days) {
         const item = day.items.find((i) => i.id === itemId);
         if (item) item.locked = !item.locked;
@@ -612,7 +630,7 @@ const trips: TripsService = {
     }),
   replaceItem: (tripId, itemId, placeId) =>
     mutate((s) => {
-      const t = requirePlan<Trip>(s.plans, tripId, 'trip', s.account.id);
+      const t = requirePlan<Trip>(s.plans, tripId, 'trip', me(s));
       const place = fx.places.find((p) => p.id === placeId);
       for (const day of t.days) {
         const item = day.items.find((i) => i.id === itemId);

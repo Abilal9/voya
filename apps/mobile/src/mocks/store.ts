@@ -221,7 +221,11 @@ export async function readAccountRegistry(): Promise<Record<string, string>> {
   return raw ? (JSON.parse(raw) as Record<string, string>) : {};
 }
 
-/** Registers a new local account with an empty world of its own. */
+export async function hasAccountState(accountId: string): Promise<boolean> {
+  return (await AsyncStorage.getItem(key(accountId, 'state'))) !== null;
+}
+
+/** Registers a new local account with its own profile and no plans or saves. */
 export async function createLocalAccount(account: Account) {
   const registry = await readAccountRegistry();
   registry[account.email.toLowerCase()] = account.id;
