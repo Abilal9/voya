@@ -25,15 +25,24 @@
       },
       "edgeToEdgeEnabled": true
     },
-    "web": { "bundler": "metro", "favicon": "./assets/favicon.png" },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png"
+    },
     "plugins": [
       "expo-router",
-      ["expo-splash-screen", {
-        "image": "./assets/splash-icon.png",
-        "resizeMode": "contain",
-        "backgroundColor": "#FFF8EE"
-      }]
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#FFF8EE"
+        }
+      ],
+      "@react-native-community/datetimepicker"
     ],
-    "experiments": { "typedRoutes": true }
+    "experiments": {
+      "typedRoutes": true
+    }
   }
 }
