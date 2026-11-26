@@ -141,9 +141,22 @@ let worldCache: World | null = null;
 async function loadWorld(): Promise<World> {
   if (worldCache) return worldCache;
   const raw = await AsyncStorage.getItem(WORLD_KEY);
-  worldCache = raw ? (JSON.parse(raw) as World) : seedWorld();
+  worldCache = raw ? normalizeWorld(JSON.parse(raw) as World) : seedWorld();
   if (!raw) await AsyncStorage.setItem(WORLD_KEY, JSON.stringify(worldCache));
   return worldCache;
+}
+
+/** Fills fields added after a world was stored (hangout invites, change requests). */
+function normalizeWorld(world: World): World {
+  for (const plan of world.plans) {
+    if (plan.type === 'hangout') {
+      plan.invites ??= plan.members
+        .filter((m) => m.personId !== plan.ownerId)
+        .map((m) => ({ personId: m.personId, status: 'in' as const, invitedBy: plan.ownerId, invitedAt: m.joinedAt }));
+      plan.changeRequests ??= [];
+    }
+  }
+  return world;
 }
 
 async function saveWorld(world: World) {

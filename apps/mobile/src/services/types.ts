@@ -79,6 +79,8 @@ export interface AccountSettings {
   preciseLocation: boolean;
   /** V06 discovery radius in km. */
   discoveryRadiusKm: number;
+  /** H01 per-plan "Notifications" switch: plans this account muted. */
+  mutedPlans?: ID[];
 }
 
 export type OnboardingStep = 'profile' | 'interests' | 'location' | 'notifications' | 'done';
@@ -179,12 +181,36 @@ export interface HangoutSuggestion {
   votes: Record<ID, 'up' | 'down'>;
 }
 
+/** How an invited friend answered (17, H03). The organizer is always in. */
+export type HangoutResponse = 'pending' | 'in' | 'maybe' | 'declined';
+
+export interface HangoutInvite {
+  personId: ID;
+  status: HangoutResponse;
+  invitedBy: ID;
+  invitedAt: string;
+}
+
+/** H07 Suggest a change: a proposal; the finalized plan stays as it is. */
+export interface HangoutChangeRequest {
+  id: ID;
+  slot: string;
+  placeId?: ID;
+  note?: string;
+  by: ID;
+  at: string;
+}
+
 export interface Hangout extends PlanBase {
   type: 'hangout';
+  /** Template label, e.g. "Dinner + Activity + Dessert"; slots come from it. */
   template: string;
   suggestions: HangoutSuggestion[];
   finalized: boolean;
   timeline: TimelineItem[];
+  /** Everyone invited except the organizer. Optional for older stored data. */
+  invites?: HangoutInvite[];
+  changeRequests?: HangoutChangeRequest[];
 }
 
 export type RSVP = 'going' | 'maybe' | 'declined' | 'pending';

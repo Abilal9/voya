@@ -123,7 +123,8 @@ export interface PlansService {
   listPast(): Promise<Plan[]>;
   get(id: ID): Promise<Plan>;
   createTrip(input: { title: string; destination: string; startsAt: string; endsAt: string }): Promise<Trip>;
-  createHangout(input: { title: string; city: string; template: string; startsAt: string }): Promise<Hangout>;
+  /** 13: the creator becomes organizer; invitees get pending invitations. */
+  createHangout(input: { title: string; city: string; template: string; startsAt: string; invitees?: ID[] }): Promise<Hangout>;
   createEvent(input: { title: string; city: string; startsAt: string; venue?: string }): Promise<VoyaEvent>;
   leave(id: ID): Promise<void>;
   /**
@@ -142,12 +143,27 @@ export interface InvitationsService {
 }
 
 export interface HangoutsService {
+  /** Organizer edits (H02). Template changes keep suggestions whose slot still exists. */
+  update(hangoutId: ID, patch: { title?: string; city?: string; startsAt?: string; template?: string }): Promise<Hangout>;
+  /** Organizer invites friends (13, H03). Already-invited people are skipped. */
+  invite(hangoutId: ID, personIds: ID[]): Promise<Hangout>;
+  /** The signed-in person answers their invitation (17) or changes it (H03). */
+  respond(hangoutId: ID, response: 'in' | 'maybe' | 'declined'): Promise<Hangout>;
+  /** Organizer removes someone (H03); their votes go, their suggestions stay. */
+  removePerson(hangoutId: ID, personId: ID): Promise<Hangout>;
+  /** Organizer deletes the hangout for everyone (H01). */
+  remove(hangoutId: ID): Promise<void>;
   suggestPlace(hangoutId: ID, placeId: ID, slot: string): Promise<Hangout>;
-  vote(hangoutId: ID, suggestionId: ID, value: 'up' | 'down'): Promise<Hangout>;
+  /** Up-vote (or clear your vote on) a suggestion (15). One vote per person per suggestion. */
+  vote(hangoutId: ID, suggestionId: ID, value: 'up' | null): Promise<Hangout>;
+  /** "Yes" in Choose together (14): votes for the place, adding it as a Voya suggestion if new. */
+  voteForPlace(hangoutId: ID, slot: string, placeId: ID): Promise<Hangout>;
   /** Development affordance: lets one device demonstrate group convergence. */
   simulateParticipantVotes(hangoutId: ID): Promise<Hangout>;
+  /** Organizer only. Builds the timeline from each slot's leading place (16). */
   finalize(hangoutId: ID): Promise<Hangout>;
-  proposeChange(hangoutId: ID, itemId: ID, placeId: ID): Promise<Hangout>;
+  /** H07: records a proposed change; the finalized timeline is not altered. */
+  proposeChange(hangoutId: ID, change: { slot: string; placeId?: ID; note?: string }): Promise<Hangout>;
 }
 
 export interface EventsService {

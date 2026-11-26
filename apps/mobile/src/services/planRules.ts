@@ -67,13 +67,18 @@ export function headcountLabel(plan: Plan) {
  * frontend, not authorization — the server enforces the real rules later.
  * - member: organizer/participant/traveler, or host/co-host of an event
  * - guest:  on an event's guest list (sees the guest view only)
+ * - invited: invited to a hangout, not answered yet (sees the invitation)
  * - none:   no access, even though the record exists
  */
-export type PlanRelation = 'member' | 'guest' | 'none';
+export type PlanRelation = 'member' | 'guest' | 'invited' | 'none';
 
 export function relationTo(plan: Plan, personId: string): PlanRelation {
   if (plan.members.some((m) => m.personId === personId)) return 'member';
   if (plan.type === 'event' && plan.guests.some((g) => g.personId === personId)) return 'guest';
+  // Invited to a hangout and not answered yet: sees the invitation (17) only.
+  if (plan.type === 'hangout' && (plan.invites ?? []).some((i) => i.personId === personId && i.status === 'pending')) {
+    return 'invited';
+  }
   return 'none';
 }
 

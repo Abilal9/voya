@@ -295,7 +295,7 @@ export const florenceTrip: Trip = {
 export const fridayHangout: Hangout = {
   id: 'plan-friday', type: 'hangout', title: 'Friday Night', city: 'Riyadh',
   lifecycle: 'active', ownerId: 'p-ahmad', version: 7,
-  startsAt: iso('2026-11-27T19:30:00'), template: 'Dinner + Dessert',
+  startsAt: iso('2026-11-27T19:30:00'), template: 'Dinner + Activity + Dessert',
   finalized: false, coverPhoto: 'restaurant',
   members: [
     { personId: 'p-ahmad', role: 'organizer', capabilities: ['plan.edit', 'member.manage', 'invite.create', 'timeline.finalize', 'suggestion.create', 'vote.cast'], joinedAt: iso('2026-11-20') },
@@ -303,17 +303,20 @@ export const fridayHangout: Hangout = {
     { personId: 'p-omar', role: 'participant', capabilities: ['suggestion.create', 'vote.cast'], joinedAt: iso('2026-11-21') },
     { personId: 'p-faisal', role: 'participant', capabilities: ['suggestion.create', 'vote.cast'], joinedAt: iso('2026-11-21') },
   ],
+  // Board 37 / H03: Khaled and Omar are in, Faisal is a maybe.
+  invites: [
+    { personId: 'p-khaled', status: 'in', invitedBy: 'p-ahmad', invitedAt: iso('2026-11-20') },
+    { personId: 'p-omar', status: 'in', invitedBy: 'p-ahmad', invitedAt: iso('2026-11-20') },
+    { personId: 'p-faisal', status: 'maybe', invitedBy: 'p-ahmad', invitedAt: iso('2026-11-20') },
+  ],
+  // Board 37: Dinner chosen (everyone voted), Activity 2 of 4 voted, Dessert waiting.
   suggestions: [
     { id: 'sg-1', placeId: 'myazu', slot: 'Dinner', suggestedBy: 'p-ahmad', votes: { 'p-ahmad': 'up', 'p-khaled': 'up', 'p-omar': 'up' } },
-    { id: 'sg-2', placeId: 'roka', slot: 'Dinner', suggestedBy: 'p-khaled', votes: { 'p-khaled': 'up' } },
-    { id: 'sg-3', placeId: 'somewhere', slot: 'Dessert', suggestedBy: 'p-omar', votes: { 'p-omar': 'up', 'p-ahmad': 'up' } },
-    { id: 'sg-4', placeId: 'hallab', slot: 'Dessert', suggestedBy: 'p-faisal', votes: { 'p-faisal': 'up' } },
+    { id: 'sg-2', placeId: 'roka', slot: 'Dinner', suggestedBy: 'p-khaled', votes: { 'p-khaled': 'up', 'p-faisal': 'up' } },
+    { id: 'sg-3', placeId: 'padel-hub', slot: 'Activity', suggestedBy: 'p-omar', votes: { 'p-omar': 'up', 'p-faisal': 'up' } },
   ],
-  timeline: [
-    { id: 'tl-1', startsAt: iso('2026-11-27T19:30:00'), title: 'Dinner', subtitle: 'Myazu', placeId: 'myazu' },
-    { id: 'tl-2', startsAt: iso('2026-11-27T21:30:00'), title: 'Dessert', subtitle: 'Somewhere', placeId: 'somewhere', travelMinutes: 9 },
-    { id: 'tl-3', startsAt: iso('2026-11-27T23:15:00'), title: 'Padel', subtitle: 'The Padel Hub', placeId: 'padel-hub', travelMinutes: 9 },
-  ],
+  timeline: [],
+  changeRequests: [],
 };
 
 export const wedding: VoyaEvent = {
@@ -349,7 +352,8 @@ export const wedding: VoyaEvent = {
 export const completedHangout: Hangout = {
   id: 'plan-past-hangout', type: 'hangout', title: 'Padel & Dinner', city: 'Riyadh',
   lifecycle: 'completed', ownerId: 'p-khaled', version: 12, template: 'Dinner + Activity',
-  startsAt: iso('2026-10-24T18:00:00'), finalized: true, suggestions: [],
+  startsAt: iso('2026-10-24T18:00:00'), finalized: true, suggestions: [], changeRequests: [],
+  invites: [{ personId: 'p-ahmad', status: 'in', invitedBy: 'p-khaled', invitedAt: iso('2026-10-18') }],
   members: [
     { personId: 'p-khaled', role: 'organizer', capabilities: ['plan.edit'], joinedAt: iso('2026-10-18') },
     { personId: 'p-ahmad', role: 'participant', capabilities: ['vote.cast'], joinedAt: iso('2026-10-18') },

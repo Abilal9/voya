@@ -17,6 +17,7 @@ import type {
 import {
   ServiceError,
   type AccountSettings,
+  type Capability,
   type Hangout,
   type ID,
   type Invitation,
@@ -30,6 +31,9 @@ import {
 import {
   canSee, classifyPlan, guestView, relationTo, sortPast, sortUpcoming,
 } from '@/services/planRules';
+import {
+  HANGOUT_TEMPLATES, VOYA_SUGGESTION, canFinalize, slotForCategory, slotMinutes, slotSummary, slotsFor,
+} from '@/services/hangoutRules';
 import { removeAvatar, saveAvatar } from './avatarStore';
 import { devAccountFor } from './devAccounts';
 import * as fx from './fixtures';
@@ -74,7 +78,8 @@ function requirePlan<T extends Plan>(
 ): T {
   const plan = plans.find((p) => p.id === id);
   const relation = plan ? relationTo(plan, personId) : 'none';
-  if (!plan || relation === 'none' || (relation === 'guest' && !allowGuest)) {
+  // Only members act on a plan; event guests only where allowed; invitees only answer (respond).
+  if (!plan || !(relation === 'member' || (relation === 'guest' && allowGuest))) {
     throw new ServiceError('not_found', 'Plan not found.', false);
   }
   if (plan.type !== type) throw new ServiceError('wrong_type', 'Unexpected plan type.', false);
@@ -301,7 +306,8 @@ export function removePersonFromPlans(plans: Plan[], personId: ID): Plan[] {
     const plan = structuredClone(original) as Plan;
     const leaving = plan.members.find((m) => m.personId === personId);
     const touched = !!leaving || (plan.type === 'event' && plan.guests.some((g) => g.personId === personId))
-      || (plan.type === 'hangout' && plan.suggestions.some((sg) => sg.suggestedBy === personId || personId in sg.votes));
+      || (plan.type === 'hangout' && (plan.suggestions.some((sg) => sg.suggestedBy === personId || personId in sg.votes)
+        || (plan.invites ?? []).some((i) => i.personId === personId)));
     if (!touched) {
       out.push(plan);
       continue;
@@ -309,6 +315,7 @@ export function removePersonFromPlans(plans: Plan[], personId: ID): Plan[] {
     plan.members = plan.members.filter((m) => m.personId !== personId);
     if (plan.type === 'event') plan.guests = plan.guests.filter((g) => g.personId !== personId);
     if (plan.type === 'hangout') {
+      plan.invites = (plan.invites ?? []).filter((i) => i.personId !== personId);
       for (const sg of plan.suggestions) {
         delete sg.votes[personId];
         if (sg.suggestedBy === personId) sg.suggestedBy = 'former-member';
@@ -499,10 +506,19 @@ const plans: PlansService = {
     }),
   createHangout: (input) =>
     mutate((s) => {
+      const title = input.title.trim();
+      if (!title) throw new ServiceError('invalid', 'Give your hangout a name.', false);
+      if (!input.startsAt || Number.isNaN(Date.parse(input.startsAt))) {
+        throw new ServiceError('invalid', 'Choose when it happens.', false);
+      }
+      if (!HANGOUT_TEMPLATES[input.template]) throw new ServiceError('invalid', 'Choose what kind of hangout.', false);
+      const now = new Date().toISOString();
+      const invitees = [...new Set(input.invitees ?? [])].filter((p) => p !== me(s) && fx.people.some((x) => x.id === p));
       const hangout: Hangout = {
-        id: uid('plan'), type: 'hangout', title: input.title, city: input.city,
+        id: uid('plan'), type: 'hangout', title, city: input.city,
         lifecycle: 'active', ownerId: me(s), version: 1, startsAt: input.startsAt,
-        template: input.template, finalized: false, suggestions: [], timeline: [],
+        template: input.template, finalized: false, suggestions: [], timeline: [], changeRequests: [],
+        invites: invitees.map((personId) => ({ personId, status: 'pending' as const, invitedBy: me(s), invitedAt: now })),
         members: [{
           personId: me(s), role: 'organizer',
           capabilities: ['plan.edit', 'member.manage', 'invite.create', 'timeline.finalize', 'suggestion.create', 'vote.cast'],
@@ -545,7 +561,8 @@ const plans: PlansService = {
       if (!fx.places.some((p) => p.id === placeId)) throw new ServiceError('not_found', 'Place not found.', false);
       if (hasPlace(plan, placeId)) return { added: false };
       if (plan.type === 'hangout') {
-        plan.suggestions.push({ id: uid('sg'), placeId, slot: 'Suggestion', suggestedBy: me(s), votes: {} });
+        const category = fx.places.find((p) => p.id === placeId)!.category;
+        plan.suggestions.push({ id: uid('sg'), placeId, slot: slotForCategory(plan.template, category), suggestedBy: me(s), votes: {} });
       } else if (plan.type === 'trip') {
         plan.mustDoPlaceIds.push(placeId);
       }
@@ -633,10 +650,101 @@ const invitations: InvitationsService = {
 
 // ------------------------------------------------------------ hangouts
 
+/** Hangout mutations open only to the organizer (member.manage / plan.edit). */
+function requireOrganizer(h: Hangout, personId: ID, action: string) {
+  if (!can(h, personId, 'plan.edit') && !can(h, personId, 'member.manage')) {
+    throw new ServiceError('forbidden', `Only the organizer can ${action}.`, false);
+  }
+}
+
+function requireOpen(h: Hangout) {
+  if (h.finalized) throw new ServiceError('finalized', 'This hangout is already finalized.', false);
+}
+
+const PARTICIPANT_CAPS: Capability[] = ['suggestion.create', 'vote.cast'];
+
 const hangouts: HangoutsService = {
+  update: (id, patch) =>
+    mutate((s) => {
+      const h = requirePlan<Hangout>(s.plans, id, 'hangout', me(s));
+      requireOrganizer(h, me(s), 'edit this hangout');
+      if (patch.title !== undefined) {
+        if (!patch.title.trim()) throw new ServiceError('invalid', 'Give your hangout a name.', false);
+        h.title = patch.title.trim();
+      }
+      if (patch.city !== undefined) h.city = patch.city;
+      if (patch.startsAt !== undefined) {
+        if (Number.isNaN(Date.parse(patch.startsAt))) throw new ServiceError('invalid', 'That date is not valid.', false);
+        h.startsAt = patch.startsAt;
+      }
+      if (patch.template !== undefined && patch.template !== h.template) {
+        if (!HANGOUT_TEMPLATES[patch.template]) throw new ServiceError('invalid', 'Choose a template.', false);
+        requireOpen(h);
+        const slots = slotsFor(patch.template);
+        h.template = patch.template;
+        h.suggestions = h.suggestions.filter((sg) => slots.includes(sg.slot));
+      }
+      h.version += 1;
+      return h;
+    }),
+  invite: (id, personIds) =>
+    mutate((s) => {
+      const h = requirePlan<Hangout>(s.plans, id, 'hangout', me(s));
+      if (!can(h, me(s), 'invite.create')) throw new ServiceError('forbidden', 'Only the organizer can invite.', false);
+      h.invites ??= [];
+      const now = new Date().toISOString();
+      for (const personId of new Set(personIds)) {
+        if (personId === h.ownerId || !fx.people.some((p) => p.id === personId)) continue;
+        const existing = h.invites.find((i) => i.personId === personId);
+        if (existing && existing.status !== 'declined') continue; // already invited or joined
+        if (existing) existing.status = 'pending';
+        else h.invites.push({ personId, status: 'pending', invitedBy: me(s), invitedAt: now });
+      }
+      h.version += 1;
+      return h;
+    }),
+  respond: (id, response) =>
+    mutate((s) => {
+      const h = s.plans.find((p) => p.id === id);
+      const invite = h?.type === 'hangout' ? (h.invites ?? []).find((i) => i.personId === me(s)) : undefined;
+      if (!h || h.type !== 'hangout' || !invite) throw new ServiceError('not_found', 'This invitation is not available.', false);
+      if (h.ownerId === me(s)) throw new ServiceError('invalid', 'The organizer is always in.', false);
+      invite.status = response;
+      const isMember = h.members.some((m) => m.personId === me(s));
+      if (response === 'declined') {
+        h.members = h.members.filter((m) => m.personId !== me(s));
+        for (const sg of h.suggestions) delete sg.votes[me(s)];
+      } else if (!isMember) {
+        h.members.push({ personId: me(s), role: 'participant', capabilities: [...PARTICIPANT_CAPS], joinedAt: new Date().toISOString() });
+      }
+      h.version += 1;
+      return h;
+    }),
+  removePerson: (id, personId) =>
+    mutate((s) => {
+      const h = requirePlan<Hangout>(s.plans, id, 'hangout', me(s));
+      if (!can(h, me(s), 'member.manage')) throw new ServiceError('forbidden', 'Only the organizer can remove people.', false);
+      if (personId === h.ownerId) throw new ServiceError('invalid', 'The organizer cannot be removed.', false);
+      h.members = h.members.filter((m) => m.personId !== personId);
+      h.invites = (h.invites ?? []).filter((i) => i.personId !== personId);
+      for (const sg of h.suggestions) delete sg.votes[personId];
+      h.version += 1;
+      return h;
+    }),
+  remove: async (id) => {
+    await mutate((s) => {
+      const h = requirePlan<Hangout>(s.plans, id, 'hangout', me(s));
+      if (h.ownerId !== me(s)) throw new ServiceError('forbidden', 'Only the organizer can delete this hangout.', false);
+      s.plans = s.plans.filter((p) => p.id !== id);
+    });
+  },
   suggestPlace: (id, placeId, slot) =>
     mutate((s) => {
       const h = requirePlan<Hangout>(s.plans, id, 'hangout', me(s));
+      requireOpen(h);
+      if (!can(h, me(s), 'suggestion.create')) throw new ServiceError('forbidden', 'You cannot suggest places here.', false);
+      if (!slotsFor(h.template).includes(slot)) throw new ServiceError('invalid', 'That part of the plan does not exist.', false);
+      if (!fx.places.some((p) => p.id === placeId)) throw new ServiceError('not_found', 'Place not found.', false);
       if (h.suggestions.some((x) => x.placeId === placeId && x.slot === slot)) {
         throw new ServiceError('duplicate', 'That place is already suggested for this slot.', false);
       }
@@ -647,61 +755,74 @@ const hangouts: HangoutsService = {
   vote: (id, suggestionId, value) =>
     mutate((s) => {
       const h = requirePlan<Hangout>(s.plans, id, 'hangout', me(s));
-      if (!can(h, me(s), 'vote.cast')) {
-        throw new ServiceError('forbidden', 'You cannot vote on this hangout.', false);
-      }
+      requireOpen(h);
+      if (!can(h, me(s), 'vote.cast')) throw new ServiceError('forbidden', 'You cannot vote on this hangout.', false);
       const sg = h.suggestions.find((x) => x.id === suggestionId);
       if (!sg) throw new ServiceError('not_found', 'Suggestion not found.', false);
-      sg.votes[me(s)] = value; // one vote per participant per suggestion
+      if (value) sg.votes[me(s)] = value; // one vote per person per suggestion
+      else delete sg.votes[me(s)];
+      h.version += 1;
+      return h;
+    }),
+  voteForPlace: (id, slot, placeId) =>
+    mutate((s) => {
+      const h = requirePlan<Hangout>(s.plans, id, 'hangout', me(s));
+      requireOpen(h);
+      if (!can(h, me(s), 'vote.cast')) throw new ServiceError('forbidden', 'You cannot vote on this hangout.', false);
+      if (!slotsFor(h.template).includes(slot)) throw new ServiceError('invalid', 'That part of the plan does not exist.', false);
+      if (!fx.places.some((p) => p.id === placeId)) throw new ServiceError('not_found', 'Place not found.', false);
+      let sg = h.suggestions.find((x) => x.placeId === placeId && x.slot === slot);
+      if (!sg) {
+        sg = { id: uid('sg'), placeId, slot, suggestedBy: VOYA_SUGGESTION, votes: {} };
+        h.suggestions.push(sg);
+      }
+      sg.votes[me(s)] = 'up';
       h.version += 1;
       return h;
     }),
   simulateParticipantVotes: (id) =>
     mutate((s) => {
       const h = requirePlan<Hangout>(s.plans, id, 'hangout', me(s));
+      requireOpen(h);
       const others = h.members.map((m) => m.personId).filter((p) => p !== me(s));
-      h.suggestions.forEach((sg, i) => {
-        const voter = others[i % Math.max(others.length, 1)];
-        if (voter) sg.votes[voter] = i % 3 === 0 ? 'down' : 'up';
-      });
+      // Deterministic: each other member backs the current leader of every slot.
+      for (const slot of slotsFor(h.template)) {
+        const leader = slotSummary(h, slot).leader;
+        if (leader) for (const p of others) leader.votes[p] = 'up';
+      }
       h.version += 1;
       return h;
     }),
   finalize: (id) =>
     mutate((s) => {
       const h = requirePlan<Hangout>(s.plans, id, 'hangout', me(s));
-      if (!can(h, me(s), 'timeline.finalize')) {
-        throw new ServiceError('forbidden', 'Only the organiser can finalise.', false);
-      }
-      const slots = [...new Set(h.suggestions.map((x) => x.slot))];
-      const start = new Date(h.startsAt ?? new Date().toISOString());
-      h.timeline = slots.map((slot, i) => {
-        const winner = h.suggestions
-          .filter((x) => x.slot === slot)
-          .sort(
-            (a, b) =>
-              Object.values(b.votes).filter((v) => v === 'up').length -
-              Object.values(a.votes).filter((v) => v === 'up').length,
-          )[0];
-        const at = new Date(start.getTime() + i * 2 * 60 * 60 * 1000);
-        const place = fx.places.find((p) => p.id === winner?.placeId);
-        return {
-          id: uid('tl'), startsAt: at.toISOString(), title: slot,
-          subtitle: place?.name, placeId: winner?.placeId,
-        } satisfies TimelineItem;
+      if (!can(h, me(s), 'timeline.finalize')) throw new ServiceError('forbidden', 'Only the organizer can finalize.', false);
+      requireOpen(h);
+      if (!canFinalize(h)) throw new ServiceError('incomplete', 'Every part of the plan needs a place with a vote first.', false);
+      let at = Date.parse(h.startsAt ?? new Date().toISOString());
+      h.timeline = slotsFor(h.template).map((slot) => {
+        const winner = slotSummary(h, slot).leader!;
+        const place = fx.places.find((p) => p.id === winner.placeId);
+        const item: TimelineItem = {
+          id: uid('tl'), startsAt: new Date(at).toISOString(), title: slot, subtitle: place?.name, placeId: winner.placeId,
+        };
+        at += slotMinutes(slot) * 60 * 1000;
+        return item;
       });
       h.finalized = true;
       h.version += 1;
       return h;
     }),
-  proposeChange: (id, itemId, placeId) =>
+  proposeChange: (id, change) =>
     mutate((s) => {
       const h = requirePlan<Hangout>(s.plans, id, 'hangout', me(s));
-      const item = h.timeline.find((x) => x.id === itemId);
-      if (!item) throw new ServiceError('not_found', 'Timeline item not found.', false);
-      const place = fx.places.find((p) => p.id === placeId);
-      item.placeId = placeId;
-      item.subtitle = place?.name;
+      if (!h.finalized) throw new ServiceError('invalid', 'Changes can be suggested once the plan is final.', false);
+      if (!slotsFor(h.template).includes(change.slot)) throw new ServiceError('invalid', 'Choose what to change.', false);
+      const note = change.note?.trim();
+      if (!change.placeId && !note) throw new ServiceError('invalid', 'Suggest a place or add a note.', false);
+      if (change.placeId && !fx.places.some((p) => p.id === change.placeId)) throw new ServiceError('not_found', 'Place not found.', false);
+      h.changeRequests ??= [];
+      h.changeRequests.push({ id: uid('cr'), slot: change.slot, placeId: change.placeId, note: note || undefined, by: me(s), at: new Date().toISOString() });
       h.version += 1;
       return h;
     }),
