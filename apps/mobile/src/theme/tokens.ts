@@ -318,6 +318,18 @@ export const board = {
     row: { gap: 16, paddingY: 21, minHeight: 75, border: '#EBDFE7', symbol: 44, symbolBackground: '#EEE4F6', titleSize: 15, titleMarginBottom: 4 },
     dreamMarginTop: 30,
   },
+  map: {
+    controlsTop: 12, controlsX: 20, controlShadow: '#46334F',
+    // boxWidth/boxHeight: fixed marker size; react-native-maps clips flexible custom markers.
+    pin: { paddingY: 10, paddingX: 13, radius: 20, gap: 5, fontSize: 12, icon: 17, boxWidth: 104, boxHeight: 56 },
+    label: { bottom: 78, paddingY: 12, paddingX: 18, radius: 20, fontSize: 12 },
+    toggleBottom: 20,
+    preview: {
+      x: 18, bottom: 67, radius: 25, padding: 17, thumbWidth: 92, thumbHeight: 84, thumbRadius: 15,
+      titleSize: 19, titleMarginBottom: 7, lineSize: 12, lineColor: '#7D6B83', counterSize: 10, counterColor: '#9E8BA6',
+      actionsGap: 35, actionsMarginTop: 15, round: 42, roundIcon: 21, labelSize: 10, labelGap: 5,
+    },
+  },
   pastPlans: { introMarginBottom: 18, introBodySize: 13, cardMarginBottom: 24, photoHeight: 120, photoMarginBottom: 11, titleSize: 17 },
   tabBar: {
     height: 88, paddingX: 28, paddingTop: 10, paddingBottom: 24, borderColor: '#E9DFE8',

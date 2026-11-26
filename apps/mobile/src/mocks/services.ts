@@ -784,6 +784,9 @@ const catalog: CatalogService = {
   async destinations() {
     return structuredClone(fx.DESTINATIONS);
   },
+  async cityCenter(city) {
+    return fx.CITY_CENTERS[city] ?? null;
+  },
   async dreamDestinations() {
     return fx.DESTINATIONS.filter((d) => fx.DREAM_DESTINATIONS.includes(d.city));
   },

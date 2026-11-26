@@ -167,6 +167,8 @@ export interface CatalogService {
   popularSearches(): Promise<string[]>;
   /** Cities the location picker knows (E02), with their country. */
   destinations(): Promise<{ city: string; country: string }[]>;
+  /** Where the map centres for a city (mock "where you are"). */
+  cityCenter(city: string): Promise<{ latitude: number; longitude: number } | null>;
   /** E02 "Somewhere to dream about". */
   dreamDestinations(): Promise<{ city: string; country: string }[]>;
   people(): Promise<Person[]>;

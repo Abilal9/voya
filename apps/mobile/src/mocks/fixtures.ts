@@ -71,6 +71,8 @@ export const CITY_CENTERS: Record<string, { latitude: number; longitude: number 
   Jeddah: { latitude: 21.5433, longitude: 39.1728 },
   Dubai: { latitude: 25.2048, longitude: 55.2708 },
   Florence: { latitude: 43.7696, longitude: 11.2558 },
+  London: { latitude: 51.5072, longitude: -0.1276 },
+  Tokyo: { latitude: 35.6762, longitude: 139.6503 },
 };
 
 /** Cities Voya knows (E02). Only those in CITIES have fixture places. */

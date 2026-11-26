@@ -1,30 +1,29 @@
 import * as React from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Check, ChevronDown, Heart, LayoutGrid, Map as MapIcon, MapPin, Search, SlidersHorizontal, Sparkles, X,
 } from 'lucide-react-native';
 import { EmptyState, ErrorState, LoadingState, Text } from '@/components/ui';
 import { SwipeDeck, type SwipeDeckHandle } from '@/features/explore/SwipeDeck';
-import { PlaceCard } from '@/features/explore/PlaceCard';
+import { MapExplore } from '@/features/explore/MapExplore';
 import { useSavedPlaces } from '@/features/explore/useSavedPlaces';
 import { useServices } from '@/services/ServicesProvider';
 import { useCategories } from '@/features/catalog';
 import { useExploreCity } from '@/features/explore/useExploreCity';
 import { EMPTY_FILTERS, activeFilterCount, toQuery, useExploreFilters } from '@/features/explore/filters';
 import type { Place, PlaceCategory } from '@/services';
-import { board, colors, icon } from '@/theme';
+import { board, colors, icon, shadow } from '@/theme';
 
 const E = board.explore;
-type ExploreView = 'deck' | 'list';
+type ExploreView = 'deck' | 'map';
 
 /**
  * E01 Explore — board figure "E01". Search (E10) and Filters (E07) open from
  * the header; the category chips are the Filters sheet's categories.
- * The location button opens E02. KNOWN GAP: the map (E05/E06) is not built;
- * the Map pill switches to a list and says so.
+ * The location button opens E02; the Map pill switches to E05/E06.
  */
 export default function Explore() {
   const router = useRouter();
@@ -41,7 +40,9 @@ export default function Explore() {
   const category: PlaceCategory | 'All' = filters.categories.length === 1 ? filters.categories[0]! : 'All';
   const setCategory = (c: PlaceCategory | 'All') =>
     setFilters({ ...filters, categories: c === 'All' ? [] : [c] });
-  const [view, setView] = React.useState<ExploreView>('deck');
+  // `?view=map` opens straight on the map (deep links and screenshots).
+  const params = useLocalSearchParams<{ view?: string }>();
+  const [view, setView] = React.useState<ExploreView>(params.view === 'map' ? 'map' : 'deck');
   const [top, setTop] = React.useState(0);
 
   const places = useQuery({
@@ -64,11 +65,102 @@ export default function Explore() {
     [services],
   );
 
+  const qc = useQueryClient();
+  const center = useQuery({
+    queryKey: ['catalog', 'center', city],
+    queryFn: () => services.catalog.cityCenter(city!),
+    enabled: !!city,
+  });
+  const signalFromMap = async (place: Place, signal: 'like' | 'dislike') => {
+    await services.places.setSignal(place.id, signal);
+    // "Not for me" drops the place from the map, as it does from the deck.
+    if (signal === 'dislike') await qc.invalidateQueries({ queryKey: ['places'] });
+  };
+
   const toggleSave = async () => {
     if (current) await saved.toggle(current.id);
   };
 
   const openPlace = (p: Place) => router.push(`/place/${p.id}`);
+
+  const locationRow = (floating: boolean) => (
+    <View style={styles.locationRow}>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Location: ${city}. Change city`} onPress={() => router.push('/location')} style={[styles.location, floating && styles.floating]}>
+        <MapPin size={icon.md} color={colors.brand.plum} strokeWidth={icon.strokeWidth} />
+        <Text style={styles.city}>{city}</Text>
+        <Text style={styles.small}>{isNearMe ? 'Near me' : 'Elsewhere'}</Text>
+        <ChevronDown size={icon.sm} color={colors.brand.plum} strokeWidth={icon.strokeWidth} />
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={filterCount ? `Explore filters, ${filterCount} on` : 'Explore filters'}
+        onPress={() => router.push('/filters')}
+        style={[styles.filterButton, floating && styles.floating]}
+      >
+        <SlidersHorizontal size={icon.md} color={colors.brand.plum} strokeWidth={icon.strokeWidth} />
+        {filterCount ? (
+          <View style={styles.filterCount}><Text style={styles.filterCountText}>{filterCount}</Text></View>
+        ) : null}
+      </Pressable>
+    </View>
+  );
+
+  const chipRow = (floating: boolean) => (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={[styles.categoriesRow, floating && styles.categoriesRowFloating]}
+      contentContainerStyle={styles.categories}
+    >
+      {(['All', ...categories] as const).map((c) => {
+        const selected = category === c;
+        return (
+          <Pressable
+            key={c}
+            accessibilityRole="button"
+            accessibilityState={{ selected }}
+            onPress={() => setCategory(c as PlaceCategory | 'All')}
+            style={[styles.category, floating && styles.categoryFloating, selected && styles.categorySelected]}
+          >
+            <Text style={styles.categoryText}>{c}</Text>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  );
+
+
+  const viewToggle = (
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => setView(view === 'deck' ? 'map' : 'deck')}
+      style={styles.mapToggle}
+    >
+      {view === 'deck' ? (
+        <MapIcon size={E.mapToggle.icon} color={colors.text.inverse} strokeWidth={icon.strokeWidth} />
+      ) : (
+        <LayoutGrid size={E.mapToggle.icon} color={colors.text.inverse} strokeWidth={icon.strokeWidth} />
+      )}
+      <Text style={styles.mapToggleText}>{view === 'deck' ? 'Map' : 'Cards'}</Text>
+    </Pressable>
+  );
+
+  if (view === 'map') {
+    return (
+      <SafeAreaView edges={['top', 'left', 'right']} style={styles.root}>
+        <MapExplore
+          places={results}
+          center={center.data ?? null}
+          isSaved={saved.isSaved}
+          onToggleSave={(p) => void saved.toggle(p.id)}
+          onSignal={(p, signal) => void signalFromMap(p, signal)}
+          onOpen={openPlace}
+          header={<>{locationRow(true)}{chipRow(true)}</>}
+          footer={viewToggle}
+        />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.root}>
@@ -82,54 +174,16 @@ export default function Explore() {
             <Search size={icon.md} color={colors.brand.violet} strokeWidth={icon.strokeWidth} />
           </Pressable>
         </View>
-        <View style={styles.locationRow}>
-          <Pressable accessibilityRole="button" accessibilityLabel={`Location: ${city}. Change city`} onPress={() => router.push('/location')} style={styles.location}>
-            <MapPin size={icon.md} color={colors.brand.plum} strokeWidth={icon.strokeWidth} />
-            <Text style={styles.city}>{city}</Text>
-            <Text style={styles.small}>{isNearMe ? 'Near me' : 'Elsewhere'}</Text>
-            <ChevronDown size={icon.sm} color={colors.brand.plum} strokeWidth={icon.strokeWidth} />
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={filterCount ? `Explore filters, ${filterCount} on` : 'Explore filters'}
-            onPress={() => router.push('/filters')}
-            style={styles.filterButton}
-          >
-            <SlidersHorizontal size={icon.md} color={colors.brand.plum} strokeWidth={icon.strokeWidth} />
-            {filterCount ? (
-              <View style={styles.filterCount}><Text style={styles.filterCountText}>{filterCount}</Text></View>
-            ) : null}
-          </Pressable>
-        </View>
+        {locationRow(false)}
         <Text style={styles.note}>Discover places you&apos;ll love</Text>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.categoriesRow}
-          contentContainerStyle={styles.categories}
-        >
-          {(['All', ...categories] as const).map((c) => {
-            const selected = category === c;
-            return (
-              <Pressable
-                key={c}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                onPress={() => setCategory(c as PlaceCategory | 'All')}
-                style={[styles.category, selected && styles.categorySelected]}
-              >
-                <Text style={styles.categoryText}>{c}</Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+        {chipRow(false)}
 
         {places.isPending ? (
           <LoadingState label="Finding places" />
         ) : places.isError ? (
           <ErrorState onRetry={() => void places.refetch()} />
-        ) : results.length === 0 || (view === 'deck' && !current) ? (
+        ) : results.length === 0 || !current ? (
           <EmptyState
             title={results.length === 0 ? 'No places match' : "You've seen everything here"}
             body={filterCount ? 'Try fewer filters or another city.' : 'Try another city or category.'}
@@ -140,7 +194,7 @@ export default function Explore() {
               void places.refetch();
             }}
           />
-        ) : view === 'deck' ? (
+        ) : (
           <>
             <SwipeDeck ref={deck} places={results} onSwipe={onSwipe} onOpen={openPlace} />
             <View style={styles.actions}>
@@ -170,29 +224,9 @@ export default function Explore() {
               <Text style={styles.learningText}>Your suggestions get better as you explore</Text>
             </View>
           </>
-        ) : (
-          <>
-            <Text style={styles.listNote}>Map view arrives with the maps provider. Showing a list for now.</Text>
-            {results.map((p) => (
-              <View key={p.id} style={styles.listItem}>
-                <PlaceCard place={p} onOpen={() => openPlace(p)} />
-              </View>
-            ))}
-          </>
         )}
 
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => setView(view === 'deck' ? 'list' : 'deck')}
-          style={styles.mapToggle}
-        >
-          {view === 'deck' ? (
-            <MapIcon size={E.mapToggle.icon} color={colors.text.inverse} strokeWidth={icon.strokeWidth} />
-          ) : (
-            <LayoutGrid size={E.mapToggle.icon} color={colors.text.inverse} strokeWidth={icon.strokeWidth} />
-          )}
-          <Text style={styles.mapToggleText}>{view === 'deck' ? 'Map' : 'Cards'}</Text>
-        </Pressable>
+        {viewToggle}
       </ScrollView>
     </SafeAreaView>
   );
@@ -258,6 +292,10 @@ const styles = StyleSheet.create({
     paddingVertical: E.categories.paddingY, paddingHorizontal: E.categories.paddingX,
     borderRadius: E.categories.radius, borderWidth: 1, borderColor: E.categories.border,
   },
+  // Map overlays (E05): cream controls with a soft shadow, chips without borders.
+  floating: { backgroundColor: colors.surface.base, borderColor: colors.surface.base, ...shadow.card },
+  categoriesRowFloating: { marginTop: board.listRow.paddingY, marginHorizontal: -board.map.controlsX },
+  categoryFloating: { backgroundColor: colors.surface.base, borderColor: colors.surface.base, ...shadow.card },
   categorySelected: { backgroundColor: colors.brand.lavender, borderColor: colors.brand.lavender },
   categoryText: { fontSize: E.categories.fontSize, color: colors.brand.plum },
   actions: {
@@ -276,8 +314,6 @@ const styles = StyleSheet.create({
     marginTop: E.learning.marginTop, marginBottom: E.learning.marginBottom,
   },
   learningText: { fontSize: E.learning.fontSize, color: E.learning.color },
-  listNote: { ...board.small, color: colors.text.secondary, marginBottom: board.listRow.paddingY },
-  listItem: { height: E.card.height, marginBottom: board.listRow.paddingY },
   mapToggle: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: E.mapToggle.gap,
     alignSelf: 'center', minHeight: E.mapToggle.minHeight, borderRadius: E.mapToggle.radius,
