@@ -104,6 +104,13 @@ export interface PlansService {
   createHangout(input: { title: string; city: string; template: string; startsAt: string }): Promise<Hangout>;
   createEvent(input: { title: string; city: string; startsAt: string; venue?: string }): Promise<VoyaEvent>;
   leave(id: ID): Promise<void>;
+  /**
+   * Add to Plan (E09): upcoming hangouts and trips the user can suggest places
+   * to. `alreadyAdded` marks plans that already have this place.
+   */
+  addTargets(placeId: ID): Promise<{ plan: Plan; alreadyAdded: boolean }[]>;
+  /** Adds the place as a suggestion (hangout) or Must Do (trip). Repeats are no-ops. */
+  addPlace(planId: ID, placeId: ID): Promise<{ added: boolean }>;
 }
 
 export interface InvitationsService {

@@ -75,6 +75,23 @@ function requirePlan<T extends Plan>(
   return plan as T;
 }
 
+/**
+ * Add to Plan eligibility (UI simulation rule). The board offers hangouts and
+ * trips: a hangout member who may suggest and that is not finalized yet, or any
+ * traveler on a trip. Events take no place suggestions.
+ */
+function canAddPlace(plan: Plan, personId: ID): boolean {
+  if (plan.type === 'hangout') return !plan.finalized && can(plan, personId, 'suggestion.create');
+  if (plan.type === 'trip') return true;
+  return false;
+}
+
+function hasPlace(plan: Plan, placeId: ID): boolean {
+  if (plan.type === 'hangout') return plan.suggestions.some((s) => s.placeId === placeId);
+  if (plan.type === 'trip') return plan.mustDoPlaceIds.includes(placeId);
+  return false;
+}
+
 /** What a person sees of a plan: members get it whole, event guests the guest view. */
 function visibleCopy(plan: Plan, personId: ID): Plan {
   return plan.type === 'event' && relationTo(plan, personId) === 'guest' ? guestView(plan) : plan;
@@ -390,6 +407,31 @@ const plans: PlansService = {
       };
       s.plans.push(event);
       return event;
+    }),
+  async addTargets(placeId) {
+    const { state } = await read();
+    const now = Date.now();
+    return state.plans
+      .filter((p) => relationTo(p, me(state)) === 'member' && classifyPlan(p, now) === 'upcoming')
+      .filter((p) => canAddPlace(p, me(state)))
+      .sort(sortUpcoming)
+      .map((plan) => ({ plan, alreadyAdded: hasPlace(plan, placeId) }));
+  },
+  addPlace: (planId, placeId) =>
+    mutate((s) => {
+      const plan = s.plans.find((p) => p.id === planId);
+      if (!plan || relationTo(plan, me(s)) !== 'member' || !canAddPlace(plan, me(s))) {
+        throw new ServiceError('not_found', 'Plan not found.', false);
+      }
+      if (!fx.places.some((p) => p.id === placeId)) throw new ServiceError('not_found', 'Place not found.', false);
+      if (hasPlace(plan, placeId)) return { added: false };
+      if (plan.type === 'hangout') {
+        plan.suggestions.push({ id: uid('sg'), placeId, slot: 'Suggestion', suggestedBy: me(s), votes: {} });
+      } else if (plan.type === 'trip') {
+        plan.mustDoPlaceIds.push(placeId);
+      }
+      plan.version += 1;
+      return { added: true };
     }),
   /** Leaving removes this person's membership or guest entry; the plan stays for everyone else. */
   leave: (id) =>

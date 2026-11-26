@@ -1,10 +1,11 @@
 import * as React from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Heart } from 'lucide-react-native';
 import { EmptyState, ErrorState, LoadingState, Screen, Text, TopBar } from '@/components/ui';
 import { PHOTO_TINT, ratingLine } from '@/features/explore/PlaceCard';
+import { useSavedPlaces } from '@/features/explore/useSavedPlaces';
 import { useServices } from '@/services/ServicesProvider';
 import type { Place } from '@/services';
 import { board, colors, icon } from '@/theme';
@@ -12,17 +13,15 @@ import { board, colors, icon } from '@/theme';
 const S = board.saved;
 
 /**
- * 39 Saved Places — board figure "39".
- * KNOWN GAP: "Add to Plan" (E09) is not built, so only "View" is offered.
- * The heart removes the place from Saved.
+ * 39 Saved Places — board figure "39". Add to Plan opens E09, View opens
+ * E08, and the heart removes the place from Saved (shared Save state).
  */
 export default function Saved() {
   const router = useRouter();
   const services = useServices();
-  const qc = useQueryClient();
   const [city, setCity] = React.useState('All');
 
-  const saved = useQuery({ queryKey: ['saved'], queryFn: () => services.saved.list() });
+  const saved = useSavedPlaces();
   const places = useQuery({
     queryKey: ['saved', 'hydrated', saved.data?.map((s) => s.placeId).join(',')],
     enabled: !!saved.data,
@@ -34,8 +33,7 @@ export default function Saved() {
   const shown = all.filter((p) => city === 'All' || p.city === city);
 
   const remove = async (p: Place) => {
-    await services.saved.unsave(p.id);
-    void qc.invalidateQueries({ queryKey: ['saved'] });
+    await saved.toggle(p.id);
   };
 
   return (
@@ -81,9 +79,14 @@ export default function Saved() {
                   <Text style={styles.title} numberOfLines={2}>{p.name}</Text>
                   <Text style={styles.line} numberOfLines={1}>{[p.category, p.city].join(' · ')}</Text>
                   <Text style={styles.line}>{ratingLine(p)}</Text>
-                  <Pressable accessibilityRole="button" onPress={() => router.push(`/place/${p.id}`)} style={styles.action}>
-                    <Text style={styles.actionText}>View</Text>
-                  </Pressable>
+                  <View style={styles.actionRow}>
+                    <Pressable accessibilityRole="button" onPress={() => router.push(`/add-to-plan/${p.id}`)} style={styles.action}>
+                      <Text style={styles.actionText}>Add to Plan</Text>
+                    </Pressable>
+                    <Pressable accessibilityRole="button" onPress={() => router.push(`/place/${p.id}`)} style={styles.action}>
+                      <Text style={styles.actionText}>View</Text>
+                    </Pressable>
+                  </View>
                 </View>
                 <Pressable
                   accessibilityRole="button"
@@ -132,6 +135,7 @@ const styles = StyleSheet.create({
     marginTop: S.card.titleMarginTop, marginBottom: S.card.titleMarginBottom,
   },
   line: { fontSize: S.card.lineSize, color: colors.text.secondary, marginBottom: S.card.lineMarginBottom },
+  actionRow: { flexDirection: 'row', gap: S.card.actionGap },
   action: { alignSelf: 'flex-start', paddingVertical: S.card.actionPaddingY, marginTop: S.card.actionMarginTop },
   actionText: { ...board.small, color: colors.brand.violet },
   heart: { paddingTop: S.card.heartPaddingTop },
