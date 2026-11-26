@@ -73,12 +73,14 @@ integration or enhancement.
 |---|---|---|---|---|---|---|---|
 | F4-01 | Profile | P1 | Implemented | Mock | 03 | — | Board-matched; stats from real plan counts |
 | F4-02 | Past Plans | P1 | Implemented | Mock | V11 | F1-02 | Filters by type; uses date classification |
-| F4-03 | Edit profile + avatar | P1 | Not Started | Mock | V01 | — | Changes persist per account |
-| F4-04 | Manage interests | P1 | Not Started | Mock | V13 | — | Changes Explore reasons |
-| F4-05 | Settings hub + Account | P1 | Not Started | Mock | V02, V03 | — | Profile settings icon opens V02 |
-| F4-06 | Notification, Privacy & Safety, Location & Discovery settings | P1 | Not Started | Mock | V04–V06 | F4-05 | Toggles persist |
-| F4-07 | Help & Support, About | P2 | Not Started | Mock | V07, V08 | F4-05 | — |
-| F4-08 | Log out confirmation + mock account deletion | P1 | Not Started | Mock | V09, V10 | F4-05 | Destructive confirm; other users unaffected |
+| F4-03 | Edit profile + avatar | P1 | Implemented | Mock | V01 | — | Changes persist per account |
+| F4-04 | Manage interests | P1 | Implemented | Mock | V13 | — | Changes Explore reasons |
+| F4-05 | Settings hub + Account | P1 | Implemented | Mock | V02, V03 | — | Profile settings icon opens V02 |
+| F4-06 | Notification, Privacy & Safety, Location & Discovery settings | P1 | Implemented | Mock | V04–V06 | F4-05 | Toggles persist |
+| F4-07 | Help & Support, About | P2 | Implemented | Mock | V07, V08 | F4-05 | — |
+| F4-08 | Log out confirmation + mock account deletion | P1 | Implemented | Mock | V09, V10 | F4-05 | Destructive confirm; other users unaffected |
+| F4-09 | On-device tap-through of F4 (photo picker, toggles, slider, log out, delete) | P1 | Blocked | Ops | V01–V13 | Simulator control | Exercised by real taps; screenshots + unit tests so far |
+| F4-10 | Pages not yet published: Help Center, Terms, Privacy, Licenses, Data & privacy; email change; account security | P2 | Blocked | Ops | V03, V05, V07, V08 | website (voya.events) / real auth | Rows show status, not chevrons, until destinations exist |
 
 ### F5 — Hangouts
 

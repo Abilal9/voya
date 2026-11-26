@@ -4,7 +4,7 @@ Source: `reference/voya-design-v1.html` — 97 presentations (96 screens/states 
 They are not 97 React Native screens: many are variants, sheets or states of one screen.
 Updated 2026-11-26 from the rendered board.
 
-**Coverage:** 32 implemented · 7 partial · 58 missing (of 97).
+**Coverage:** 43 implemented · 7 partial · 47 missing (of 97).
 
 **Columns.** *Implementation*: Implemented / Partial / Missing. *Interaction check*: how it was
 checked — "Screenshot" means rendered on the iOS Simulator and inspected by screenshot or deep link
@@ -29,7 +29,7 @@ were taken from the board CSS and compared side by side.
 | `A04` | Forgot password | Screen | app/(auth)/forgot-password.tsx | Implemented | Screenshot | Board-matched | | F2-02 |
 | `A05` | Reset link sent | Screen | app/(auth)/reset-sent.tsx | Implemented | Screenshot | Board-matched | Preview reset link opens A11, as on the board | F2-02 |
 | `A06` | Verify email | Screen | app/(auth)/verify.tsx | Implemented | Unit tests | Built to board CSS; not yet seen on device | Needs a signed-up session to reach | F2-02 |
-| `A07` | Basic profile | Screen | app/(onboarding)/profile.tsx | Implemented | Unit tests | Built to board CSS; not yet seen on device | Change photo waits for F4-03 | F2-05 |
+| `A07` | Basic profile | Screen | app/(onboarding)/profile.tsx | Implemented | Unit tests | Built to board CSS | Change photo now included | F2-05 |
 | `A08` | Interests | Screen | app/(onboarding)/interests.tsx | Implemented | Unit tests | Built to board CSS; not yet seen on device | | F2-05 |
 | `A09` | Location permission | Screen | app/(onboarding)/location.tsx | Implemented | Not tested | Built to board CSS; not yet seen on device | Mocked: no OS prompt | F2-05 |
 | `A10` | Notification permission | Screen | app/(onboarding)/notifications.tsx | Implemented | Not tested | Built to board CSS; not yet seen on device | Mocked: no OS prompt | F2-05 |
@@ -42,21 +42,21 @@ were taken from the board CSS and compared side by side.
 |---|---|---|---|---|---|---|---|---|
 | `01` | Home | Screen | app/(tabs)/index.tsx | Implemented | Screenshot + unit tests | Board-matched | Flat photo tints | F1-02 |
 | `02` | Create a Plan | Screen | app/create.tsx | Implemented | Screenshot | Board-matched | Options create placeholder drafts until F5–F7 | F5-01, F6-01, F7-01 |
-| `03` | Profile | Screen | app/(tabs)/profile.tsx | Implemented | Screenshot | Board-matched | Edit profile, Settings, Manage hidden until built | F4-01 |
+| `03` | Profile | Screen | app/(tabs)/profile.tsx | Implemented | Screenshot | Board-matched | | F4-01 |
 | `38` | Activity | Screen | app/activity.tsx | Implemented | Screenshot | Close to board | Board day labels use Today/Yesterday | F1-05, F8-02 |
 | `39` | Saved Places | Screen | app/saved.tsx | Implemented | Screenshot (empty state) + unit tests | Board-matched | | F3-08 |
-| `V01` | Edit profile | Screen | — | Missing | — | — |  | F4-03 |
-| `V02` | Settings | Screen | — | Missing | — | — |  | F4-05 |
-| `V03` | Account | Screen | — | Missing | — | — |  | F4-05 |
-| `V04` | Notification settings | Screen | — | Missing | — | — |  | F4-06 |
-| `V05` | Privacy & Safety | Screen | — | Missing | — | — |  | F4-06 |
-| `V06` | Location & Discovery | Screen | — | Missing | — | — |  | F4-06 |
-| `V07` | Help & Support | Screen | — | Missing | — | — |  | F4-07 |
-| `V08` | About Voya | Screen | — | Missing | — | — |  | F4-07 |
-| `V09` | Log out confirmation | Modal | — | Missing | — | — | Log out currently has no confirmation | F4-08 |
-| `V10` | Delete account | Screen | — | Missing | — | — |  | F4-08 |
+| `V01` | Edit profile | Screen | app/edit-profile.tsx | Implemented | Screenshot + unit tests | Board-matched | Photo picker not tapped on device | F4-03 |
+| `V02` | Settings | Screen | app/settings/index.tsx | Implemented | Screenshot | Board-matched | | F4-05 |
+| `V03` | Account | Screen | app/settings/account.tsx | Implemented | Screenshot | Board-matched | Email change / security need real auth | F4-05, F4-10 |
+| `V04` | Notification settings | Screen | app/settings/notifications.tsx | Implemented | Screenshot + unit tests | Board-matched | Preferences only; nothing delivered | F4-06 |
+| `V05` | Privacy & Safety | Screen | app/settings/privacy.tsx | Implemented | Screenshot | Board-matched | Policy pages not published | F4-06, F4-10 |
+| `V06` | Location & Discovery | Screen | app/settings/discovery.tsx | Implemented | Screenshot + unit tests | Board-matched | No device location read | F4-06 |
+| `V07` | Help & Support | Screen | app/settings/help.tsx | Implemented | Screenshot | Board-matched | Help Center not published | F4-07, F4-10 |
+| `V08` | About Voya | Screen | app/settings/about.tsx | Implemented | Screenshot | Board-matched | Shows real version 0.1.0 | F4-07 |
+| `V09` | Log out confirmation | Sheet | app/settings/index.tsx (BottomSheet) | Implemented | Unit tests (session) | Built to board CSS; not opened on device | Needs a tap | F4-08 |
+| `V10` | Delete account | Screen | app/settings/delete-account.tsx | Implemented | Screenshot + unit tests | Board-matched | | F4-08 |
 | `V11` | Past Plans | Screen | app/past-plans.tsx | Implemented | Screenshot | Board-matched |  | F4-02 |
-| `V13` | Manage interests | Screen | — | Missing | — | — |  | F4-04 |
+| `V13` | Manage interests | Screen | app/interests.tsx | Implemented | Screenshot + unit tests | Board-matched | | F4-04 |
 
 ## Explore
 
