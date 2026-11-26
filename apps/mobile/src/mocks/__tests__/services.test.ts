@@ -93,10 +93,17 @@ describe('plan lists', () => {
   });
 
   it('only shows a user the plans they belong to', async () => {
-    await services.auth.signIn('khaled@example.com', 'secret1');
+    await services.auth.signIn('nisreen@example.com', 'secret1');
     const ids = (await services.plans.listUpcoming()).map((p) => p.id);
-    expect(ids).not.toContain('plan-wedding'); // Khaled is a guest, not a member
-    expect(ids).toContain('plan-friday');
+    expect(ids).toEqual(['plan-wedding']); // co-host of the wedding, nothing else
+  });
+
+  it('shows an invited guest the guest view of an event, without host-only items', async () => {
+    await services.auth.signIn('khaled@example.com', 'secret1');
+    const wedding = await services.plans.get('plan-wedding');
+    if (wedding.type !== 'event') throw new Error('expected an event');
+    expect(wedding.schedule.some((i) => i.visibility === 'hosts_only')).toBe(false);
+    expect(wedding.guests.every((g) => g.personId === undefined)).toBe(true);
   });
 });
 
