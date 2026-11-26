@@ -1,9 +1,9 @@
 import * as React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Card, Screen, Text } from '@/components/ui';
-import { simulation, resetAll, setCurrentAccountId } from '@/mocks';
+import { simulation, resetAll, resetWorld, setCurrentAccountId } from '@/mocks';
 import { people } from '@/mocks/fixtures';
 import { useSession } from '@/stores/session';
 import { spacing } from '@/theme';
@@ -17,6 +17,16 @@ export default function DevMenu() {
   const qc = useQueryClient();
   const boot = useSession((s) => s.boot);
   const [, force] = React.useReducer((n: number) => n + 1, 0);
+  // `/dev?reseed=plans` reseeds the shared plans from a deep link (simulator scripting).
+  const { reseed } = useLocalSearchParams<{ reseed?: string }>();
+  const reseedPlans = React.useCallback(async () => {
+    await resetWorld();
+    qc.clear();
+    router.replace('/(tabs)');
+  }, [qc, router]);
+  React.useEffect(() => {
+    if (__DEV__ && reseed === 'plans') void reseedPlans();
+  }, [reseed, reseedPlans]);
 
   if (!__DEV__) {
     return (
@@ -88,6 +98,7 @@ export default function DevMenu() {
       <Card>
         <Text variant="overline" tone="tertiary">DATA</Text>
         <View style={styles.group}>
+          <Button label="Reseed shared plans" variant="secondary" onPress={() => void reseedPlans()} />
           <Button label="Reset all mock data" variant="danger" onPress={() => void reset()} />
         </View>
       </Card>

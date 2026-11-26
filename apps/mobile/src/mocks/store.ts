@@ -305,6 +305,12 @@ export async function resetAccount(accountId: string) {
   await AsyncStorage.removeItem(key(accountId, 'state'));
 }
 
+/** Dev menu: reseed the shared plans only; accounts and the session stay. */
+export async function resetWorld() {
+  worldCache = null;
+  await AsyncStorage.removeItem(WORLD_KEY);
+}
+
 export async function resetAll() {
   cache = null;
   worldCache = null;
