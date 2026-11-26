@@ -27,7 +27,7 @@ export function ratingLine(place: Place) {
  * dark scrim. Rating, price, photo and hours are all OPTIONAL — roughly a third
  * of the fixtures omit them on purpose, because provider data does.
  */
-export function PlaceCard({ place, onOpen }: { place: Place; onOpen?: () => void }) {
+export function PlaceCard({ place, onOpen, tag }: { place: Place; onOpen?: () => void; tag?: string }) {
   const tint = place.photo ? (PHOTO_TINT[place.photo] ?? E.card.placeholder) : E.card.placeholder;
   const descriptor = [place.type, place.area].filter(Boolean).join(' · ');
   return (
@@ -44,9 +44,9 @@ export function PlaceCard({ place, onOpen }: { place: Place; onOpen?: () => void
         </View>
       ) : null}
 
-      {place.reason ? (
+      {tag || place.reason ? (
         <View style={styles.match}>
-          <Text style={styles.matchText}>Picked for you</Text>
+          <Text style={styles.matchText}>{tag ?? 'Picked for you'}</Text>
         </View>
       ) : null}
 

@@ -29,6 +29,8 @@ interface Props {
   onSwipe: (place: Place, direction: SwipeDirection) => void;
   onEmpty?: () => void;
   onOpen?: (place: Place) => void;
+  /** Optional tag for a card (Choose together: "2 friends already liked this"). */
+  tagFor?: (place: Place) => string | undefined;
 }
 
 /**
@@ -39,7 +41,7 @@ interface Props {
  * difference between 60fps and visible stutter.
  */
 export const SwipeDeck = React.forwardRef<SwipeDeckHandle, Props>(function SwipeDeck(
-  { places, onSwipe, onEmpty, onOpen },
+  { places, onSwipe, onEmpty, onOpen, tagFor },
   ref,
 ) {
   const [index, setIndex] = React.useState(0);
@@ -140,13 +142,13 @@ export const SwipeDeck = React.forwardRef<SwipeDeckHandle, Props>(function Swipe
       <View style={styles.backing} pointerEvents="none" />
       {next ? (
         <Animated.View style={[styles.layer, nextStyle]} pointerEvents="none">
-          <PlaceCard place={next} />
+          <PlaceCard place={next} tag={tagFor?.(next)} />
         </Animated.View>
       ) : null}
 
       <GestureDetector gesture={pan}>
         <Animated.View style={[styles.layer, topStyle]}>
-          <PlaceCard place={current} onOpen={onOpen ? () => onOpen(current) : undefined} />
+          <PlaceCard place={current} tag={tagFor?.(current)} onOpen={onOpen ? () => onOpen(current) : undefined} />
           <Animated.View style={[styles.badge, styles.like, likeStyle]} pointerEvents="none" />
           <Animated.View style={[styles.badge, styles.nope, nopeStyle]} pointerEvents="none" />
         </Animated.View>
