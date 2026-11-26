@@ -20,10 +20,14 @@ export default function Create() {
   const services = useServices();
   const [busy, setBusy] = React.useState(false);
 
-  // KNOWN GAP: the full Trip (03–09), Hangout (13–16) and Event (18–19) creation
-  // flows are not built yet; each option creates a seeded draft and opens it.
+  // Hangout has its own creation flow (13). KNOWN GAP: Trip (03–09) and Event
+  // (18–19) creation are not built yet; those options create a draft and open it.
   const create = async (type: (typeof OPTIONS)[number]['type']) => {
     if (busy) return;
+    if (type === 'hangout') {
+      router.push('/hangout/new');
+      return;
+    }
     setBusy(true);
     try {
       const now = Date.now();
@@ -34,11 +38,7 @@ export default function Create() {
               title: 'New trip', destination: 'Dubai', startsAt: soon,
               endsAt: new Date(now + 10 * 86400000).toISOString(),
             })
-          : type === 'hangout'
-            ? await services.plans.createHangout({
-                title: 'New hangout', city: 'Riyadh', template: 'Dinner + Dessert', startsAt: soon,
-              })
-            : await services.plans.createEvent({ title: 'New event', city: 'Riyadh', startsAt: soon });
+          : await services.plans.createEvent({ title: 'New event', city: 'Riyadh', startsAt: soon });
       router.replace(`/plan/${plan.id}`);
     } finally {
       setBusy(false);

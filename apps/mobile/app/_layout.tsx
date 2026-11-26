@@ -80,6 +80,9 @@ function RootNavigator() {
       <Stack.Screen name="filters" options={{ presentation: 'modal' }} />
       <Stack.Screen name="add-to-plan/[id]" options={{ presentation: 'modal' }} />
       <Stack.Screen name="place/[id]" />
+      <Stack.Screen name="hangout/new" />
+      <Stack.Screen name="hangout/[id]/index" />
+      <Stack.Screen name="hangout/[id]/change" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.75, 1], sheetGrabberVisible: false }} />
       <Stack.Screen name="dev" options={{ presentation: 'modal' }} />
     </Stack>
   );

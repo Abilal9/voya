@@ -58,7 +58,7 @@ export function AvatarStack({
     <View style={styles.stack}>
       {shown.map((n, i) => (
         <View
-          key={n}
+          key={`${i}-${n}`}
           accessibilityRole="image"
           accessibilityLabel={n}
           style={[

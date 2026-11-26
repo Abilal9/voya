@@ -1,10 +1,10 @@
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Button, Card, ErrorState, LoadingState, Screen, Text } from '@/components/ui';
 import { headcountLabel } from '@/services/planRules';
 import { useServices } from '@/services/ServicesProvider';
-import type { Hangout, TimelineItem, Trip, VoyaEvent } from '@/services';
+import type { TimelineItem, Trip, VoyaEvent } from '@/services';
 import { spacing } from '@/theme';
 
 function timeOf(item: TimelineItem) {
@@ -51,12 +51,11 @@ export default function PlanDetail() {
   }
 
   const p = plan.data;
+  if (p.type === 'hangout') return <Redirect href={`/hangout/${p.id}`} />;
   const items: TimelineItem[] =
     p.type === 'trip'
       ? (p as Trip).days.flatMap((d) => d.items)
-      : p.type === 'hangout'
-        ? (p as Hangout).timeline
-        : (p as VoyaEvent).schedule.filter((i) => i.visibility !== 'hosts_only');
+      : (p as VoyaEvent).schedule.filter((i) => i.visibility !== 'hosts_only');
 
   return (
     <Screen>
