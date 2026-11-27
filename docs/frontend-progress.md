@@ -15,7 +15,7 @@ TypeScript compiles. Item-level detail lives in `docs/product-backlog.md`.
 | F6 — Events | 18–24, 40, EV01–EV06 | 🟡 All 14 frames built on the shared mock plan; unit-tested across accounts; 12 screenshotted; tap-through (F6-08) blocked |
 | F7 — Trips | 03–12, 35, 36, T01–T06 | 🟡 All 18 frames built on the shared mock plan with a deterministic mock generator; unit-tested across accounts; 15 screenshotted; tap-through (F7-10) blocked |
 | F8 — Invitations, Activity, states | 38, joins, S01–S09 | 🟡 S01–S09 implemented; one invitation flow for all plan types with a dev-only link; tap-through (F8-12) blocked |
-| **F9 — Validation & freeze** | Full review, journeys, Android, dev build | ⬜ Next |
+| **F9 — Validation & freeze** | Full review, journeys, Android, dev build | 🟡 Implementation complete — device verification pending (blocked on F9-01) |
 
 Working rules: develop on `main` only, Conventional Commits with monorepo
 scopes (see `AGENTS.md`), validate (`pnpm typecheck && pnpm lint && pnpm test`)
@@ -95,3 +95,29 @@ to whatever the installed Expo SDK actually expects.
 - Set-new-password screens A11/A12 (reset link has no destination in a mock)
 - Activity screen 38 (Home shows the unread dot)
 - All Hangout, Event and Trip flows — Phases 5–7
+
+
+## F9 manual verification checklist
+
+Run on the iPhone 17 Pro Simulator (Expo Go 54) with Metro running. Sign in with the
+seeded accounts (`<name>@example.com`, any 6+ character password) or your dev account.
+If something fails, send a screenshot and what you tapped just before.
+
+1. **Auth.** Sign out (Profile → Settings → Log out → Log out). Sign in as `khaled@example.com`.
+   Expect Home "Good …, Khaled". Kill and reopen Expo Go: still signed in.
+2. **Explore / Profile.** Explore → swipe a card right and left → open a place → Save →
+   toast "Saved for later." → Profile → Saved shows it. Edit profile name, reopen: kept.
+3. **Hangouts.** As Ahmad: + → Hangout → Start planning. Open Friday Night → See group
+   suggestions → tap a vote. As Nisreen (dev menu → switch): open the Friday invite
+   `exp://127.0.0.1:8081/--/invite/inv-friday-night` → Open invitation → I'm in.
+4. **Events.** As Faisal: Home → the wedding → Going → "You're going!" → View schedule
+   (no "Photographer briefing"). As Ahmad: + → Event → name + location → Create event →
+   Manage Event → Event schedule → + Add item → Save item → Save schedule.
+5. **Trips.** As Ahmad: + → Trip → Florence → Continue → pick two dates → Continue →
+   "Florence is ready." → Invite travelers. Then Florence trip → Continue planning →
+   itinerary → tap a stop → Lock time → … → Rebuild: the locked stop stays.
+   `exp://127.0.0.1:8081/--/dev?clock=2026-12-16T11:00&to=%2Ftrip%2Fplan-florence%2Ftoday` shows Today.
+6. **Invitations / states.** Signed out, open `exp://127.0.0.1:8081/--/invite/inv-florence` →
+   sign in as Nisreen → back on the invitation → Open invitation → Join trip → "You're in.".
+   `…/--/invite/inv-expired` shows the expired state. Dev menu → Offline on → Home shows
+   "You're offline"; turn it off → Try again.

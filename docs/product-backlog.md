@@ -148,14 +148,20 @@ integration or enhancement.
 
 ### F9 — Frontend validation and freeze
 
+Status: **Implementation complete — device verification pending.** No P0 open; no P1 open in what could be exercised. Real taps are blocked (F9-01).
+
 | ID | Item | P | Status | Type | Design | Depends | Acceptance |
 |---|---|---|---|---|---|---|---|
-| F9-01 | Full inventory + visual review against the board | P1 | Not Started | Ops | all | F2–F8 | Every frame mapped and checked |
-| F9-02 | Journey tests: auth, explore, hangout, event, trip, settings, invitation | P1 | Not Started | Ops | — | F2–F8 | Real taps on device |
-| F9-03 | Android pass | P2 | Not Started | Ops | — | — | Runs on an Android emulator |
-| F9-04 | Accessibility pass (labels, sizes, contrast) | P2 | Not Started | Ops | — | — | — |
-| F9-05 | Mock boundary review + backend integration backlog | P1 | Not Started | Ops | — | — | Swap is a change in `src/services/index.ts` only |
-| F9-06 | Development build (not Expo Go) to verify native icon and splash | P2 | Not Started | Ops | Icon, 41 | — | — |
+| F9-01 | Real taps on a device or simulator | P0 | Blocked | Ops | all | You: `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`, or approve "Simulator" for computer use; Android needs Expo Go 54 on the emulator (the AVD has Expo Go 57) | Journeys below run by real taps |
+| F9-02 | Route-level journey tests (real screens, router, query cache, mock services in Jest; not native) | P1 | Implemented | Test | — | — | 15 journeys in `src/journeys/__tests__` |
+| F9-03 | Defects found by the journeys | P1 | Implemented | Fix | — | — | Fixed: invitation lost after sign-in (P1); "You're in." never showed (P1); cold start offline stuck on boot (P1) |
+| F9-04 | Accessibility pass | P2 | In Progress | Ops | — | — | Text fields now carry their label; full VoiceOver pass needs a device |
+| F9-05 | Mock boundary review | P1 | Verified | Ops | — | — | Only `src/services/index.ts` and the dev menu import mocks; only `store.ts` touches AsyncStorage |
+| F9-06 | Development build (native icon, splash, permissions) | P2 | Blocked | Ops | Icon, 41 | F9-01 (Xcode selection) | — |
+| F9-07 | Android pass | P2 | Blocked | Ops | — | Expo Go 54 APK on the emulator (download needs your OK) | — |
+| F9-08 | Real network detection (NetInfo) | P3 | Deferred | Real | S04 | backend | Nothing needs the network yet; adding it now would only show a banner with nothing to protect |
+| F9-09 | Board photos as fixture imagery (4 images in the board's sprite: Florence, Uffizi, restaurant, wedding) | P2 | Blocked | Product | all | Your OK on using the board's photos | Flat tints until approved |
+| F9-10 | Dev tools gated (`__DEV__`): dev menu, deep links, test clock, invite route, dev account | P0 | Verified | Ops | — | — | Code review |
 
 ### Design system (cross-phase)
 
