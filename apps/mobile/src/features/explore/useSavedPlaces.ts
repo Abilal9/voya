@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/components/ui/Toast';
 import { useServices } from '@/services/ServicesProvider';
 
 /**
@@ -10,16 +11,19 @@ import { useServices } from '@/services/ServicesProvider';
 export function useSavedPlaces() {
   const services = useServices();
   const qc = useQueryClient();
+  const toast = useToast();
   const saved = useQuery({ queryKey: ['saved'], queryFn: () => services.saved.list() });
   const ids = React.useMemo(() => new Set((saved.data ?? []).map((s) => s.placeId)), [saved.data]);
 
   const toggle = React.useCallback(
     async (placeId: string) => {
-      if (ids.has(placeId)) await services.saved.unsave(placeId);
+      const removing = ids.has(placeId);
+      if (removing) await services.saved.unsave(placeId);
       else await services.saved.save(placeId);
       await qc.invalidateQueries({ queryKey: ['saved'] });
+      toast(removing ? 'Removed from Saved.' : 'Saved for later.'); // S08, after the save went through
     },
-    [ids, services, qc],
+    [ids, services, qc, toast],
   );
 
   return { ...saved, ids, isSaved: (placeId: string) => ids.has(placeId), toggle };

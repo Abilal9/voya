@@ -6,6 +6,7 @@ import { Check, ChevronLeft, ChevronRight, Search as SearchIcon } from 'lucide-r
 import { Button, Screen, Text, TopBar } from '@/components/ui';
 import { authStyles } from '@/features/auth/AuthParts';
 import { PHOTO_TINT } from '@/features/explore/PlaceCard';
+import { SuccessSheet } from '@/features/feedback/Sheets';
 import { StepDashes } from '@/features/trip/TripParts';
 import { addDays, dateRange, formatDay, localDate, nightsBetween } from '@/services/tripRules';
 import { useServices } from '@/services/ServicesProvider';
@@ -37,6 +38,7 @@ export default function NewTrip() {
   const [end, setEnd] = React.useState<string>();
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string>();
+  const [created, setCreated] = React.useState<string>();
 
   const q = query.trim().toLowerCase();
   const matches = (destinations.data ?? []).filter((d) => !q || d.city.toLowerCase().includes(q) || d.country.toLowerCase().includes(q));
@@ -57,7 +59,7 @@ export default function NewTrip() {
     try {
       const t = await services.trips.create({ destination: dest.city, startDate: start, endDate: end });
       await qc.invalidateQueries({ queryKey: ['plans'] });
-      router.replace(`/trip/${t.id}/travelers?setup=1`);
+      setCreated(t.id); // S09, once the trip exists
     } catch (e) {
       setError(e instanceof Error ? e.message : 'The trip could not be created.');
       setBusy(false);
@@ -158,6 +160,12 @@ export default function NewTrip() {
           <Button label="Continue" onPress={() => void create()} loading={busy} disabled={!start || !end} />
         </ScrollView>
       )}
+      <SuccessSheet
+        visible={!!created} title={`${dest?.city ?? 'Your trip'} is ready.`} body="Now bring everyone in."
+        primaryLabel="Invite travelers" onPrimary={() => router.replace(`/trip/${created}/travelers?setup=1`)}
+        secondaryLabel="View trip" onSecondary={() => router.replace(`/trip/${created}`)}
+        onClose={() => router.replace(`/trip/${created}`)}
+      />
     </Screen>
   );
 }

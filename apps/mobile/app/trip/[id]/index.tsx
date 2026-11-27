@@ -5,6 +5,7 @@ import { CalendarDays, ChevronRight, MapPin, MoreHorizontal, Navigation, Star, U
 import { AvatarStack, Button, EmptyState, LoadingState, Screen, Text, TopBar } from '@/components/ui';
 import { authStyles } from '@/features/auth/AuthParts';
 import { Cover } from '@/features/event/EventParts';
+import { SuccessSheet } from '@/features/feedback/Sheets';
 import { usePlaces } from '@/features/hangout/usePlaces';
 import { BottomSheet, SettingsRow, sheetText } from '@/features/settings/SettingsParts';
 import { placeTint, useFirstNames } from '@/features/trip/TripParts';
@@ -122,10 +123,13 @@ function Join({ h }: { h: TripHook }) {
   const [menu, setMenu] = React.useState(false);
   const invite = trip.invites?.find((i) => i.personId === h.me);
   const people = travelers(trip);
+  const [joined, setJoined] = React.useState(false);
   const answer = async (a: 'join' | 'decline') => {
     setMenu(false);
     const ok = await h.run(() => h.services.trips.respond(trip.id, a));
-    if (ok) router.replace(a === 'join' ? `/trip/${trip.id}/preferences` : '/(tabs)');
+    if (!ok) return;
+    if (a === 'join') setJoined(true); // S07, once the join is saved
+    else router.replace('/(tabs)');
   };
   return (
     <Screen edges={['top', 'left', 'right', 'bottom']} contentStyle={authStyles.screen}>
@@ -158,6 +162,11 @@ function Join({ h }: { h: TripHook }) {
         <SettingsRow danger title="Decline invitation" onPress={() => void answer('decline')} />
         <Button label="Cancel" variant="ghost" onPress={() => setMenu(false)} />
       </BottomSheet>
+      <SuccessSheet
+        visible={joined} title="You’re in." body={`${trip.destination} · ${dateRange(trip.startDate, trip.endDate)}`}
+        primaryLabel="Choose your preferences" onPrimary={() => router.replace(`/trip/${trip.id}/preferences`)}
+        onClose={() => router.replace(`/trip/${trip.id}`)}
+      />
     </Screen>
   );
 }

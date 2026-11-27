@@ -5,6 +5,7 @@ import { Button, EmptyState, LoadingState, Screen, Text, TopBar } from '@/compon
 import { AuthIntro, authStyles } from '@/features/auth/AuthParts';
 import { BottomSheet, GroupLabel, SettingsRow, Switch, sheetText } from '@/features/settings/SettingsParts';
 import { useSettings } from '@/features/settings/useSettings';
+import { ConfirmSheet } from '@/features/feedback/Sheets';
 import { FriendsSheet, ShareSheet } from '@/features/trip/InviteSheet';
 import { useTrip } from '@/features/trip/useTrip';
 import { travelers } from '@/services/tripRules';
@@ -86,12 +87,10 @@ export default function TripSettings() {
         <Button label="Cancel" variant="ghost" onPress={() => setSheet(null)} />
       </BottomSheet>
 
-      <BottomSheet visible={sheet === 'delete'} onClose={() => setSheet(null)}>
-        <Text style={sheetText.title}>Delete this trip?</Text>
-        <Text style={sheetText.body}>It will be removed for every traveler, with its itinerary, picks and must-dos.</Text>
-        <Button label="Delete trip" variant="danger" onPress={() => void remove()} loading={h.busy} />
-        <Button label="Cancel" variant="ghost" onPress={() => setSheet(null)} />
-      </BottomSheet>
+      <ConfirmSheet
+        visible={sheet === 'delete'} title="Delete this Plan?" body="It goes for every traveler, with its itinerary, picks and must-dos. This can’t be undone."
+        confirmLabel="Delete" onConfirm={() => void remove()} onCancel={() => setSheet(null)} busy={h.busy}
+      />
     </Screen>
   );
 }

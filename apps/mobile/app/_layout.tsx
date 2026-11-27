@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ServicesProvider } from '@/services/ServicesProvider';
+import { ToastProvider } from '@/components/ui/Toast';
 import { useSession } from '@/stores/session';
 import { colors } from '@/theme';
 
@@ -101,7 +102,9 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <ServicesProvider>
             <StatusBar style="dark" />
-            <RootNavigator />
+            <ToastProvider>
+              <RootNavigator />
+            </ToastProvider>
           </ServicesProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
