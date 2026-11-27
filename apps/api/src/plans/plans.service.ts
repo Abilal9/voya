@@ -64,7 +64,7 @@ export class PlansService {
    * This is the people catalogue the app's pickers and names come from.
    */
   async people(profile: Profile): Promise<Person[]> {
-    const ids = await this.connectedIds(this.prisma, profile.id);
+    const ids = await connectedIds(this.prisma, profile.id);
     ids.add(profile.id);
     const rows = await this.prisma.profile.findMany({ where: { id: { in: [...ids] } }, orderBy: [{ displayName: 'asc' }, { id: 'asc' }] });
     return rows.map((p) => ({
@@ -214,27 +214,11 @@ export class PlansService {
     return projectFor(plan, viewerId)!;
   }
 
-  /** Profile ids the caller shares a plan with (see `people`). */
-  private async connectedIds(db: Prisma.TransactionClient, profileId: string): Promise<Set<string>> {
-    const rows = await db.$queryRaw<{ id: string }[]>`
-      WITH mine AS (
-        SELECT plan_id, true AS full FROM plan_members WHERE profile_id = ${profileId}::uuid
-        UNION ALL
-        SELECT plan_id, false AS full FROM plan_invitees WHERE profile_id = ${profileId}::uuid
-      )
-      SELECT m.profile_id AS id FROM plan_members m JOIN mine ON mine.plan_id = m.plan_id
-      UNION
-      SELECT i.profile_id AS id FROM plan_invitees i JOIN mine ON mine.plan_id = i.plan_id AND mine.full`;
-    const ids = new Set(rows.map((r) => r.id));
-    ids.delete(profileId);
-    return ids;
-  }
-
   /** People named in a create request must be people the caller already plans with. */
   private async requireConnected(db: Prisma.TransactionClient, profileId: string, requested: string[] | undefined) {
     const wanted = [...new Set(requested ?? [])].filter((id) => id !== profileId);
     if (wanted.length === 0) return [];
-    const connected = await this.connectedIds(db, profileId);
+    const connected = await connectedIds(db, profileId);
     if (wanted.some((id) => !connected.has(id))) {
       throw new AppError('validation_failed', 'Some of the details are not valid.', [
         { path: 'body.people', message: 'You can only add people you already plan with. Share an invitation link instead.' },
@@ -242,4 +226,20 @@ export class PlansService {
     }
     return wanted;
   }
+}
+
+/** Profile ids the caller shares a plan with (see `people`). */
+export async function connectedIds(db: Prisma.TransactionClient, profileId: string): Promise<Set<string>> {
+  const rows = await db.$queryRaw<{ id: string }[]>`
+    WITH mine AS (
+      SELECT plan_id, true AS full FROM plan_members WHERE profile_id = ${profileId}::uuid
+      UNION ALL
+      SELECT plan_id, false AS full FROM plan_invitees WHERE profile_id = ${profileId}::uuid
+    )
+    SELECT m.profile_id AS id FROM plan_members m JOIN mine ON mine.plan_id = m.plan_id
+    UNION
+    SELECT i.profile_id AS id FROM plan_invitees i JOIN mine ON mine.plan_id = i.plan_id AND mine.full`;
+  const ids = new Set(rows.map((r) => r.id));
+  ids.delete(profileId);
+  return ids;
 }
