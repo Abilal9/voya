@@ -96,6 +96,7 @@ model Profile {
   createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
 
+  settings           AccountSettings?
   ownedPlans         Plan[]          @relation("PlanOwner")
   memberships        PlanMember[]
   invitationsCreated Invitation[]
@@ -103,6 +104,22 @@ model Profile {
   activityCaused     ActivityEntry[] @relation("ActivityActor")
 
   @@map("profiles")
+}
+
+/// Account preferences kept on the server (V04–V06). One row per profile,
+/// created on first change; a missing row means the defaults in
+/// @voya/contracts (DEFAULT_ACCOUNT_PREFERENCES). `notifications` holds only
+/// known keys (validated by the API), merged over the defaults on read.
+model AccountSettings {
+  profileId         String   @id @map("profile_id") @db.Uuid
+  profile           Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  notifications     Json     @default("{}")
+  preciseLocation   Boolean  @default(true) @map("precise_location")
+  discoveryRadiusKm Int      @default(15) @map("discovery_radius_km")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("account_settings")
 }
 
 /// A place in Voya's catalogue. Optional columns stay NULL when the provider
