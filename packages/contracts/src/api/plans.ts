@@ -137,3 +137,57 @@ export const AcceptInvitationResponseSchema = z.object({
   alreadyMember: z.boolean(),
 });
 export type AcceptInvitationResponse = z.infer<typeof AcceptInvitationResponseSchema>;
+
+// ------------------------------------------------------- details & membership
+
+/**
+ * PATCH /api/v1/plans/:id — the shared details, with `If-Match: <version>`
+ * required. Which keys a plan accepts depends on its type (hangout: title,
+ * city, startsAt, template; event: title, venue, city, startsAt, endsAt,
+ * description; trip: title, startDate, endDate, accommodation); others are
+ * refused. `null` clears an optional field.
+ */
+export const UpdatePlanRequestSchema = z
+  .object({
+    title: text(PLAN_LIMITS.title),
+    city: text(PLAN_LIMITS.city),
+    startsAt: IsoDateTimeSchema,
+    endsAt: IsoDateTimeSchema.nullable(),
+    template: z.string().refine((t) => t in HANGOUT_TEMPLATE_SLOTS, 'Unknown template'),
+    venue: text(PLAN_LIMITS.venue),
+    description: z.string().trim().max(PLAN_LIMITS.description).nullable(),
+    startDate: IsoDateSchema,
+    endDate: IsoDateSchema,
+    accommodation: z.string().trim().max(PLAN_LIMITS.venue).nullable(),
+  })
+  .partial()
+  .strict()
+  .refine((patch) => Object.keys(patch).length > 0, 'Nothing to update');
+export type UpdatePlanRequest = z.input<typeof UpdatePlanRequestSchema>;
+
+/** Keys each experience accepts in UpdatePlanRequest. */
+export const UPDATABLE_PLAN_FIELDS = {
+  hangout: ['title', 'city', 'startsAt', 'template'],
+  event: ['title', 'venue', 'city', 'startsAt', 'endsAt', 'description'],
+  trip: ['title', 'startDate', 'endDate', 'accommodation'],
+} as const satisfies Record<'hangout' | 'event' | 'trip', readonly (keyof z.infer<typeof UpdatePlanRequestSchema>)[]>;
+
+/** POST /api/v1/plans/:id/invitees — invite people the caller already plans with (13, 05, 40). */
+export const InvitePeopleRequestSchema = z.object({ personIds: z.array(UUID).min(1).max(PLAN_LIMITS.people) }).strict();
+export type InvitePeopleRequest = z.infer<typeof InvitePeopleRequestSchema>;
+
+/**
+ * POST /api/v1/plans/:id/response — the caller answers their own invitation
+ * (hangout 17: in/maybe/can't; trip 12: join/decline; event 20: going/maybe/
+ * can't). Only the invited account can answer it.
+ */
+export const RespondToInvitationRequestSchema = z.object({ answer: z.enum(['accept', 'maybe', 'decline']) }).strict();
+export type RespondToInvitationRequest = z.infer<typeof RespondToInvitationRequestSchema>;
+
+/** The caller's view after answering; null when declining means they no longer see the plan. */
+export const RespondToInvitationResponseSchema = z.object({ plan: PlanSchema.nullable() });
+export type RespondToInvitationResponse = z.infer<typeof RespondToInvitationResponseSchema>;
+
+/** POST /api/v1/plans/:id/owner — hands the plan to another member. */
+export const TransferOwnershipRequestSchema = z.object({ personId: UUID }).strict();
+export type TransferOwnershipRequest = z.infer<typeof TransferOwnershipRequestSchema>;
