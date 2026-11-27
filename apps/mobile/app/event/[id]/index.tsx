@@ -2,7 +2,7 @@ import * as React from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MoreHorizontal } from 'lucide-react-native';
-import { Button, EmptyState, LoadingState, Screen, Text, TopBar } from '@/components/ui';
+import { Button, EmptyState, LoadingState, Screen, Text, TopBar, ErrorState } from '@/components/ui';
 import { authStyles } from '@/features/auth/AuthParts';
 import { usePeople } from '@/features/catalog';
 import {
@@ -14,6 +14,7 @@ import { BottomSheet, SettingsRow, Switch, sheetText } from '@/features/settings
 import { useSettings } from '@/features/settings/useSettings';
 import { eventScreen, hostLine, hostsInOrder, rsvpCounts } from '@/services/eventRules';
 import type { RSVP } from '@/services';
+import { ServiceError } from '@/services';
 import { board, colors, icon } from '@/theme';
 
 const E = board.event;
@@ -30,6 +31,9 @@ export default function EventScreen() {
   const h = useEvent(id);
   if (h.isPending) return <Screen><LoadingState label="Loading event" /></Screen>;
   const event = h.event;
+  if (h.isError && !(h.failureReason instanceof ServiceError && h.failureReason.code === 'not_found')) {
+    return <Screen><TopBar /><ErrorState error={h.failureReason} onRetry={() => void h.refetch()} /></Screen>;
+  }
   if (!event) {
     return <Screen><TopBar /><EmptyState title="This event isn’t available" body="It may have been removed, or you’re not on its guest list." /></Screen>;
   }

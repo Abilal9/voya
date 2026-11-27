@@ -14,6 +14,7 @@ import {
 } from '@/services/hangoutRules';
 import { classifyPlan } from '@/services/planRules';
 import type { Hangout } from '@/services';
+import { ServiceError } from '@/services';
 import { board, colors, icon } from '@/theme';
 
 const H = board.hangout;
@@ -28,6 +29,9 @@ export default function HangoutScreen() {
   const h = useHangout(id);
   if (h.isPending) return <Screen><LoadingState label="Loading hangout" /></Screen>;
   const hangout = h.hangout;
+  if (h.isError && !(h.failureReason instanceof ServiceError && h.failureReason.code === 'not_found')) {
+    return <Screen><TopBar /><ErrorState error={h.failureReason} onRetry={() => void h.refetch()} /></Screen>;
+  }
   if (!hangout) return <Screen><TopBar /><ErrorState message="This hangout isn’t available." onRetry={() => void h.refetch()} /></Screen>;
   const hh: HangoutHook = { ...h, hangout };
   if (h.relation === 'invited') return <Invitation h={hh} />;

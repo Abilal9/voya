@@ -2,7 +2,7 @@ import * as React from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { CalendarDays, ChevronRight, MapPin, MoreHorizontal, Navigation, Star, Users } from 'lucide-react-native';
-import { AvatarStack, Button, EmptyState, LoadingState, Screen, Text, TopBar } from '@/components/ui';
+import { AvatarStack, Button, EmptyState, LoadingState, Screen, Text, TopBar, ErrorState } from '@/components/ui';
 import { authStyles } from '@/features/auth/AuthParts';
 import { Cover } from '@/features/event/EventParts';
 import { SuccessSheet } from '@/features/feedback/Sheets';
@@ -11,6 +11,7 @@ import { BottomSheet, SettingsRow, sheetText } from '@/features/settings/Setting
 import { placeTint, useFirstNames } from '@/features/trip/TripParts';
 import { useTrip, type TripHook } from '@/features/trip/useTrip';
 import { dateRange, formatDay, nightsBetween, plannedDates, readyCount, travelers } from '@/services/tripRules';
+import { ServiceError } from '@/services';
 import { board, colors, icon } from '@/theme';
 
 const T = board.trip;
@@ -25,6 +26,9 @@ export default function TripScreen() {
   const h = useTrip(id);
   if (h.isPending) return <Screen><LoadingState label="Loading trip" /></Screen>;
   const trip = h.trip;
+  if (h.isError && !(h.failureReason instanceof ServiceError && h.failureReason.code === 'not_found')) {
+    return <Screen><TopBar /><ErrorState error={h.failureReason} onRetry={() => void h.refetch()} /></Screen>;
+  }
   if (!trip || h.relation === 'none') return <Screen><TopBar /><EmptyState title="This trip isn’t available" body="It may have been deleted, or you’re not on it." /></Screen>;
   const hh: TripHook = { ...h, trip };
   if (h.relation === 'invited') return <Join h={hh} />;
