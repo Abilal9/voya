@@ -317,3 +317,18 @@ export function todayOn(trip: Trip, now: Date): TodayState {
   const focus = current ?? upcoming[0];
   return { kind: 'during', dayIndex, day, now: focus, running: !!current, next: upcoming.filter((i) => i !== focus) };
 }
+
+/**
+ * The weeks of a month (Monday first) as rows of seven date-only strings,
+ * padded with nulls. Rows, not one wrapping list: seven percentage-width
+ * cells can round past 100% and wrap after six, pushing every day one column
+ * left (found on iPhone 17 Pro).
+ */
+export function monthWeeks(year: number, month: number): (string | null)[][] {
+  const first = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+  const lead = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7;
+  const days = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  const cells: (string | null)[] = [...Array<null>(lead).fill(null), ...Array.from({ length: days }, (_, i) => addDays(first, i))];
+  while (cells.length % 7) cells.push(null);
+  return Array.from({ length: cells.length / 7 }, (_, w) => cells.slice(w * 7, w * 7 + 7));
+}

@@ -4,6 +4,7 @@ import { normalizeWorld, resetAll, seedWorld, simulation } from '../store';
 import * as fx from '../fixtures';
 import {
   buildItinerary, dateRange, groupMatches, hhmm, interestedIn, localDate, plannedDates, readyCount, todayOn, travelerStatus,
+  monthWeeks,
 } from '@/services/tripRules';
 import { classifyPlan } from '@/services/planRules';
 import type { Trip } from '@/services';
@@ -272,5 +273,18 @@ describe('today (36), completed (T05) and stored data', () => {
     const t = await trip('plan-florence');
     expect(t.members.map((m) => m.personId)).not.toContain('p-omar');
     expect(t.picks?.['p-omar']).toBeUndefined();
+  });
+});
+
+describe('trip calendar weeks', () => {
+  it('puts every day under its own weekday in rows of exactly seven', () => {
+    // November 2026 starts on a Sunday: six leading blanks, the 1st in the last column.
+    const nov = monthWeeks(2026, 10);
+    expect(nov.every((w) => w.length === 7)).toBe(true);
+    expect(nov[0]).toEqual([null, null, null, null, null, null, '2026-11-01']);
+    expect(nov[4]?.[4]).toBe('2026-11-27'); // a Friday
+    expect(nov.flat().filter(Boolean)).toHaveLength(30);
+    // A month starting on Monday has no leading blanks.
+    expect(monthWeeks(2027, 1)[0]?.[0]).toBe('2027-02-01');
   });
 });

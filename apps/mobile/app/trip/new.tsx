@@ -8,20 +8,12 @@ import { authStyles } from '@/features/auth/AuthParts';
 import { PHOTO_TINT } from '@/features/explore/PlaceCard';
 import { SuccessSheet } from '@/features/feedback/Sheets';
 import { StepDashes } from '@/features/trip/TripParts';
-import { addDays, dateRange, formatDay, localDate, nightsBetween } from '@/services/tripRules';
+import { dateRange, formatDay, localDate, monthWeeks, nightsBetween } from '@/services/tripRules';
 import { useServices } from '@/services/ServicesProvider';
 import { board, colors, icon } from '@/theme';
 
 const T = board.trip;
 const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-
-/** The days of a month as date-only strings, padded to start on Monday. */
-function monthGrid(year: number, month: number): (string | null)[] {
-  const first = `${year}-${String(month + 1).padStart(2, '0')}-01`;
-  const lead = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7;
-  const days = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-  return [...Array<null>(lead).fill(null), ...Array.from({ length: days }, (_, i) => addDays(first, i))];
-}
 
 /** 03 Destination and 04 Dates. The trip is created on "Continue" from the dates. */
 export default function NewTrip() {
@@ -127,7 +119,9 @@ export default function NewTrip() {
             {WEEKDAYS.map((d, i) => <Text key={i} style={styles.weekday}>{d}</Text>)}
           </View>
           <View style={styles.grid}>
-            {monthGrid(month.y, month.m).map((d, i) => {
+            {monthWeeks(month.y, month.m).map((week, w) => (
+            <View key={`week-${w}`} style={styles.weekRow}>
+            {week.map((d, i) => {
               if (!d) return <View key={`pad-${i}`} style={styles.cell} />;
               const past = d < today;
               const edge = d === start || d === end;
@@ -144,6 +138,8 @@ export default function NewTrip() {
                 </Pressable>
               );
             })}
+            </View>
+            ))}
           </View>
           {start ? (
             <View style={styles.summary}>
@@ -196,8 +192,9 @@ const styles = StyleSheet.create({
   monthNav: { flexDirection: 'row', gap: board.listRow.paddingY },
   week: { flexDirection: 'row', marginTop: board.listRow.paddingY },
   weekday: { flex: 1, textAlign: 'center', fontSize: T.calendar.weekdaySize, color: colors.text.secondary },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: T.calendar.rowGap, marginTop: board.inlineGap },
-  cell: { width: `${100 / 7}%`, height: T.calendar.cell, alignItems: 'center', justifyContent: 'center' },
+  grid: { rowGap: T.calendar.rowGap, marginTop: board.inlineGap },
+  weekRow: { flexDirection: 'row' },
+  cell: { flex: 1, height: T.calendar.cell, alignItems: 'center', justifyContent: 'center' },
   inside: { backgroundColor: T.calendar.rangeFill },
   dayDot: { width: T.calendar.cell, height: T.calendar.cell, borderRadius: T.calendar.cell / 2, alignItems: 'center', justifyContent: 'center' },
   edge: { backgroundColor: colors.brand.peach },
