@@ -50,9 +50,9 @@ export default function Hosts() {
       <TopBar title="Event settings" />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <AuthIntro tight title="Hosts & co-hosts" body={event.title} />
-        {hostsInOrder(event).map((m, i) => (
+        {hostsInOrder(event).map((m) => (
           <View key={m.personId} style={styles.row}>
-            <PersonAvatar person={people.byId.get(m.personId)} index={i} size={board.activity.avatar} />
+            <PersonAvatar person={people.byId.get(m.personId)} size={board.activity.avatar} />
             <View style={styles.flex}>
               <Text style={styles.name}>{first(m.personId)}</Text>
               <Text style={styles.small}>{m.role === 'co-host' ? 'Co-host' : 'Host'}</Text>

@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Text } from '@/components/ui';
 import { PHOTO_TINT } from '@/features/explore/PlaceCard';
 import { avatarUri, initialsOf } from '@/features/profile/avatar';
+import { sortSchedule } from '@/services/eventRules';
 import type { EventScheduleItem, Person, VoyaEvent } from '@/services';
 import { board, colors } from '@/theme';
 
@@ -133,7 +134,7 @@ export function ScheduleList({ items, variant }: { items: EventScheduleItem[]; v
   const titleSize = variant === 'host' ? E.hostStop.titleSize : variant === 'past' ? E.pastStop.titleSize : H.stop.titleSize;
   return (
     <View style={variant === 'past' ? styles.pastTimeline : undefined}>
-      {items.map((item, i) => {
+      {sortSchedule(items).map((item, i) => {
         const last = i === items.length - 1;
         const lines = variant === 'host' ? [] : [item.location ?? item.notes, item.instructions].filter((x): x is string => !!x);
         return (

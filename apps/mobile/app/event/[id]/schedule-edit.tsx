@@ -47,7 +47,7 @@ export default function ScheduleEditor() {
   const [initial, setInitial] = React.useState('');
 
   const seed = React.useCallback((items: EventScheduleItem[], version: number) => {
-    const d = items.map(toDraft);
+    const d = sortSchedule(items).map(toDraft);
     setDraft(d);
     setInitial(JSON.stringify(d));
     setBaseVersion(version);

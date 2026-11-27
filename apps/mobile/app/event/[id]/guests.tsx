@@ -84,9 +84,9 @@ export default function Guests() {
         </Pressable>
         {shown.length === 0 ? (
           <Text style={styles.small}>{event.guests.length ? 'No guests match.' : 'No guests yet. Invite the people you’d love to celebrate with.'}</Text>
-        ) : shown.map((g, i) => (
+        ) : shown.map((g) => (
           <View key={g.id} style={styles.row}>
-            <PersonAvatar person={nameParts(g)} index={i} size={board.activity.avatar} />
+            <PersonAvatar person={nameParts(g)} size={board.activity.avatar} />
             <View style={styles.flex}>
               <Text style={styles.name} numberOfLines={1}>{g.displayName}</Text>
               <Text style={styles.small}>{`${RSVP_LABEL[g.rsvp]}${g.personId ? '' : ' · Not on Voya'}`}</Text>
