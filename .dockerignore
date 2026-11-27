@@ -1,0 +1,11 @@
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+!**/.env.example
+apps/mobile
+reference
+docs
+.git
+apps/api/supabase/signing_keys.json
+apps/api/supabase/.temp
