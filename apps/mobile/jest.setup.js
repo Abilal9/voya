@@ -20,3 +20,24 @@ jest.mock('expo-file-system', () => {
   }
   return { Directory, File, Paths: { document: 'file:///doc' }, __files: files };
 });
+
+// ---- Native modules the journey tests (src/journeys) render through.
+require('react-native-gesture-handler/jestSetup');
+jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'));
+jest.mock('react-native-maps', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const Stub = (props) => React.createElement(View, props, props.children);
+  return { __esModule: true, default: Stub, Marker: Stub, Polyline: Stub };
+});
+jest.mock('@react-native-community/datetimepicker', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return { __esModule: true, default: (props) => React.createElement(View, { testID: 'datetimepicker', ...props }) };
+});
+jest.mock('expo-image-picker', () => ({
+  requestMediaLibraryPermissionsAsync: jest.fn(async () => ({ granted: false })),
+  launchImageLibraryAsync: jest.fn(async () => ({ canceled: true, assets: [] })),
+}));
+jest.mock('expo-calendar', () => ({ createEventInCalendarAsync: jest.fn(async () => ({ action: 'canceled', id: null })) }));
+jest.mock('expo-splash-screen', () => ({ preventAutoHideAsync: jest.fn(async () => {}), hideAsync: jest.fn(async () => {}), setOptions: jest.fn() }));

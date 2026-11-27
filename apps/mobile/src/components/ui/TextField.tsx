@@ -27,6 +27,7 @@ export function TextField({ label, error, hint, right, style, ...rest }: Props) 
         ]}
       >
         <TextInput
+          accessibilityLabel={label}
           {...rest}
           onFocus={(e) => {
             setFocused(true);
