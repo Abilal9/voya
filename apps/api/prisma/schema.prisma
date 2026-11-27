@@ -1,0 +1,223 @@
+// Voya application schema (Supabase PostgreSQL, `public` schema).
+//
+// Ownership: Prisma Migrate owns these tables. Supabase owns `auth`, `storage`
+// and its other schemas — never model or migrate those here.
+//
+// Shapes follow the frozen mobile contracts (apps/mobile/src/services/types.ts
+// and packages/contracts). Only the shared Plan foundation is modelled in B0;
+// type-specific structures (trip days, hangout suggestions, event guests and
+// schedules) live in `Plan.details` until their APIs are built.
+//
+// Every table has RLS enabled with no policies (see the migration SQL): the
+// Data API roles (anon/authenticated) can read nothing. Only the API, which
+// connects as the database owner, touches these tables.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum OnboardingStep {
+  profile
+  interests
+  location
+  notifications
+  done
+}
+
+enum PlaceCategory {
+  Food
+  Coffee
+  Dessert
+  Activities
+  Culture
+  Shopping
+  Nature
+  Nightlife
+  Experiences
+}
+
+enum PlanType {
+  trip
+  hangout
+  event
+}
+
+enum PlanLifecycle {
+  draft
+  active
+  completed
+  cancelled
+}
+
+enum PlanRole {
+  organizer
+  co_organizer @map("co-organizer")
+  traveler
+  participant
+  host
+  co_host      @map("co-host")
+  guest
+}
+
+enum Capability {
+  plan_edit         @map("plan.edit")
+  plan_delete       @map("plan.delete")
+  member_manage     @map("member.manage")
+  invite_create     @map("invite.create")
+  suggestion_create @map("suggestion.create")
+  vote_cast         @map("vote.cast")
+  timeline_finalize @map("timeline.finalize")
+  schedule_edit     @map("schedule.edit")
+  rsvp_own          @map("rsvp.own")
+}
+
+/// A Voya person. `authUserId` links to Supabase `auth.users.id`; it is null
+/// for seeded demo people who have no login.
+model Profile {
+  id             String         @id @default(uuid()) @db.Uuid
+  authUserId     String?        @unique @map("auth_user_id") @db.Uuid
+  /// Stable fixture id (e.g. `p-ahmad`) for seeded rows; null for real users.
+  seedRef        String?        @unique @map("seed_ref")
+  firstName      String         @map("first_name")
+  lastName       String?        @map("last_name")
+  displayName    String         @map("display_name")
+  city           String?
+  bio            String?
+  interests      String[]       @default([])
+  onboardingStep OnboardingStep @default(profile) @map("onboarding_step")
+  /// Storage object path in the private `avatars` bucket.
+  avatarPath     String?        @map("avatar_path")
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  ownedPlans         Plan[]          @relation("PlanOwner")
+  memberships        PlanMember[]
+  invitationsCreated Invitation[]
+  activityReceived   ActivityEntry[] @relation("ActivityRecipient")
+  activityCaused     ActivityEntry[] @relation("ActivityActor")
+
+  @@map("profiles")
+}
+
+/// A place in Voya's catalogue. Optional columns stay NULL when the provider
+/// has no value: NULL rating is "No rating yet", NULL open_now is "Hours
+/// unknown" — never 0 or false.
+model Place {
+  id                String        @id @default(uuid()) @db.Uuid
+  seedRef           String?       @unique @map("seed_ref")
+  /// `fixture` today; `google` etc. later, with `providerRef` as their id.
+  provider          String        @default("fixture")
+  providerRef       String?       @map("provider_ref")
+  name              String
+  type              String?
+  category          PlaceCategory
+  city              String
+  area              String?
+  rating            Float?        @db.Real
+  price             String?
+  photo             String?
+  reason            String?
+  description       String?
+  hoursText         String?       @map("hours_text")
+  latitude          Float?
+  longitude         Float?
+  openNow           Boolean?      @map("open_now")
+  permanentlyClosed Boolean?      @map("permanently_closed")
+  tags              String[]      @default([])
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([provider, providerRef])
+  @@index([city, category])
+  @@map("places")
+}
+
+/// One Plan concept for Trips, Hangouts and Events (`PlanBase` in the app).
+model Plan {
+  id        String        @id @default(uuid()) @db.Uuid
+  seedRef   String?       @unique @map("seed_ref")
+  type      PlanType
+  title     String
+  city      String
+  lifecycle PlanLifecycle @default(active)
+  ownerId   String        @map("owner_id") @db.Uuid
+  owner     Profile       @relation("PlanOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  /// Instants for hangouts and events.
+  startsAt  DateTime?     @map("starts_at") @db.Timestamptz(3)
+  endsAt    DateTime?     @map("ends_at") @db.Timestamptz(3)
+  /// Floating local dates for trips (the destination's calendar, not the phone's).
+  startDate DateTime?     @map("start_date") @db.Date
+  endDate   DateTime?     @map("end_date") @db.Date
+  coverPath String?       @map("cover_path")
+  /// Type-specific state until each experience gets its own tables.
+  details   Json          @default("{}")
+  /// Monotonic; every mutation bumps it (optimistic concurrency).
+  version   Int           @default(1)
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  members     PlanMember[]
+  invitations Invitation[]
+  activity    ActivityEntry[]
+
+  @@index([ownerId])
+  @@index([type, lifecycle])
+  @@map("plans")
+}
+
+/// Membership. Capabilities decide; the role is a display label.
+model PlanMember {
+  planId       String       @map("plan_id") @db.Uuid
+  plan         Plan         @relation(fields: [planId], references: [id], onDelete: Cascade)
+  profileId    String       @map("profile_id") @db.Uuid
+  profile      Profile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  role         PlanRole
+  capabilities Capability[]
+  joinedAt     DateTime     @default(now()) @map("joined_at") @db.Timestamptz(3)
+
+  @@id([planId, profileId])
+  @@index([profileId])
+  @@map("plan_members")
+}
+
+/// Invitation link. Only a SHA-256 hash of the token is stored; the raw
+/// token exists once, in the link handed to the inviter.
+model Invitation {
+  id          String    @id @default(uuid()) @db.Uuid
+  planId      String    @map("plan_id") @db.Uuid
+  plan        Plan      @relation(fields: [planId], references: [id], onDelete: Cascade)
+  tokenHash   String    @unique @map("token_hash")
+  role        PlanRole
+  createdById String    @map("created_by_id") @db.Uuid
+  createdBy   Profile   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  expiresAt   DateTime? @map("expires_at") @db.Timestamptz(3)
+  revokedAt   DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([planId])
+  @@map("invitations")
+}
+
+/// Durable activity feed, independent of any push delivery.
+model ActivityEntry {
+  id          String    @id @default(uuid()) @db.Uuid
+  recipientId String    @map("recipient_id") @db.Uuid
+  recipient   Profile   @relation("ActivityRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actorId     String?   @map("actor_id") @db.Uuid
+  actor       Profile?  @relation("ActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
+  planId      String?   @map("plan_id") @db.Uuid
+  plan        Plan?     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  type        String
+  message     String
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  readAt      DateTime? @map("read_at") @db.Timestamptz(3)
+
+  @@index([recipientId, createdAt(sort: Desc)])
+  @@map("activity_entries")
+}
