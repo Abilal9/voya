@@ -6,6 +6,10 @@ import {
   ListPlacesQuerySchema,
   PlaceSchema,
   PlanMemberSchema,
+  SetAvatarRequestSchema,
+  SetInterestsRequestSchema,
+  UpdatePreferencesRequestSchema,
+  UpdateProfileRequestSchema,
 } from '..';
 
 describe('pagination query', () => {
@@ -53,5 +57,41 @@ describe('errors', () => {
   it('validates the error envelope', () => {
     expect(ApiErrorSchema.safeParse({ error: { code: 'not_found', message: 'Nope', retryable: false } }).success).toBe(true);
     expect(ApiErrorSchema.safeParse({ error: { code: 'teapot', message: 'x', retryable: false } }).success).toBe(false);
+  });
+});
+
+describe('me (B1)', () => {
+  it('trims profile fields and turns empty optional text into a clear (null)', () => {
+    expect(UpdateProfileRequestSchema.parse({ firstName: ' Sara ', city: '', bio: null })).toEqual({
+      firstName: 'Sara', city: null, bio: null,
+    });
+  });
+
+  it('rejects identity fields, empty patches and over-long values', () => {
+    expect(UpdateProfileRequestSchema.safeParse({ id: 'x', firstName: 'A' }).success).toBe(false);
+    expect(UpdateProfileRequestSchema.safeParse({ authUserId: 'x' }).success).toBe(false);
+    expect(UpdateProfileRequestSchema.safeParse({}).success).toBe(false);
+    expect(UpdateProfileRequestSchema.safeParse({ firstName: '   ' }).success).toBe(false);
+    expect(UpdateProfileRequestSchema.safeParse({ bio: 'x'.repeat(161) }).success).toBe(false);
+  });
+
+  it('dedupes interests and caps their number', () => {
+    expect(SetInterestsRequestSchema.parse({ interests: ['Coffee', 'Coffee ', 'Padel'] })).toEqual({
+      interests: ['Coffee', 'Padel'],
+    });
+    expect(SetInterestsRequestSchema.safeParse({ interests: Array.from({ length: 13 }, (_, i) => `i${i}`) }).success).toBe(false);
+  });
+
+  it('accepts partial preferences and rejects unknown keys and out-of-range radius', () => {
+    expect(UpdatePreferencesRequestSchema.parse({ notifications: { planChanges: false } })).toEqual({
+      notifications: { planChanges: false },
+    });
+    expect(UpdatePreferencesRequestSchema.safeParse({ notifications: { spam: true } }).success).toBe(false);
+    expect(UpdatePreferencesRequestSchema.safeParse({ discoveryRadiusKm: 0 }).success).toBe(false);
+    expect(UpdatePreferencesRequestSchema.safeParse({ mutedPlans: ['p'] }).success).toBe(false);
+  });
+
+  it('takes only a path to set an avatar', () => {
+    expect(SetAvatarRequestSchema.safeParse({ path: 'a/b.jpg', profileId: 'x' }).success).toBe(false);
   });
 });

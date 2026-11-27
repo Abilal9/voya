@@ -22,4 +22,7 @@ export type Checks = [
   Assert<Equal<C.Place, Mobile.Place>>,
   Assert<Equal<C.PlanMember, Mobile.PlanMember>>,
   Assert<Equal<C.PlanBase, Mobile.PlanBase>>,
+  Assert<Equal<C.NotificationKey, Mobile.NotificationKey>>,
+  // Server-kept preferences are the app's settings minus per-plan mutes (device-local until B2).
+  Assert<Equal<C.AccountPreferences, Omit<Mobile.AccountSettings, 'mutedPlans'>>>,
 ];
