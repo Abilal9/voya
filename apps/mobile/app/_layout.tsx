@@ -32,18 +32,19 @@ function useProtectedRoute() {
   const router = useRouter();
 
   React.useEffect(() => {
+    // An invitation opened before signing in is kept and resumed afterwards.
+    const invite = inviteTokenFrom(pathname);
+    if (status !== 'ready' && invite) setPendingInvite(invite);
     if (status === 'booting') return;
     const group = segments[0];
     const inAuth = group === '(auth)';
     const inOnboarding = group === '(onboarding)';
     const onVerify = inAuth && segments[1] === 'verify';
-    // An invitation opened before signing in is kept and resumed afterwards.
-    const invite = inviteTokenFrom(pathname);
-    if (status !== 'ready' && invite) setPendingInvite(invite);
-
     if (status === 'ready' && pendingInvite) {
-      setPendingInvite(null); // consumed once, so it never replays
-      router.replace(`/invite/${pendingInvite}` as never);
+      // Go to the invitation once; clear it only when we're there, so the
+      // usual "signed in → Home" redirect can't race it and it never replays.
+      if (invite === pendingInvite) setPendingInvite(null);
+      else router.replace(`/invite/${pendingInvite}` as never);
     } else if (status === 'signed-out' && !inAuth) {
       router.replace('/(auth)/welcome');
     } else if (status === 'verifying' && !onVerify) {

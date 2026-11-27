@@ -23,7 +23,9 @@ const E = board.event;
  */
 export default function TripScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const h = useTrip(id);
+  const [welcome, setWelcome] = React.useState(false);
   if (h.isPending) return <Screen><LoadingState label="Loading trip" /></Screen>;
   const trip = h.trip;
   if (h.isError && !(h.failureReason instanceof ServiceError && h.failureReason.code === 'not_found')) {
@@ -31,9 +33,18 @@ export default function TripScreen() {
   }
   if (!trip || h.relation === 'none') return <Screen><TopBar /><EmptyState title="This trip isn’t available" body="It may have been deleted, or you’re not on it." /></Screen>;
   const hh: TripHook = { ...h, trip };
-  if (h.relation === 'invited') return <Join h={hh} />;
-  if (h.closed) return <Completed h={hh} />;
-  return <Overview h={hh} />;
+  const view = h.relation === 'invited' ? <Join h={hh} onJoined={() => setWelcome(true)} /> : h.closed ? <Completed h={hh} /> : <Overview h={hh} />;
+  return (
+    <>
+      {view}
+      {/* S07 lives here: after joining, this screen switches from the invitation to the overview. */}
+      <SuccessSheet
+        visible={welcome} title="You’re in." body={`${trip.destination} · ${dateRange(trip.startDate, trip.endDate)}`}
+        primaryLabel="Choose your preferences" onPrimary={() => { setWelcome(false); router.push(`/trip/${trip.id}/preferences`); }}
+        onClose={() => setWelcome(false)}
+      />
+    </>
+  );
 }
 
 /** Where "Continue planning" takes this traveler next. */
@@ -120,19 +131,18 @@ function Row({ icon: glyph, title, body, onPress, children }: { icon: React.Reac
 }
 
 /** 12 Join trip. */
-function Join({ h }: { h: TripHook }) {
+function Join({ h, onJoined }: { h: TripHook; onJoined: () => void }) {
   const router = useRouter();
   const { trip } = h;
   const names = useFirstNames();
   const [menu, setMenu] = React.useState(false);
   const invite = trip.invites?.find((i) => i.personId === h.me);
   const people = travelers(trip);
-  const [joined, setJoined] = React.useState(false);
   const answer = async (a: 'join' | 'decline') => {
     setMenu(false);
     const ok = await h.run(() => h.services.trips.respond(trip.id, a));
     if (!ok) return;
-    if (a === 'join') setJoined(true); // S07, once the join is saved
+    if (a === 'join') onJoined(); // S07, once the join is saved
     else router.replace('/(tabs)');
   };
   return (
@@ -166,11 +176,6 @@ function Join({ h }: { h: TripHook }) {
         <SettingsRow danger title="Decline invitation" onPress={() => void answer('decline')} />
         <Button label="Cancel" variant="ghost" onPress={() => setMenu(false)} />
       </BottomSheet>
-      <SuccessSheet
-        visible={joined} title="You’re in." body={`${trip.destination} · ${dateRange(trip.startDate, trip.endDate)}`}
-        primaryLabel="Choose your preferences" onPrimary={() => router.replace(`/trip/${trip.id}/preferences`)}
-        onClose={() => router.replace(`/trip/${trip.id}`)}
-      />
     </Screen>
   );
 }
