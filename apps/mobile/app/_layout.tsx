@@ -5,18 +5,15 @@ import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { ServicesProvider } from '@/services/ServicesProvider';
 import { ToastProvider } from '@/components/ui/Toast';
 import { inviteTokenFrom } from '@/features/invite/link';
+import { queryClient } from '@/lib/queryClient';
 import { useSession } from '@/stores/session';
 import { colors } from '@/theme';
 
 void SplashScreen.preventAutoHideAsync();
-
-const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
-});
 
 /**
  * Sends the user to the right place from the account's actual state.
