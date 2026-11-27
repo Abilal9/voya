@@ -16,16 +16,17 @@
     "test:integration": "jest --config test/jest-integration.json --runInBand",
     "prisma": "prisma",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
-    "db:deploy": "prisma migrate deploy",
-    "db:seed": "pnpm --filter @voya/contracts build && prisma db seed",
-    "db:reset": "pnpm --filter @voya/contracts build && prisma migrate reset --force",
+    "db:migrate": "node scripts/db-guard.mjs local && prisma migrate dev",
+    "db:deploy": "node scripts/db-guard.mjs deploy && prisma migrate deploy",
+    "db:seed": "node scripts/db-guard.mjs local && pnpm --filter @voya/contracts build && prisma db seed",
+    "db:reset": "node scripts/db-guard.mjs local && pnpm --filter @voya/contracts build && prisma migrate reset --force",
     "db:status": "prisma migrate status",
     "supabase": "supabase",
     "supabase:start": "node scripts/ensure-signing-key.mjs && supabase start",
     "supabase:stop": "supabase stop",
     "supabase:status": "supabase status",
-    "start:local": "pnpm --filter @voya/contracts build && nest build -p tsconfig.build.json && node dist/main.js"
+    "start:local": "pnpm --filter @voya/contracts build && nest build -p tsconfig.build.json && node dist/main.js",
+    "smoke:staging": "node scripts/staging-smoke.mjs"
   },
   "prisma": {
     "seed": "ts-node --transpile-only prisma/seed.ts"
