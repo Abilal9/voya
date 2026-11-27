@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button, Card, Screen, Text } from '@/components/ui';
 import { simulation, resetAll, resetWorld, setCurrentAccountId } from '@/mocks';
 import { people } from '@/mocks/fixtures';
+import { setTestClock } from '@/features/trip/devClock';
 import { useSession } from '@/stores/session';
 import { spacing } from '@/theme';
 
@@ -20,7 +21,13 @@ export default function DevMenu() {
   // Simulator scripting by deep link: `/dev?reseed=plans` reseeds the shared plans;
   // `/dev?as=p-khaled&to=/event/plan-wedding` switches to a seeded account (or back
   // to `dev-ahmad`) and opens a route. Neither changes any plan.
-  const { reseed, as, to } = useLocalSearchParams<{ reseed?: string; as?: string; to?: string }>();
+  // `/dev?clock=2026-12-16T11:00&to=/trip/plan-florence/today` sets an in-memory test clock for Today.
+  const { reseed, as, to, clock } = useLocalSearchParams<{ reseed?: string; as?: string; to?: string; clock?: string }>();
+  React.useEffect(() => {
+    if (!__DEV__ || clock === undefined) return;
+    setTestClock(clock === 'off' ? null : clock);
+    if (!as) router.replace((to?.startsWith('/') ? to : '/(tabs)') as never);
+  }, [clock, as, to, router]);
   const reseedPlans = React.useCallback(async () => {
     await resetWorld();
     qc.clear();
