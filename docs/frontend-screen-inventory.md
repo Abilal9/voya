@@ -4,7 +4,7 @@ Source: `reference/voya-design-v1.html` — 97 presentations (96 screens/states 
 They are not 97 React Native screens: many are variants, sheets or states of one screen.
 Updated 2026-11-26 from the rendered board.
 
-**Coverage:** 88 implemented · 4 partial · 5 missing (of 97).
+**Coverage:** 97 implemented · 0 partial · 0 missing (of 97). Implemented is not the same as device-verified: no frame has had a real tap-through yet (F9).
 
 **Columns.** *Implementation*: Implemented / Partial / Missing. *Interaction check*: how it was
 checked — "Screenshot" means rendered on the iOS Simulator and inspected by screenshot or deep link
@@ -139,12 +139,12 @@ were taken from the board CSS and compared side by side.
 
 | Code | Board caption | Kind | Route / component | Implementation | Interaction check | Visual | Gap | Backlog |
 |---|---|---|---|---|---|---|---|---|
-| `S01` | Loading / skeleton | State | src/components/ui/States.tsx (LoadingState) | Partial | Not tested | Not matched | Restyle to board | F8-03 |
-| `S02` | Empty state | State | src/components/ui/States.tsx (EmptyState) | Partial | Not tested | Not matched | Restyle to board | F8-03 |
-| `S03` | Error state | State | src/components/ui/States.tsx (ErrorState) | Partial | Not tested | Not matched | Restyle to board | F8-03 |
-| `S04` | Offline state | State | src/components/ui/States.tsx (OfflineState) | Partial | Not tested | Not matched | Restyle to board | F8-03 |
-| `S05` | Permission denied | State | — | Missing | — | — |  | F8-03 |
-| `S06` | Destructive confirmation | Modal | — | Missing | — | — |  | F8-04 |
-| `S07` | Success popup | Modal | — | Missing | — | — |  | F8-04 |
-| `S08` | Success toast | State | — | Missing | — | — |  | F8-04 |
-| `S09` | Creation confirmation | State | — | Missing | — | — |  | F8-04 |
+| `S01` | Loading / skeleton | State | src/components/ui/States.tsx (LoadingState; compact spinner for sheets) | Implemented | Screenshot (dev latency) | Board-matched |  | F8-01 |
+| `S02` | Empty state | State | src/components/ui/States.tsx (EmptyState) in Home, Saved, Past Plans, Activity, Explore, invites | Implemented | Screenshot (Saved, invalid invite) | Board-matched | Actions only render when they do something | F8-02 |
+| `S03` | Error state | State | src/components/ui/States.tsx (ErrorState: Try again, Go back) | Implemented | Unit tests | Board-matched in code | Shares the S04 frame; not screenshotted on its own | F8-03 |
+| `S04` | Offline state | State | src/components/ui/States.tsx (OfflineState), shown for the mock "offline" error | Implemented | Screenshot (dev offline) + unit tests | Board-matched | No real network detection: simulated from the developer menu only | F8-04 |
+| `S05` | Permission denied | State | States.tsx (PermissionState) + src/features/permissions/PhotoAccess.tsx | Implemented | Code only | Board-matched in code | Used for photo access (the only real OS permission); location is still mocked | F8-05 |
+| `S06` | Destructive confirmation | Modal | src/features/feedback/Sheets.tsx (ConfirmSheet) + existing confirmation sheets | Implemented | Code only | Board-matched in code | Needs a tap to open | F8-06 |
+| `S07` | Success popup | Modal | src/features/feedback/Sheets.tsx (SuccessSheet): "You’re in." after joining a trip | Implemented | Code only | Board-matched in code | Needs a tap to open | F8-06 |
+| `S08` | Success toast | State | src/components/ui/Toast.tsx: "Saved for later." / "Removed from Saved." | Implemented | Code only | Board-matched in code | Needs a tap to show | F8-06 |
+| `S09` | Creation confirmation | State | SuccessSheet after creating a trip: "Florence is ready." | Implemented | Code only | Board-matched in code | Needs a tap to open | F8-06 |

@@ -133,10 +133,18 @@ integration or enhancement.
 
 | ID | Item | P | Status | Type | Design | Depends | Acceptance |
 |---|---|---|---|---|---|---|---|
-| F8-01 | Invitation preview, join, already joined, expired/invalid, auth continuation | P1 | Not Started | Mock | 12, 17, 20 | — | Pending invite survives sign-in |
-| F8-02 | Activity at full fidelity (actor avatars, plan context, deep links) | P2 | Implemented | Mock | 38 | F1-05 | — |
-| F8-03 | System states: loading, empty, error, offline, permission denied | P1 | Not Started | Mock | S01–S05 | — | Board-matched shared components |
-| F8-04 | Confirmation, success popup/toast, creation confirmation | P1 | Not Started | Mock | S06–S09 | — | — |
+| F8-01 | Loading: board skeleton; compact spinner in sheets | P1 | Implemented | UI | S01 | — | No empty flash while loading |
+| F8-02 | Empty states with working actions | P1 | Implemented | UI | S02 | — | No dead buttons |
+| F8-03 | Error + recovery (Try again, Go back); plan pages tell "unavailable" from "failed" | P1 | Implemented | UI | S03 | — | No internal messages shown |
+| F8-04 | Offline (simulated only; no network detection yet) | P2 | Implemented | UI | S04 | — | Saved data untouched |
+| F8-05 | Permission denied (photo library; location stays mocked) | P2 | Implemented | UI | S05 | — | Open Settings only where real |
+| F8-06 | Confirmation, success popup, toast, creation confirmation | P1 | Implemented | UI | S06–S09 | — | Shown only after the service confirms |
+| F8-07 | Invitations: one flow for trips, hangouts and events (preview → plan's own join screen) | P1 | Implemented | Mock | 12, 17, 20 | — | Invalid / expired / revoked / already in handled |
+| F8-08 | Development invite link `/invite/<token>` with sign-in continuation | P1 | Implemented | Mock | — | — | Dev builds only; production shows "Invitation links will be available when Voya launches." |
+| F8-09 | Activity limited to plans the person can see | P2 | Implemented | Mock | 38 | — | — |
+| F8-10 | Real invitation links (voya.events, Universal / App Links, tokens, expiry) | P1 | Blocked | API | — | backend + website | — |
+| F8-11 | Record activity from real actions (invites, RSVPs, votes) | P2 | Deferred | API | 38 | backend | Activity is fixture-seeded today |
+| F8-12 | Tap-through of S05–S09 and the invite journey | P1 | Blocked | Ops | S05–S09 | Simulator control | — |
 
 ### F9 — Frontend validation and freeze
 
