@@ -17,8 +17,10 @@ export default function DevMenu() {
   const qc = useQueryClient();
   const boot = useSession((s) => s.boot);
   const [, force] = React.useReducer((n: number) => n + 1, 0);
-  // `/dev?reseed=plans` reseeds the shared plans from a deep link (simulator scripting).
-  const { reseed } = useLocalSearchParams<{ reseed?: string }>();
+  // Simulator scripting by deep link: `/dev?reseed=plans` reseeds the shared plans;
+  // `/dev?as=p-khaled&to=/event/plan-wedding` switches to a seeded account (or back
+  // to `dev-ahmad`) and opens a route. Neither changes any plan.
+  const { reseed, as, to } = useLocalSearchParams<{ reseed?: string; as?: string; to?: string }>();
   const reseedPlans = React.useCallback(async () => {
     await resetWorld();
     qc.clear();
@@ -27,6 +29,15 @@ export default function DevMenu() {
   React.useEffect(() => {
     if (__DEV__ && reseed === 'plans') void reseedPlans();
   }, [reseed, reseedPlans]);
+  React.useEffect(() => {
+    if (!__DEV__ || !as || !(as === 'dev-ahmad' || people.some((p) => p.id === as))) return;
+    void (async () => {
+      await setCurrentAccountId(as);
+      qc.clear();
+      await boot();
+      router.replace((to?.startsWith('/') ? to : '/(tabs)') as never);
+    })();
+  }, [as, to, qc, boot, router]);
 
   if (!__DEV__) {
     return (
