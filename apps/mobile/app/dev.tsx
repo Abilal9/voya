@@ -22,7 +22,18 @@ export default function DevMenu() {
   // `/dev?as=p-khaled&to=/event/plan-wedding` switches to a seeded account (or back
   // to `dev-ahmad`) and opens a route. Neither changes any plan.
   // `/dev?clock=2026-12-16T11:00&to=/trip/plan-florence/today` sets an in-memory test clock for Today.
-  const { reseed, as, to, clock } = useLocalSearchParams<{ reseed?: string; as?: string; to?: string; clock?: string }>();
+  // `/dev?offline=on|off`, `/dev?fail=next`, `/dev?latency=3000` drive the simulated states (S01, S03, S04).
+  const { reseed, as, to, clock, offline, fail, latency } = useLocalSearchParams<{
+    reseed?: string; as?: string; to?: string; clock?: string; offline?: string; fail?: string; latency?: string;
+  }>();
+  React.useEffect(() => {
+    if (!__DEV__ || (offline === undefined && fail === undefined && latency === undefined)) return;
+    if (offline !== undefined) simulation.offline = offline === 'on';
+    if (fail === 'next') simulation.failNext = true;
+    if (latency !== undefined && /^\d{1,5}$/.test(latency)) simulation.latencyMs = Number(latency);
+    qc.clear();
+    if (!as && clock === undefined) router.replace((to?.startsWith('/') ? to : '/(tabs)') as never);
+  }, [offline, fail, latency, as, clock, to, qc, router]);
   React.useEffect(() => {
     if (!__DEV__ || clock === undefined) return;
     setTestClock(clock === 'off' ? null : clock);

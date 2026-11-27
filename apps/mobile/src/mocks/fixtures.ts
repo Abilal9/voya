@@ -157,7 +157,7 @@ export const places: Place[] = [
   {
     id: 'padel-hub', name: 'The Padel Hub', type: 'Padel · Sports', category: 'Activities',
     city: 'Riyadh', area: 'Al Malqa', rating: 4.7, price: '$$', photo: 'activity',
-    reason: 'Liked by 3 of 4 friends',
+    reason: 'Good for a group',
     coordinates: { latitude: 24.7812, longitude: 46.6301 },
     openNow: true, tags: ['Good for groups'],
 
@@ -206,7 +206,7 @@ export const places: Place[] = [
   {
     id: 'mercato', name: 'Mercato Centrale', type: 'Food hall · Market', category: 'Food',
     city: 'Florence', area: 'San Lorenzo', rating: 4.6, photo: 'restaurant',
-    reason: 'Liked by 3 of 4 travelers',
+    reason: 'A lively place to eat together',
     coordinates: { latitude: 43.7765, longitude: 11.2535 },
     openNow: true, tags: ['Good for groups'],
 
