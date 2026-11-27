@@ -1,0 +1,9 @@
+{
+  "preset": "ts-jest",
+  "testEnvironment": "node",
+  "rootDir": "..",
+  "roots": ["<rootDir>/test/integration"],
+  "testMatch": ["**/*.test.ts"],
+  "moduleNameMapper": { "^@voya/contracts$": "<rootDir>/../../packages/contracts/src" },
+  "testTimeout": 30000
+}

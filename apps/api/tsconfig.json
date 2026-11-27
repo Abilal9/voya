@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "lib": [
+      "ES2022"
+    ],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "declaration": false,
+    "sourceMap": true,
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "@voya/contracts": [
+        "../../packages/contracts/src"
+      ]
+    },
+    "types": [
+      "node",
+      "jest"
+    ],
+    "resolveJsonModule": true
+  },
+  "include": [
+    "src",
+    "test",
+    "prisma"
+  ]
+}
