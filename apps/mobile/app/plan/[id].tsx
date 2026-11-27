@@ -52,6 +52,7 @@ export default function PlanDetail() {
 
   const p = plan.data;
   if (p.type === 'hangout') return <Redirect href={`/hangout/${p.id}`} />;
+  if (p.type === 'event') return <Redirect href={`/event/${p.id}`} />;
   const items: TimelineItem[] =
     p.type === 'trip'
       ? (p as Trip).days.flatMap((d) => d.items)

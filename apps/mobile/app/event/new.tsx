@@ -67,8 +67,8 @@ export default function NewEvent() {
         description: details, coverUri: cover, hosts,
       });
       await qc.invalidateQueries({ queryKey: ['plans'] });
-      // Event details (19) land in the next slice; until then the existing plan page shows it.
-      router.replace(`/plan/${e.id}`);
+      
+      router.replace(`/event/${e.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'The event could not be created.');
       setBusy(false);

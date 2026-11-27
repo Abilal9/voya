@@ -125,3 +125,20 @@ export function normaliseScheduleItem<T extends Partial<EventScheduleItem>>(item
 export function sortSchedule<T extends { startsAt: string }>(items: T[]): T[] {
   return [...items].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
 }
+
+/**
+ * Which event screen someone sees (the `/event/[id]` route): `closed` once
+ * cancelled or past (EV05), `host` for hosts and co-hosts (19), `invitation`
+ * until a guest answers (20), else `guest` (21). Works on the guest projection,
+ * where the viewer's own row is `viewerGuestId`.
+ */
+export type EventScreen = 'closed' | 'host' | 'invitation' | 'guest';
+
+export function eventScreen(event: VoyaEvent, viewerId: ID, closed: boolean, wantsDetails = false): EventScreen {
+  if (closed) return 'closed';
+  if (event.members.some((m) => m.personId === viewerId)) return 'host';
+  const own = event.viewerGuestId
+    ? event.guests.find((g) => g.id === event.viewerGuestId)
+    : event.guests.find((g) => g.personId === viewerId);
+  return own?.rsvp === 'pending' && !wantsDetails ? 'invitation' : 'guest';
+}

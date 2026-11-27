@@ -82,6 +82,8 @@ function RootNavigator() {
       <Stack.Screen name="place/[id]" />
       <Stack.Screen name="hangout/new" />
       <Stack.Screen name="event/new" />
+      <Stack.Screen name="event/[id]/index" />
+      <Stack.Screen name="event/[id]/invitation" />
       <Stack.Screen name="hangout/[id]/index" />
       <Stack.Screen name="hangout/[id]/change" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.75, 1], sheetGrabberVisible: false }} />
       <Stack.Screen name="dev" options={{ presentation: 'modal' }} />
