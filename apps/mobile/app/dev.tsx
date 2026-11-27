@@ -6,6 +6,7 @@ import { Button, Card, Screen, Text } from '@/components/ui';
 import { simulation, resetAll, resetWorld, setCurrentAccountId } from '@/mocks';
 import { people } from '@/mocks/fixtures';
 import { setTestClock } from '@/features/trip/devClock';
+import { runtimeConfig } from '@/config/runtime';
 import { useSession } from '@/stores/session';
 import { spacing } from '@/theme';
 
@@ -13,6 +14,9 @@ import { spacing } from '@/theme';
  * Development-only scenario menu. Compiled out of production builds via __DEV__.
  * Never ships: see docs/frontend-integration-notes.md.
  */
+/** Real Supabase auth: a real identity must never be swapped for a seeded mock one. */
+const CAN_SWITCH_USERS = runtimeConfig.authProvider === 'mock';
+
 export default function DevMenu() {
   const router = useRouter();
   const qc = useQueryClient();
@@ -48,7 +52,7 @@ export default function DevMenu() {
     if (__DEV__ && reseed === 'plans') void reseedPlans();
   }, [reseed, reseedPlans]);
   React.useEffect(() => {
-    if (!__DEV__ || !as || !(as === 'dev-ahmad' || people.some((p) => p.id === as))) return;
+    if (!__DEV__ || !CAN_SWITCH_USERS || !as || !(as === 'dev-ahmad' || people.some((p) => p.id === as))) return;
     void (async () => {
       await setCurrentAccountId(as);
       qc.clear();
@@ -90,16 +94,22 @@ export default function DevMenu() {
 
       <Card>
         <Text variant="overline" tone="tertiary">SWITCH SEEDED USER</Text>
-        <View style={styles.group}>
-          {people.map((p) => (
-            <Button
-              key={p.id}
-              label={p.displayName}
-              variant="secondary"
-              onPress={() => void switchTo(p.id)}
-            />
-          ))}
-        </View>
+        {CAN_SWITCH_USERS ? (
+          <View style={styles.group}>
+            {people.map((p) => (
+              <Button
+                key={p.id}
+                label={p.displayName}
+                variant="secondary"
+                onPress={() => void switchTo(p.id)}
+              />
+            ))}
+          </View>
+        ) : (
+          <Text variant="body" tone="secondary">
+            Real sign-in is on (EXPO_PUBLIC_VOYA_AUTH=supabase). Seeded users are mock identities and are not available.
+          </Text>
+        )}
       </Card>
 
       <Card>

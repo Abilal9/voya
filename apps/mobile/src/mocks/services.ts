@@ -139,6 +139,7 @@ function seededPersonFor(email: string) {
 }
 
 const auth: AuthService = {
+  verificationCodeHint: DEV_VERIFICATION_CODE,
   async getSession() {
     const id = await currentAccountId();
     if (!id) return null;

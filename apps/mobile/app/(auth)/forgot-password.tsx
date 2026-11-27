@@ -20,6 +20,9 @@ export default function ForgotPassword() {
     try {
       await services.auth.requestPasswordReset(email);
       router.push({ pathname: '/(auth)/reset-sent', params: { email } });
+    } catch (e) {
+      // Only reached when the request did not go out (offline, rate limit): never claim it was sent.
+      setError(e instanceof Error ? e.message : 'We could not send the reset link.');
     } finally {
       setBusy(false);
     }

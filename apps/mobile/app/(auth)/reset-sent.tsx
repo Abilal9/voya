@@ -6,8 +6,10 @@ import { Button, Screen, Text, TopBar } from '@/components/ui';
 import { StateHero, TextLink, authStyles } from '@/features/auth/AuthParts';
 
 /**
- * A05 Reset link sent — board figure "A05". No email is sent in the mock;
+ * A05 Reset link sent — board figure "A05". Mock: no email is sent and
  * "Preview reset link" opens what the link would open (A11), as on the board.
+ * Real: Supabase emails the link; "Preview" opens A11 without a recovery
+ * session, so saving explains that the emailed link is needed.
  */
 export default function ResetSent() {
   const router = useRouter();

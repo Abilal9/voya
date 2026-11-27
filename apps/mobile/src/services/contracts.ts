@@ -56,7 +56,14 @@ export interface AuthService {
   signInWithGoogle(): Promise<AuthSession>;
   signOut(): Promise<void>;
   /**
-   * V10 mock account deletion: removes this account's local data and signs
+   * Called when the session ends outside the app's own sign-out (revoked,
+   * refresh failed, the API answered 401). Real provider only.
+   */
+  onSessionEnded?(listener: () => void): () => void;
+  /** The fixed development code the mock accepts; undefined when real codes are emailed. */
+  verificationCodeHint?: string;
+  /**
+   * V10 account deletion. Mock: removes this account's local data and signs
    * out. Shared plans stay consistent for everyone else (see the mock policy).
    */
   deleteAccount(): Promise<void>;

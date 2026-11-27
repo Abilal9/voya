@@ -6,6 +6,8 @@ import { File, Paths } from 'expo-file-system';
  */
 export function avatarUri(ref: string | undefined): string | undefined {
   if (!ref) return undefined;
+  // Real accounts: a short-lived signed URL from the API, used as is.
+  if (/^https?:\/\//.test(ref)) return ref;
   try {
     const file = new File(Paths.document, ref);
     return file.exists ? file.uri : undefined;

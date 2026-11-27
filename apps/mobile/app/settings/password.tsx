@@ -8,7 +8,7 @@ import { StateHero, authStyles } from '@/features/auth/AuthParts';
 
 /**
  * Settings → Account → Password: the A11 form, then the A12 confirmation.
- * Mock: no password is stored or sent anywhere.
+ * Mock: no password is stored or sent anywhere. Real: Supabase updates it.
  */
 export default function ChangePassword() {
   const router = useRouter();

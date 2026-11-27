@@ -1,15 +1,23 @@
+import { createRealServices } from '@/api';
+import { runtimeConfig } from '@/config/runtime';
+import { localAccountBridge } from '@/mocks/localAccount';
 import { mockServices } from '@/mocks/services';
 import type { Services } from './contracts';
 
 /**
  * Composition root.
  *
- * The single place that decides which implementation backs the app. Swapping to
- * the real NestJS client later is a change HERE, not in any screen.
- *
- *   export const services: Services = __DEV_MOCKS__ ? mockServices : apiServices;
+ * The single place that decides which implementation backs the app (see
+ * src/config/runtime.ts):
+ *   - mock:     everything is local fixtures + AsyncStorage (development only)
+ *   - supabase: auth + profile are real (Supabase Auth + Voya API); the other
+ *               services are still mocks, acting as the real account (B1)
+ * Screens never know which one they talk to.
  */
-export const services: Services = mockServices;
+export const services: Services =
+  runtimeConfig.authProvider === 'supabase'
+    ? createRealServices(runtimeConfig, mockServices, localAccountBridge)
+    : mockServices;
 
 export * from './contracts';
 export * from './types';

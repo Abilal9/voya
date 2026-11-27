@@ -11,9 +11,11 @@ import { board, colors, icon } from '@/theme';
 const S = board.settings;
 
 /**
- * V10 Delete account. Mock deletion: removes this account's local data and
- * signs out; shared plans stay consistent for their other members. Nothing
- * is deleted on any server — there is none yet.
+ * V10 Delete account. Mock provider: removes this account's local data and
+ * signs out; shared plans stay consistent for their other members. Real
+ * provider: the API deletes the profile and the login together, then the
+ * phone forgets the account's local data; an account in shared plans is
+ * refused with the server's message (needs B2) and nothing is deleted.
  */
 export default function DeleteAccount() {
   const router = useRouter();

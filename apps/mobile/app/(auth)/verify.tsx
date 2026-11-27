@@ -12,7 +12,8 @@ const C = board.code;
 
 /**
  * A06 Verify email — board figure "A06". Six one-digit boxes backed by one
- * input, so paste and one-time-code autofill work. Development code: 424242.
+ * input, so paste and one-time-code autofill work. Mock provider: the code is
+ * always 424242. Real provider: Supabase emails a 6-digit code.
  */
 export default function Verify() {
   const router = useRouter();
@@ -41,10 +42,17 @@ export default function Verify() {
   };
 
   const resend = async () => {
-    await services.auth.resendVerificationCode();
+    setNote(undefined);
+    try {
+      await services.auth.resendVerificationCode();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'We could not send a new code.');
+      return;
+    }
     setCode('');
     setError(undefined);
-    setNote('New code sent. In development it is always 424242.');
+    const hint = services.auth.verificationCodeHint;
+    setNote(hint ? `New code sent. In development it is always ${hint}.` : 'New code sent.');
   };
 
   const changeEmail = async () => {

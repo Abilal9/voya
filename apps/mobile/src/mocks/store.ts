@@ -312,6 +312,32 @@ export async function createLocalAccount(account: Account) {
   cache = null;
 }
 
+// ---------------------------------------------------- real-auth accounts
+
+/**
+ * Real-auth mode (B1): Supabase owns the account and the API owns the
+ * profile, but plans, saves and activity are still mock services. This gives
+ * the real account its OWN local namespace (`localId`, derived from the auth
+ * user id) so those services act as that person and nobody else — never as a
+ * seeded identity. The account is not put in the mock sign-in registry.
+ * `account` is the last profile the API returned, kept for offline starts.
+ */
+export async function linkAccount(localId: string, account: Account) {
+  const raw = await AsyncStorage.getItem(key(localId, 'state'));
+  const state: AccountState = raw
+    ? { ...(JSON.parse(raw) as AccountState), account }
+    : { account, saved: [], signals: {}, activity: [], recentSearches: [], recentCities: [] };
+  await AsyncStorage.setItem(key(localId, 'state'), JSON.stringify(state));
+  cache = null;
+  await setCurrentAccountId(localId);
+}
+
+/** The last profile copy stored for a real account, or null. */
+export async function linkedAccount(localId: string): Promise<Account | null> {
+  const raw = await AsyncStorage.getItem(key(localId, 'state'));
+  return raw ? (JSON.parse(raw) as AccountState).account : null;
+}
+
 const DELETED_KEY = `voya:${VERSION}:deleted-people`;
 
 /** Seeded identities whose mock account was deleted (dev reset restores them). */
