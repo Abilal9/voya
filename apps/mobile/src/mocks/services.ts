@@ -245,9 +245,20 @@ const auth: AuthService = {
 // ------------------------------------------------------------- profile
 
 const profile: ProfileService = {
+  /**
+   * The signed-in account. Offline, the copy already on the phone is used, so
+   * a cold start without a connection still opens the app (Home then shows
+   * the offline state for anything that needs the network).
+   */
   async getAccount() {
-    const { state } = await read();
-    return state.account;
+    try {
+      const { state } = await read();
+      return state.account;
+    } catch (e) {
+      const cached = e instanceof ServiceError && e.code === 'offline' ? await peek() : null;
+      if (cached) return cached.state.account;
+      throw e;
+    }
   },
   updateProfile: (patch) => mutate((s) => Object.assign(s.account, patch)),
   setInterests: (interests) =>
