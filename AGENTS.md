@@ -23,6 +23,8 @@ The frontend is technically frozen (F9). Two providers, chosen in
 the API (`src/api/`); B3-only plan actions refuse with `not_available`;
 saves, activity and Explore stay mocks acting as that real account
 (`src/mocks/localAccount.ts`). B3 replaces the refusals one experience at a time.
+Staging (Supabase Cloud + Railway, B2.5) is prepared but not provisioned:
+never provision or deploy without the person's explicit approval.
 See `docs/backend.md`.
 
 ## Repository

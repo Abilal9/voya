@@ -18,6 +18,13 @@ that belong to B3 (votes, schedules, itineraries…) refuse in real mode
 instead of changing a local copy. Saves, activity and Explore are still
 mock services. Mock mode is unchanged.
 
+**Status (B2.5, 2026-11-28):** staging on Supabase Cloud + Railway is
+prepared and validated locally but **not provisioned or deployed** (awaiting
+approval). See "Staging". The API now refuses to boot a hosted environment
+that is not bound to exactly one Supabase project, local database commands
+refuse hosted databases, sensitive endpoints are rate limited, and release
+app builds refuse local backends.
+
 ## Layout
 
 ```
@@ -155,6 +162,11 @@ Prisma Migrate owns the app tables in `public`; Supabase owns `auth`,
 | Seed | `db:seed` (upserts by `seed_ref`; safe to repeat) |
 | Start over | `db:reset` (drops, re-applies every migration, re-seeds) |
 
+`db:migrate`, `db:seed` and `db:reset` refuse a non-loopback database, and
+`db:deploy` refuses a hosted one unless `VOYA_CONFIRM_REMOTE_MIGRATION` names
+its project ref (`scripts/db-guard.mjs`). Hosted databases are migrated by
+Railway's pre-deploy step.
+
 Every new table must enable RLS and revoke `anon`/`authenticated` in its
 migration, as the init migration does.
 
@@ -165,7 +177,7 @@ on an invalid environment and names the bad variables (never their values).
 
 | Variable | Required | Default | Purpose |
 |---|---|---|---|
-| `NODE_ENV` | | `development` | `production` enables extra safety checks |
+| `NODE_ENV` | | `development` | `production` enables extra safety checks; requires `APP_ENV` staging/production |
 | `APP_ENV` | | `local` | `local`/`test`/`staging`/`production`; seeding refuses staging/production |
 | `PORT`, `HOST` | | `3000`, `0.0.0.0` | Railway sets `PORT` |
 | `LOG_LEVEL` | | `info` | pino level |
@@ -173,6 +185,7 @@ on an invalid environment and names the bad variables (never their values).
 | `DATABASE_URL` | ✓ | | Runtime connection. Hosted: Supabase pooler (`:6543`, `?pgbouncer=true`) |
 | `DIRECT_URL` | ✓ for Prisma CLI | | Direct connection for migrations (`:5432`) |
 | `SUPABASE_URL` | ✓ | | Project URL; must be https in production |
+| `SUPABASE_PROJECT_REF` | ✓ staging/production | | The one project `SUPABASE_URL`, `DATABASE_URL` and `DIRECT_URL` must belong to |
 | `SUPABASE_JWT_ISSUER` | | `${SUPABASE_URL}/auth/v1` | Expected `iss` |
 | `SUPABASE_JWT_AUDIENCE` | | `authenticated` | Expected `aud` |
 | `SUPABASE_JWKS_URL` | | `${SUPABASE_URL}/auth/v1/.well-known/jwks.json` | Public keys |
@@ -441,10 +454,11 @@ production email (SMTP, branded templates) are not set up.
 ## Tests
 
 ```bash
-pnpm test                                       # whole workspace: mobile 229 + contracts 15 + API 80
+pnpm test                                       # whole workspace: mobile 232 + contracts 15 + API 86
 pnpm --filter @voya/api test                    # API unit + e2e (no Docker needed)
 pnpm --filter @voya/api test:integration        # API against the running local stack (33)
 pnpm --filter @voya/mobile test:local-stack     # the app's real provider against the stack + a running API
+pnpm --filter @voya/api smoke:staging -- --local # two-account smoke test against a running API (see Staging)
 ```
 
 - **e2e** (`test/app.e2e.test.ts`): the real app wiring with Prisma replaced by
@@ -490,40 +504,237 @@ pnpm --filter @voya/mobile test:local-stack     # the app's real provider agains
 - **contracts**: schema behaviour, plus `compat/mobile.compat.ts`, a
   type-level check that the shared schemas equal the frozen app's types.
 
-## Deployment (Railway — prepared, not deployed)
+## Staging (B2.5 — prepared, awaiting approval)
 
-- Image: `apps/api/Dockerfile`, built from the repo root. Installs only the API
-  and contracts, builds both, prunes to production dependencies, runs as the
-  `node` user. No secrets in the image.
-- `apps/api/railway.json`: Dockerfile builder, watch paths, **pre-deploy
-  `prisma migrate deploy`**, start `node dist/main.js`, healthcheck `/health`,
-  restart on failure, overlap/draining for zero-downtime deploys. In the
-  Railway service, set the config-as-code path to `apps/api/railway.json`.
-- Staging needs, before the first deploy (needs explicit approval; nothing
-  is provisioned):
-  - **Supabase staging project**: asymmetric (ES256) JWT signing keys on;
-    Auth → email confirmations on, OTP length 6, minimum password 6 (the
-    app's sign-up rule); email templates from `apps/api/supabase/templates`
-    (the sign-up template must contain `{{ .Token }}`); custom SMTP (the
-    built-in sender is rate-limited and not for real users); Site URL and
-    redirect allow-list = the app scheme only (`voya://**`, plus the Expo Go
-    / dev-client URL while testing); anonymous sign-ins off; buckets
-    `avatars` (private, 5 MB, image types) and `covers` (private, 10 MB).
-    The app schema arrives only through `prisma migrate deploy`.
-  - **Railway variables**: `NODE_ENV=production`, `APP_ENV=staging`,
-    `DATABASE_URL` (pooler, `:6543`, `?pgbouncer=true`), `DIRECT_URL`
-    (direct, `:5432`, used by the pre-deploy migration), `SUPABASE_URL`,
-    `SUPABASE_SECRET_KEY` (Railway secret), `TRUST_PROXY_HOPS=1`, and
-    `CORS_ORIGINS` once the admin panel exists. Staging is never seeded.
-  - **App build variables**: `EXPO_PUBLIC_SUPABASE_URL`,
-    `EXPO_PUBLIC_SUPABASE_KEY` (publishable), `EXPO_PUBLIC_API_URL` (the
-    Railway URL). A physical-device run with working reset links is the
-    first thing that genuinely needs staging.
-  - **To verify on staging**: the pooled `postgres` role can read
-    `auth.users`/`auth.sessions` and delete from `auth.users` (both work on
-    the local stack; the identity gate and deletion depend on it).
-  - Secrets live only in Railway and the Supabase dashboard; `.env`,
-    `.env.local` and `supabase/signing_keys.json` stay gitignored.
+Nothing is provisioned or deployed. The repository side is done and
+validated locally; activating staging needs the person's approval and the
+manual steps below. No Supabase or Railway project for Voya was reachable
+from this machine (the Supabase CLI is not logged in; the only Railway CLI
+session on the machine has expired and belongs to another project).
+
+### Architecture
+
+```
+Voya app (staging config: EXPO_PUBLIC_* = staging URLs + publishable key)
+   │  https                                   │  https (sign-up, sign-in, refresh, reset)
+   ▼                                          ▼
+Railway: voya-api (one service, Dockerfile) ─▶ Supabase Cloud: voya-staging
+   pre-deploy: prisma migrate deploy            Postgres 17 (app tables via Prisma only)
+   healthcheck: /health/ready                   Auth (ES256 JWKS), private Storage buckets
+```
+
+Local development is untouched (CLI stack + `pnpm dev`). Production will be
+a second Supabase project and a second Railway environment with its own
+variables; staging never shares a database, keys or users with it.
+
+### Decisions (B2.5)
+
+| Question | Decision | Why / trade-off |
+|---|---|---|
+| Supabase Cloud + Railway? | **Yes**, as proposed | Supabase Cloud runs exactly the stack the API is built and tested against (Postgres 17, GoTrue, Storage, `auth` in the same database). Railway runs one container from the repo with a pre-deploy hook and a health-gated rollout, which is all the API needs. Rejected: Fly.io/Render (equivalent, no advantage), self-hosting Supabase (operations burden), Supabase Edge Functions instead of NestJS (rewrite) |
+| Dockerfile or Railway's native builder (Railpack)? | **Dockerfile** (already in `railway.json`) | It is reproducible and testable locally (built and run on this Mac), filters the pnpm workspace to the API + contracts, prunes dev dependencies, runs as `node`, and carries the Prisma engines. Railpack would have to guess the monorepo layout and gives no local equivalent |
+| Auto-deploy from `main`? | **Yes, for staging**, gated by CI | One person works on `main`; staging should always be `main`. `watchPatterns` skip mobile/docs-only commits, and Railway's "Wait for CI" holds a deploy until `.github/workflows/api.yml` (typecheck, lint, tests, image build) passes, so a broken commit is never migrated into staging. Production will **not** auto-deploy |
+| Separate staging and production Supabase projects? | **Yes** | Separate databases, Auth users, keys, SMTP and rate limits; staging can be reset or paused without touching real users. Supabase branching was rejected: it is tied to GitHub PR workflows this repo does not use, and costs per branch-hour |
+| Migrations | **Railway pre-deploy `prisma migrate deploy`** | Runs once per deploy in the new image, before it takes traffic; a failed migration fails the deploy and the previous one keeps serving. `migrate deploy` only applies committed migrations (never resets, never generates), and takes a Postgres advisory lock so two deploys cannot migrate at once. It runs over `DIRECT_URL` (session connection; the transaction pooler cannot hold the lock) |
+| Seeds | **Never on staging.** Test accounts come from the smoke script | The demo seed refuses `APP_ENV=staging/production` and, now, any non-local database. Staging test users are created on purpose, tagged and deleted (see "Test data") |
+| Extra infrastructure | **None** | No worker, queue, Redis, Compose, Kubernetes or separate migration service. Rate limits are in-process (exact for the single staging instance). Add a shared store only when the API runs more than one replica |
+
+### Environment separation (what stops mixing)
+
+| Risk | Guard |
+|---|---|
+| Staging API on the production (or any other) database | `APP_ENV=staging/production` requires `SUPABASE_PROJECT_REF`; `SUPABASE_URL` must be `https://<ref>.supabase.co`, and `DATABASE_URL`/`DIRECT_URL` must belong to that ref (pooler user `postgres.<ref>` or host `db.<ref>.supabase.co`). The API refuses to boot otherwise, naming the variable, never the value |
+| A hosted API on a local stack | Hosted envs reject loopback, LAN, `host.docker.internal` and `.local` database hosts and non-https Supabase URLs |
+| A production image labelled local | `NODE_ENV=production` requires `APP_ENV=staging` or `production` (run the image locally with `-e NODE_ENV=development`) |
+| Pooler misconfiguration | Port 6543 without `?pgbouncer=true` is refused at boot (Prisma's prepared statements break on the transaction pooler) |
+| Local commands migrating staging | `db:migrate`, `db:reset`, `db:seed` refuse any non-loopback database (`scripts/db-guard.mjs`); `db:deploy` refuses a hosted database unless `VOYA_CONFIRM_REMOTE_MIGRATION=<its project ref>` is set for that one command |
+| Staging/production app builds on local services | Non-development builds refuse `http`, `localhost`, `10.0.2.2`, LAN and `.local` URLs (`src/config/runtime.ts`) and report the problem instead of running |
+| Mock data in a release | Unchanged: non-development builds are always real mode |
+
+### Railway variables (staging service)
+
+Set in Railway → service → Variables. Values never go in the repo or chat.
+
+| Variable | Value |
+|---|---|
+| `NODE_ENV` | `production` |
+| `APP_ENV` | `staging` |
+| `SUPABASE_PROJECT_REF` | the staging project ref (20 letters, from its URL) |
+| `SUPABASE_URL` | `https://<ref>.supabase.co` |
+| `DATABASE_URL` | Supabase → Connect → **Transaction pooler** URI (port `6543`) + `?pgbouncer=true&connection_limit=5` |
+| `DIRECT_URL` | Supabase → Connect → **Session pooler** URI (port `5432`, user `postgres.<ref>`). Use the session pooler, not `db.<ref>.supabase.co`: the direct host is IPv6-only without Supabase's paid IPv4 add-on |
+| `SUPABASE_SECRET_KEY` | Supabase → Settings → API Keys → a **secret** key (`sb_secret_…`); mark it sealed in Railway |
+| `TRUST_PROXY_HOPS` | `1` (Railway's edge proxy; real client IPs for logs and limits) |
+| `LOG_LEVEL` | `info` |
+| `CORS_ORIGINS` | leave empty (native apps send no Origin) |
+
+`PORT` is set by Railway; the API listens on it. `SUPABASE_JWT_ISSUER` and
+`SUPABASE_JWKS_URL` derive from `SUPABASE_URL`; the API never holds a JWT
+secret.
+
+### Manual setup — Supabase (`voya-staging`)
+
+1. Create a project named `voya-staging` (organization of your choice;
+   region: **Central EU (Frankfurt)** is the closest well-served region to
+   Riyadh; pick the Railway region next to it). Save the database password
+   in your password manager only.
+2. **Auth → Sign In / Providers → Email:** enable email sign-up, **Confirm
+   email on**, email OTP length **6**, OTP expiry 3600 s. Minimum password
+   length 6 (the app's rule). Anonymous sign-ins **off**. Leave Apple/Google
+   off (the app refuses them in real mode).
+3. **Auth → JWT Keys:** make sure an asymmetric **ES256** signing key is the
+   current key (new projects use it by default; if a legacy HS256 secret is
+   current, create an ES256 key and rotate to it). The API rejects HS256.
+4. **Auth → URL Configuration:** Site URL `voya://` (if the dashboard
+   refuses a custom scheme, any https page you control; the app always
+   sends its own `redirectTo`). Redirect URLs: `voya://**` and, while testing
+   in Expo Go, `exp://**`. Nothing else.
+5. **Auth → Emails → Templates:** "Confirm signup" = contents of
+   `apps/api/supabase/templates/confirmation.html`, subject "Your Voya
+   verification code" (must contain `{{ .Token }}`: the app verifies a
+   6-digit code). "Reset password" = `recovery.html`, subject "Reset your
+   Voya password" (`{{ .ConfirmationURL }}`).
+6. **Auth → Emails → SMTP: custom SMTP is required for multi-user testing.**
+   Supabase's built-in sender only delivers to members of your Supabase
+   organization and a few emails per hour. Use a transactional provider
+   (e.g. Resend, Postmark, SES) with a sender on a domain you own; then raise
+   Auth → Rate Limits → emails per hour to something sensible (e.g. 30).
+   Until SMTP is set, sign-up codes and reset links reach only org members.
+7. **Storage:** create buckets `avatars` (private, 5 MB, `image/png,
+   image/jpeg, image/webp, image/heic`) and `covers` (private, 10 MB, same
+   types). No policies: the API signs every URL.
+8. **Database:** do not create tables in the dashboard. The schema arrives
+   only through the Railway pre-deploy migration.
+9. **Settings → API Keys:** note the **publishable** key (for the app) and
+   create a **secret** key for the API (`sb_secret_…`; it goes only into
+   Railway and, for a smoke run, your shell).
+
+### Manual setup — Railway
+
+1. New project `voya` → Deploy from GitHub repo `Abilal9/voya` (grant the
+   Railway GitHub app access to that repository only). Rename the
+   environment to `staging`.
+2. Service settings: **Root directory** empty (the repo root, so the
+   Dockerfile can see `packages/contracts`); **Config-as-code path**
+   `apps/api/railway.json`; branch `main`; enable **Wait for CI**.
+3. Region: the one next to the Supabase region (EU West for Frankfurt).
+   One replica.
+4. Add the variables above **before** the first deploy (the pre-deploy
+   migration and the boot check need them).
+5. Networking → **Generate domain** (`*.up.railway.app`). That is
+   `EXPO_PUBLIC_API_URL`. No custom domain is needed for staging.
+6. Deploy. Expected: build → pre-deploy `prisma migrate deploy` applies the
+   three migrations → `/health/ready` returns 200 → the deploy goes live.
+
+### First deployment validation (after approval)
+
+```bash
+curl https://<domain>/health/ready                  # database up, migrations up
+VOYA_SMOKE_API_URL=https://<domain> \
+VOYA_SMOKE_SUPABASE_URL=https://<ref>.supabase.co \
+VOYA_SMOKE_PUBLISHABLE_KEY=<publishable key> \
+VOYA_SMOKE_SECRET_KEY=<secret key> \
+pnpm --filter @voya/api smoke:staging               # type the keys in your own shell only
+```
+
+`scripts/staging-smoke.mjs` checks health and readiness, anonymous
+refusal, creates three tagged test accounts through the Auth admin API,
+signs them in through Supabase Auth, fetches a profile, creates a plan,
+shares a link (token never listed), has the second account resolve and
+accept it twice and join, checks both see the same plan, that the third
+account gets `404` (read and edit) and a revoked link `410`, then deletes
+the owner's account through the API (plan handed over, token refused) and
+removes the rest. This also proves, on the hosted project, that the pooled
+`postgres` role can read `auth.sessions` and delete from `auth.users`,
+which the identity gate and account deletion depend on. It passes against
+the local stack (`smoke:staging -- --local`). Afterwards, read the Railway
+logs for that window: they must contain request lines without tokens,
+keys, emails or passwords (verified locally: none).
+
+Then, on a phone: sign up with a real address (needs SMTP), verify the
+code, sign in, create a plan, share and open the link from a second
+account, and reset a password from the emailed link. Report each of these
+as verified only after it actually worked on the device.
+
+### Test data
+
+The demo seed (`db:seed`) is for the local stack only and refuses staging
+twice (APP_ENV and the database host). On staging, test accounts are either
+real sign-ups by testers or smoke accounts: `voya-smoke-<run>-<a|b|c>@example.com`,
+`user_metadata.voya_smoke=<run>`, deleted at the end of each run (`--keep`
+keeps them). They are never linked to seeded demo people and never used
+in production.
+
+### Mobile staging configuration
+
+For a dev run against staging, set in `apps/mobile/.env.local` (see
+`apps/mobile/.env.example`): `EXPO_PUBLIC_VOYA_AUTH=supabase`,
+`EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_KEY` (publishable), and
+`EXPO_PUBLIC_API_URL` (the Railway domain), then `pnpm start -- --clear`.
+All three are public values. Password-reset links then point at the
+hosted Supabase (`https://<ref>.supabase.co/auth/v1/verify…`), which a phone
+can open, and return to `voya://set-password` (dev build) or
+`exp://…/--/set-password` (Expo Go); PKCE keeps the link bound to the phone
+that asked. Store builds (EAS) are not set up yet; when they are, the same
+three variables go in the EAS `staging` environment.
+
+### Rollback
+
+- **Code:** Railway → Deployments → previous deployment → Redeploy (or
+  `git revert` on `main`). The API is backward compatible within `/api/v1`.
+- **Schema:** migrations are forward-only. A bad migration fails its deploy
+  and the previous deployment keeps serving; fix forward with a new
+  migration. Never `migrate reset` a hosted database. If a migration was
+  applied and must be undone, write a new migration that reverses it; for
+  data loss, restore Supabase's daily backup (Pro plan) or recreate staging.
+- **Secrets:** rotate a leaked key in Supabase (API Keys / JWT Keys) and
+  update the Railway variable; Railway redeploys on variable change.
+
+### Costs (estimates; check current pricing pages before committing)
+
+| Item | Plan | Approx. monthly | Drivers |
+|---|---|---|---|
+| Supabase staging | Free | $0 | Free projects pause after ~1 week idle and have no backups; fine for early staging |
+| Supabase staging | Pro (when testing is continuous) | $25 org + compute (Micro is covered by the included credit) | Compute size, database/storage size, egress, MAU (far below limits) |
+| Railway | Hobby | $5 (includes $5 of usage); one small NestJS instance usually fits | RAM × uptime, egress; no extra services |
+| SMTP | Provider free tier | $0 at test volume | Emails sent |
+| GitHub Actions | Free minutes | $0 | ~3–5 min per API push |
+
+Production later roughly doubles the Supabase line (its own Pro project)
+and adds its own Railway service.
+
+### Steps that need the person's approval
+
+1. Creating the `voya-staging` Supabase project (and choosing Free vs Pro).
+2. Creating the Railway project/service and connecting the GitHub repo.
+3. Choosing an SMTP provider and sender domain.
+4. The first deploy (it applies migrations to the new database).
+5. Running the smoke test against staging (it creates and deletes test accounts).
+
+## Security review before staging exposure (B2.5)
+
+Reviewed: plan access, cross-account privacy, membership roles, hand-over,
+invitation links, rate limiting, replay, revoked/expired links, preview
+exposure, concurrency, account deletion, logging and error sanitising.
+
+| Area | Finding | Status |
+|---|---|---|
+| Plan access / privacy | Every plan route resolves the caller from the token and decides from `plan_members`/`plan_invitees`; outsiders get `404` (read and write), never a hint the plan exists. Covered by integration tests and the smoke test | OK |
+| Roles / hand-over | Writes lock the plan row and check capabilities; hand-over is one transaction; owner cannot be removed | OK |
+| Concurrency | Row lock + `version` + `If-Match` (PATCH requires it); two concurrent edits → one `409` (tested) | OK |
+| Link tokens | 32 random bytes (256 bits), base64url; only SHA-256 stored; returned once to the creator; never in URLs, so never in access logs (verified in local logs); expire (default 14 days, max 30); revocable by members with `invite.create`; accept is idempotent; accepting only puts the person on the invite list as themselves with the experience's guest role (participant/traveler/guest capabilities only) | OK |
+| Recipient-bound invitations | Unchanged: only the invited profile can see or answer them | OK |
+| Rate limiting | **Was missing.** Added per-account limits: opening links (resolve + accept) 30 / 10 min, creating links 30 / h, in-app invites 60 / h, avatar upload URLs 30 / h, account deletion 5 / h → `429 rate_limited` with `Retry-After` | Fixed |
+| Link preview | `resolve` shows plan title, type, inviter's first name and role, also for an expired or revoked link (so the app can say which). Brute force is infeasible at 256 bits plus the limit | Accepted (low) |
+| Revocation | Revoking stops new joins; people who already joined through the link stay until removed | By design |
+| Account deletion | `DELETE FROM auth.users` inside the app's transaction. Supabase's documented path is the Admin API, but deleting the row is the same operation GoTrue performs (identities, sessions, refresh tokens, MFA and one-time tokens cascade by foreign key). Failure mode is safe: if a future GoTrue table blocks the delete, the whole transaction rolls back and nothing is half-deleted. Needs `postgres`-role DELETE on `auth.users` and SELECT on `auth.sessions` on the hosted project: **verify with the first smoke run** | Open until staging run |
+| Logging / errors | Authorization headers and cookies redacted; bodies not logged; driver errors, SQL and stacks never returned; env errors name variables, never values | OK |
+| Public surface | Only `/health`, `/health/ready` and the read-only places catalogue are public; no admin or debug routes exist | OK |
+
+Outstanding risks: no per-IP limit on the public places catalogue (fixture
+data; add one if it is ever scraped), in-memory limits reset on deploy and
+are per instance, no WAF/DDoS layer beyond Railway's edge, and the
+deletion privilege above until verified on staging.
 
 ## Decisions (B0)
 
@@ -614,6 +825,4 @@ healthcheck and restarts).
    that experience's `not_available` refusals in `src/api/plans.ts`.
    Suggested order: Events (host-led, fewest shared writes), Hangouts, Trips.
 3. Activity, Notifications (push), social sign-in.
-4. Railway staging + Supabase staging project (needs explicit approval) —
-   worth doing early in B3, since phone testing of reset links and
-   invitation links needs it.
+4. **B2.5 — staging:** prepared; activation awaits approval (see "Staging").
