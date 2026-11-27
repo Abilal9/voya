@@ -65,6 +65,15 @@ enum PlanRole {
   guest
 }
 
+/// How an invited person answered. Per experience: hangout in/maybe/declined,
+/// trip joined/declined, event going/maybe/declined; `accepted` is in/joined/going.
+enum InviteStatus {
+  pending
+  accepted
+  maybe
+  declined
+}
+
 enum Capability {
   plan_edit         @map("plan.edit")
   plan_delete       @map("plan.delete")
@@ -100,6 +109,8 @@ model Profile {
   ownedPlans         Plan[]          @relation("PlanOwner")
   memberships        PlanMember[]
   invitationsCreated Invitation[]
+  invitedTo          PlanInvitee[]   @relation("Invitee")
+  invitedOthers      PlanInvitee[]   @relation("Inviter")
   activityReceived   ActivityEntry[] @relation("ActivityRecipient")
   activityCaused     ActivityEntry[] @relation("ActivityActor")
 
@@ -180,6 +191,7 @@ model Plan {
   updatedAt DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   members     PlanMember[]
+  invitees    PlanInvitee[]
   invitations Invitation[]
   activity    ActivityEntry[]
 
@@ -197,10 +209,38 @@ model PlanMember {
   role         PlanRole
   capabilities Capability[]
   joinedAt     DateTime     @default(now()) @map("joined_at") @db.Timestamptz(3)
+  /// H01 per-plan "Notifications" switch, off = muted.
+  muted        Boolean      @default(false)
 
   @@id([planId, profileId])
   @@index([profileId])
   @@map("plan_members")
+}
+
+/// Someone invited to a plan, with their answer: a hangout or trip invitee,
+/// or an event guest who is on Voya (guests added by name only stay in
+/// `Plan.details`). Who may see a plan is decided by this table and
+/// `plan_members`, never by the JSON. `id` is the event guest row id.
+model PlanInvitee {
+  id           String       @id @default(uuid()) @db.Uuid
+  planId       String       @map("plan_id") @db.Uuid
+  plan         Plan         @relation(fields: [planId], references: [id], onDelete: Cascade)
+  profileId    String       @map("profile_id") @db.Uuid
+  profile      Profile      @relation("Invitee", fields: [profileId], references: [id], onDelete: Cascade)
+  status       InviteStatus @default(pending)
+  invitedById  String?      @map("invited_by_id") @db.Uuid
+  invitedBy    Profile?     @relation("Inviter", fields: [invitedById], references: [id], onDelete: SetNull)
+  invitedAt    DateTime     @default(now()) @map("invited_at") @db.Timestamptz(3)
+  respondedAt  DateTime?    @map("responded_at") @db.Timestamptz(3)
+  /// The link this person came in through, if any.
+  invitationId String?      @map("invitation_id") @db.Uuid
+  invitation   Invitation?  @relation(fields: [invitationId], references: [id], onDelete: SetNull)
+  muted        Boolean      @default(false)
+
+  @@unique([planId, profileId])
+  @@index([profileId])
+  @@index([invitationId])
+  @@map("plan_invitees")
 }
 
 /// Invitation link. Only a SHA-256 hash of the token is stored; the raw
@@ -216,6 +256,8 @@ model Invitation {
   expiresAt   DateTime? @map("expires_at") @db.Timestamptz(3)
   revokedAt   DateTime? @map("revoked_at") @db.Timestamptz(3)
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  invitees PlanInvitee[]
 
   @@index([planId])
   @@map("invitations")

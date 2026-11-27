@@ -21,6 +21,7 @@ import {
 import { z } from 'zod';
 import { capabilityToDb, roleToDb } from '../src/database/enums';
 import fixtures from './seed/fixtures.json';
+import { translatePlan } from './seed/translate';
 
 const SeedSchema = z.object({
   people: z.array(PersonSchema),
@@ -28,12 +29,14 @@ const SeedSchema = z.object({
   plans: z.array(PlanBaseSchema.passthrough()),
 });
 
-const BASE_KEYS = new Set(Object.keys(PlanBaseSchema.shape));
+// `coverPhoto` (a fixture image key) is kept in the document; `cover_path` is for uploaded covers.
+const BASE_KEYS = new Set(Object.keys(PlanBaseSchema.shape).filter((k) => k !== 'coverPhoto'));
 const TRIP_DATE_KEYS = new Set(['startDate', 'endDate']);
 
 export async function seed(prisma: PrismaClient): Promise<{ people: number; places: number; plans: number }> {
   const data = SeedSchema.parse(fixtures);
   const profileIds = new Map<string, string>();
+  const placeIds = new Map<string, string>();
 
   for (const person of data.people) {
     const fields = {
@@ -71,21 +74,26 @@ export async function seed(prisma: PrismaClient): Promise<{ people: number; plac
       permanentlyClosed: place.permanentlyClosed ?? null,
       tags: place.tags ?? [],
     };
-    await prisma.place.upsert({
+    const placeRow = await prisma.place.upsert({
       where: { seedRef: place.id },
       update: fields,
       create: { seedRef: place.id, provider: 'fixture', providerRef: place.id, ...fields },
     });
+    placeIds.set(place.id, placeRow.id);
   }
 
   for (const plan of data.plans) {
     const ownerId = requireId(profileIds, plan.ownerId, `owner of ${plan.id}`);
-    // Type-specific state (days, suggestions, guests, schedule...) is kept
-    // verbatim until each experience gets its own tables. Ids inside it are
-    // still fixture refs.
-    const details = Object.fromEntries(
-      Object.entries(plan).filter(([key]) => !BASE_KEYS.has(key) && !TRIP_DATE_KEYS.has(key)),
-    ) as Prisma.InputJsonObject;
+    // Type-specific state (days, suggestions, schedule...) stays a document
+    // until each experience gets its own tables (B3), with real ids inside;
+    // invited people become rows.
+    const translated = translatePlan(
+      plan.type,
+      Object.fromEntries(Object.entries(plan).filter(([key]) => !BASE_KEYS.has(key) && !TRIP_DATE_KEYS.has(key))),
+      (ref) => requireId(profileIds, ref, `person in ${plan.id}`),
+      (ref) => requireId(placeIds, ref, `place in ${plan.id}`),
+    );
+    const details = translated.details as Prisma.InputJsonObject;
     const extra = plan as Record<string, unknown>;
     const fields = {
       type: plan.type,
@@ -117,6 +125,8 @@ export async function seed(prisma: PrismaClient): Promise<{ people: number; plac
         joinedAt: new Date(member.joinedAt),
       })),
     });
+    await prisma.planInvitee.deleteMany({ where: { planId: row.id } });
+    await prisma.planInvitee.createMany({ data: translated.invitees.map((i) => ({ planId: row.id, ...i })) });
   }
 
   return { people: data.people.length, places: data.places.length, plans: data.plans.length };
@@ -124,7 +134,7 @@ export async function seed(prisma: PrismaClient): Promise<{ people: number; plac
 
 function requireId(ids: Map<string, string>, ref: string, what: string): string {
   const id = ids.get(ref);
-  if (!id) throw new Error(`Seed data references unknown person "${ref}" (${what})`);
+  if (!id) throw new Error(`Seed data references unknown "${ref}" (${what})`);
   return id;
 }
 
