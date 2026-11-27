@@ -11,7 +11,12 @@ export function fixtureWeekOffset(now: number = Date.now()): number {
   return Math.max(0, Math.floor((now - Date.parse(FIXTURE_ANCHOR)) / WEEK_MS));
 }
 
+const WALL = /^(\d{4}-\d{2}-\d{2})(T\d{2}:\d{2}(?::\d{2})?)$/;
+
 function shiftIso(value: string, ms: number) {
+  // Trip wall times ("2026-12-16T09:00:00", no zone) keep their clock time.
+  const wall = WALL.exec(value);
+  if (wall) return `${shiftDay(wall[1]!, ms)}${wall[2]}`;
   return new Date(Date.parse(value) + ms).toISOString();
 }
 
@@ -33,7 +38,7 @@ export function shiftFixtureDates<T>(value: T, weeks: number): T {
       const out: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(node)) {
         if (typeof v === 'string' && TIMESTAMP_KEYS.has(k)) out[k] = shiftIso(v, ms);
-        else if (typeof v === 'string' && k === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(v)) out[k] = shiftDay(v, ms);
+        else if (typeof v === 'string' && (k === 'date' || k === 'startDate' || k === 'endDate') && /^\d{4}-\d{2}-\d{2}$/.test(v)) out[k] = shiftDay(v, ms);
         else out[k] = walk(v);
       }
       return out;

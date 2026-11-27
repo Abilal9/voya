@@ -165,12 +165,78 @@ export interface TimelineItem {
   travelMinutes?: number;
 }
 
+export type TripPace = 'Relaxed' | 'Balanced' | 'Packed';
+export type TripDiscovery = 'Iconic spots' | 'Mix' | 'Hidden gems';
+
+/** 06: one traveler's choices for this trip. Never written back to the account. */
+export interface TripPreferences {
+  interests: string[];
+  pace: TripPace;
+  discoveries: TripDiscovery;
+  savedAt: string;
+}
+
+/** 07: "Not for me" / "Must do" / "I like this". */
+export type TripPick = 'skip' | 'must' | 'like';
+
+/** 05 / 12: invited travelers. Only `joined` people are members. */
+export type TripInviteStatus = 'pending' | 'joined' | 'declined';
+
+export interface TripInvite {
+  personId: ID;
+  status: TripInviteStatus;
+  invitedBy: ID;
+  invitedAt: string;
+}
+
+/** 11: a traveler asks for a stop to be replaced (optionally with a place). */
+export interface TripReplaceRequest {
+  id: ID;
+  by: ID;
+  placeId?: ID;
+  note?: string;
+  at: string;
+}
+
+/**
+ * A stop on a trip day. `startsAt`/`endsAt` are floating local wall times
+ * ("2026-11-18T09:00:00", no zone): a trip's times are the destination's,
+ * not the phone's.
+ */
+export interface TripItem extends TimelineItem {
+  kind?: 'meal' | 'activity' | 'break';
+  durationMinutes?: number;
+  replaceRequests?: TripReplaceRequest[];
+}
+
+export interface TripDay {
+  /** Date only, "YYYY-MM-DD". */
+  date: string;
+  title?: string;
+  items: TripItem[];
+}
+
 export interface Trip extends PlanBase {
   type: 'trip';
   destination: string;
+  country?: string;
+  /** Date only, "YYYY-MM-DD"; the canonical trip dates. startsAt/endsAt mirror them. */
+  startDate?: string;
+  endDate?: string;
+  /** T02 "Accommodation / base". */
+  accommodation?: string;
+  coverRef?: string;
+  /** Must-dos from Explore (E09) and from 07; `mustDoBy` says who chose each. */
   mustDoPlaceIds: ID[];
-  days: { date: string; items: TimelineItem[] }[];
+  mustDoBy?: Record<ID, ID[]>;
+  invites?: TripInvite[];
+  preferences?: Record<ID, TripPreferences>;
+  picks?: Record<ID, Record<ID, TripPick>>;
+  /** Travelers who finished choosing places (08). */
+  doneChoosing?: ID[];
+  days: TripDay[];
   generated: boolean;
+  generatedAt?: string;
 }
 
 export interface HangoutSuggestion {

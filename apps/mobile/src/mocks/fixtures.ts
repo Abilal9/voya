@@ -244,6 +244,50 @@ export const places: Place[] = [
     coordinates: { latitude: 43.7670, longitude: 11.2470 },
   },
 
+  // ---- Florence, from the board's trip frames (07–11, 35, 36, T05, T06)
+  {
+    id: 'la-menagere', name: 'La Ménagère', type: 'Café · Restaurant', category: 'Food',
+    city: 'Florence', area: 'San Lorenzo', rating: 4.4, price: '$$', photo: 'restaurant',
+    coordinates: { latitude: 43.7766, longitude: 11.2557 },
+  },
+  {
+    id: 'piazzale-michelangelo', name: 'Piazzale Michelangelo', type: 'Viewpoint · Nature', category: 'Nature',
+    city: 'Florence', area: 'Oltrarno', rating: 4.8, photo: 'florence', tags: ['Popular'],
+    coordinates: { latitude: 43.7629, longitude: 11.2650 },
+    description: 'The terrace above the river with the view of the whole city.',
+  },
+  {
+    id: 'boboli', name: 'Boboli Gardens', type: 'Gardens · Nature', category: 'Nature',
+    city: 'Florence', area: 'Oltrarno', rating: 4.6, price: '$$', photo: 'florence',
+    coordinates: { latitude: 43.7625, longitude: 11.2482 },
+  },
+  {
+    id: 'pitti', name: 'Palazzo Pitti', type: 'Palace · Museum', category: 'Culture',
+    city: 'Florence', area: 'Oltrarno', rating: 4.6, price: '$$', photo: 'uffizi',
+    coordinates: { latitude: 43.7651, longitude: 11.2500 },
+  },
+  {
+    id: 'accademia', name: "Galleria dell'Accademia", type: 'Gallery · Museum', category: 'Culture',
+    city: 'Florence', area: 'San Marco', rating: 4.7, price: '$$', photo: 'uffizi', tags: ['Popular'],
+    coordinates: { latitude: 43.7768, longitude: 11.2588 },
+  },
+  {
+    id: 'ponte-vecchio', name: 'Ponte Vecchio', type: 'Bridge · Landmark', category: 'Culture',
+    city: 'Florence', area: 'Historic Centre', rating: 4.8, photo: 'florence', tags: ['Popular'],
+    coordinates: { latitude: 43.7680, longitude: 11.2531 },
+  },
+  {
+    id: 'trattoria-mario', name: 'Trattoria Mario', type: 'Trattoria · Lunch', category: 'Food',
+    city: 'Florence', area: 'San Lorenzo', rating: 4.5, price: '$', photo: 'restaurant',
+    coordinates: { latitude: 43.7760, longitude: 11.2536 },
+  },
+  // ---- DAMAGED: no rating, photo or hours
+  {
+    id: 'san-lorenzo-market', name: 'Mercato di San Lorenzo', type: 'Street market · Shopping', category: 'Shopping',
+    city: 'Florence', area: 'San Lorenzo',
+    coordinates: { latitude: 43.7757, longitude: 11.2541 },
+  },
+
   // ---- Dubai
   {
     id: 'dubai-arts', name: 'Alserkal Avenue', type: 'Galleries · Culture', category: 'Culture',
@@ -261,34 +305,100 @@ export const places: Place[] = [
 const iso = (d: string) => new Date(d).toISOString();
 
 export const florenceTrip: Trip = {
-  id: 'plan-florence', type: 'trip', title: 'Florence', destination: 'Florence',
+  id: 'plan-florence', type: 'trip', title: 'Florence', destination: 'Florence', country: 'Italy',
   city: 'Florence', lifecycle: 'active', ownerId: 'p-ahmad', version: 4,
-  startsAt: iso('2026-12-16T09:00:00'), endsAt: iso('2026-12-20T20:00:00'),
+  startDate: '2026-12-16', endDate: '2026-12-20',
+  startsAt: iso('2026-12-16T00:00:00'), endsAt: iso('2026-12-20T23:59:00'),
+  accommodation: 'Hotel Savoy, Florence, Italy',
   coverPhoto: 'florence', generated: true, mustDoPlaceIds: ['uffizi', 'duomo'],
-  members: [
-    { personId: 'p-ahmad', role: 'organizer', capabilities: ['plan.edit', 'plan.delete', 'member.manage', 'invite.create'], joinedAt: iso('2026-10-02') },
-    { personId: 'p-khaled', role: 'traveler', capabilities: ['vote.cast'], joinedAt: iso('2026-10-03') },
-    { personId: 'p-omar', role: 'traveler', capabilities: ['vote.cast'], joinedAt: iso('2026-10-03') },
-    { personId: 'p-faisal', role: 'traveler', capabilities: ['vote.cast'], joinedAt: iso('2026-10-05') },
+  mustDoBy: { uffizi: ['p-ahmad'], duomo: ['p-khaled'] },
+  invites: [
+    { personId: 'p-khaled', status: 'joined', invitedBy: 'p-ahmad', invitedAt: iso('2026-10-02') },
+    { personId: 'p-omar', status: 'joined', invitedBy: 'p-ahmad', invitedAt: iso('2026-10-02') },
+    { personId: 'p-faisal', status: 'joined', invitedBy: 'p-ahmad', invitedAt: iso('2026-10-02') },
   ],
+  preferences: {
+    'p-ahmad': { interests: ['Food', 'Culture', 'Hidden gems'], pace: 'Balanced', discoveries: 'Mix', savedAt: iso('2026-10-04') },
+    'p-khaled': { interests: ['Food', 'Museums'], pace: 'Balanced', discoveries: 'Iconic spots', savedAt: iso('2026-10-05') },
+    'p-faisal': { interests: ['Nature', 'Food'], pace: 'Relaxed', discoveries: 'Mix', savedAt: iso('2026-10-06') },
+    'p-omar': { interests: ['Nightlife', 'Food'], pace: 'Packed', discoveries: 'Hidden gems', savedAt: iso('2026-10-06') },
+  },
+  picks: {
+    'p-ahmad': { uffizi: 'must', mercato: 'like', 'piazzale-michelangelo': 'like', 'santo-spirito': 'like' },
+    'p-khaled': { duomo: 'must', uffizi: 'like', mercato: 'like', 'piazzale-michelangelo': 'like' },
+    'p-faisal': { boboli: 'like', mercato: 'like', 'piazzale-michelangelo': 'like', uffizi: 'like' },
+    'p-omar': { 'santo-spirito': 'like', mercato: 'like', 'piazzale-michelangelo': 'like', uffizi: 'skip' },
+  },
+  doneChoosing: ['p-ahmad', 'p-khaled', 'p-faisal'],
+  members: [
+    { personId: 'p-ahmad', role: 'organizer', capabilities: ['plan.edit', 'plan.delete', 'member.manage', 'invite.create', 'timeline.finalize', 'suggestion.create', 'vote.cast'], joinedAt: iso('2026-10-02') },
+    { personId: 'p-khaled', role: 'traveler', capabilities: ['suggestion.create', 'vote.cast'], joinedAt: iso('2026-10-03') },
+    { personId: 'p-omar', role: 'traveler', capabilities: ['suggestion.create', 'vote.cast'], joinedAt: iso('2026-10-03') },
+    { personId: 'p-faisal', role: 'traveler', capabilities: ['suggestion.create', 'vote.cast'], joinedAt: iso('2026-10-05') },
+  ],
+  // Wall times (no zone): the destination's clock. See TripItem.
   days: [
     {
-      date: '2026-12-16',
+      date: '2026-12-16', title: 'Hello, Florence',
       items: [
-        { id: 'it-1', startsAt: iso('2026-12-16T10:00:00'), title: 'Uffizi Gallery', subtitle: 'Museum · Culture', placeId: 'uffizi', locked: true, travelMinutes: 0 },
-        { id: 'it-2', startsAt: iso('2026-12-16T13:00:00'), title: 'Mercato Centrale', subtitle: 'Lunch', placeId: 'mercato', travelMinutes: 12 },
-        { id: 'it-3', startsAt: iso('2026-12-16T18:00:00'), title: 'Hotel / break', subtitle: 'A little time to recharge', placeId: 'savoy', travelMinutes: 9 },
-        { id: 'it-4', startsAt: iso('2026-12-16T20:30:00'), title: 'Dinner', subtitle: 'Santo Spirito', placeId: 'santo-spirito', travelMinutes: 14 },
+        { id: 'it-1', kind: 'meal', startsAt: '2026-12-16T09:00:00', endsAt: '2026-12-16T10:00:00', durationMinutes: 60, title: 'Breakfast', subtitle: 'La Ménagère', placeId: 'la-menagere' },
+        { id: 'it-2', kind: 'activity', startsAt: '2026-12-16T10:30:00', endsAt: '2026-12-16T13:00:00', durationMinutes: 150, title: 'Uffizi Gallery', subtitle: '2h 30m', placeId: 'uffizi', locked: true },
+        { id: 'it-3', kind: 'meal', startsAt: '2026-12-16T13:30:00', endsAt: '2026-12-16T14:45:00', durationMinutes: 75, title: 'Lunch', subtitle: 'Mercato Centrale', placeId: 'mercato' },
+        { id: 'it-4', kind: 'activity', startsAt: '2026-12-16T15:30:00', endsAt: '2026-12-16T17:00:00', durationMinutes: 90, title: 'Piazza del Duomo', subtitle: 'Explore the square', placeId: 'duomo', locked: true },
+        { id: 'it-5', kind: 'break', startsAt: '2026-12-16T18:00:00', endsAt: '2026-12-16T19:30:00', durationMinutes: 90, title: 'Hotel / break', subtitle: 'A little time to recharge' },
+        { id: 'it-6', kind: 'meal', startsAt: '2026-12-16T20:30:00', endsAt: '2026-12-16T22:00:00', durationMinutes: 90, title: 'Dinner', subtitle: 'Santo Spirito', placeId: 'santo-spirito' },
       ],
     },
     {
-      date: '2026-12-17',
+      date: '2026-12-17', title: 'A little art. A lot of good food.',
       items: [
-        { id: 'it-5', startsAt: iso('2026-12-17T09:30:00'), title: 'Caffè Gilli', subtitle: 'Breakfast', placeId: 'gilli' },
-        { id: 'it-6', startsAt: iso('2026-12-17T11:00:00'), title: 'Piazza del Duomo', subtitle: 'Landmark', placeId: 'duomo', locked: true, travelMinutes: 6 },
-        { id: 'it-7', startsAt: iso('2026-12-17T19:30:00'), title: "Buca dell'Orafo", subtitle: 'Dinner', placeId: 'buca', travelMinutes: 10 },
+        { id: 'it-7', kind: 'meal', startsAt: '2026-12-17T09:00:00', endsAt: '2026-12-17T10:00:00', durationMinutes: 60, title: 'Breakfast', subtitle: 'Caffè Gilli', placeId: 'gilli' },
+        { id: 'it-8', kind: 'activity', startsAt: '2026-12-17T10:30:00', endsAt: '2026-12-17T13:00:00', durationMinutes: 150, title: "Galleria dell'Accademia", subtitle: '2h 30m', placeId: 'accademia' },
+        { id: 'it-9', kind: 'meal', startsAt: '2026-12-17T13:30:00', endsAt: '2026-12-17T14:45:00', durationMinutes: 75, title: 'Lunch', subtitle: 'Trattoria Mario', placeId: 'trattoria-mario' },
+        { id: 'it-10', kind: 'meal', startsAt: '2026-12-17T20:30:00', endsAt: '2026-12-17T22:00:00', durationMinutes: 90, title: 'Dinner', subtitle: "Buca dell'Orafo", placeId: 'buca' },
       ],
     },
+    {
+      date: '2026-12-18', title: 'The slower route',
+      items: [
+        { id: 'it-11', kind: 'activity', startsAt: '2026-12-18T10:30:00', endsAt: '2026-12-18T12:00:00', durationMinutes: 90, title: 'Boboli Gardens', subtitle: '1h 30m', placeId: 'boboli' },
+        { id: 'it-12', kind: 'activity', startsAt: '2026-12-18T15:30:00', endsAt: '2026-12-18T17:00:00', durationMinutes: 90, title: 'Piazzale Michelangelo', subtitle: '1h 30m', placeId: 'piazzale-michelangelo' },
+      ],
+    },
+    { date: '2026-12-19', title: 'One last look', items: [] },
+  ],
+};
+
+/** T05: a finished trip Ahmad went on. */
+export const tuscanyWeekend: Trip = {
+  id: 'plan-tuscany', type: 'trip', title: 'Tuscany Weekend', destination: 'Florence', country: 'Italy',
+  city: 'Florence', lifecycle: 'completed', ownerId: 'p-khaled', version: 7,
+  startDate: '2026-09-12', endDate: '2026-09-16',
+  startsAt: iso('2026-09-12T00:00:00'), endsAt: iso('2026-09-16T23:59:00'),
+  coverPhoto: 'florence', generated: true, mustDoPlaceIds: ['uffizi'], mustDoBy: { uffizi: ['p-khaled'] },
+  invites: [
+    { personId: 'p-ahmad', status: 'joined', invitedBy: 'p-khaled', invitedAt: iso('2026-08-01') },
+    { personId: 'p-omar', status: 'joined', invitedBy: 'p-khaled', invitedAt: iso('2026-08-01') },
+    { personId: 'p-faisal', status: 'joined', invitedBy: 'p-khaled', invitedAt: iso('2026-08-01') },
+  ],
+  preferences: {}, picks: {}, doneChoosing: [],
+  members: [
+    { personId: 'p-khaled', role: 'organizer', capabilities: ['plan.edit', 'plan.delete', 'member.manage', 'invite.create', 'timeline.finalize', 'suggestion.create', 'vote.cast'], joinedAt: iso('2026-08-01') },
+    { personId: 'p-ahmad', role: 'traveler', capabilities: ['suggestion.create', 'vote.cast'], joinedAt: iso('2026-08-02') },
+    { personId: 'p-omar', role: 'traveler', capabilities: ['suggestion.create', 'vote.cast'], joinedAt: iso('2026-08-02') },
+    { personId: 'p-faisal', role: 'traveler', capabilities: ['suggestion.create', 'vote.cast'], joinedAt: iso('2026-08-03') },
+  ],
+  days: [
+    { date: '2026-09-12', title: 'Hello, Florence', items: [{ id: 'tw-1', kind: 'meal', startsAt: '2026-09-12T20:30:00', title: 'Dinner', subtitle: 'Santo Spirito', placeId: 'santo-spirito' }] },
+    { date: '2026-09-13', title: 'A little art. A lot of good food.', items: [
+      { id: 'tw-2', kind: 'activity', startsAt: '2026-09-13T10:30:00', title: 'Uffizi Gallery', placeId: 'uffizi' },
+      { id: 'tw-3', kind: 'meal', startsAt: '2026-09-13T13:30:00', title: 'Lunch', subtitle: 'Mercato Centrale', placeId: 'mercato' },
+    ] },
+    { date: '2026-09-14', title: 'The slower route', items: [
+      { id: 'tw-4', kind: 'activity', startsAt: '2026-09-14T10:30:00', title: 'Boboli Gardens', placeId: 'boboli' },
+      { id: 'tw-5', kind: 'activity', startsAt: '2026-09-14T15:30:00', title: 'Piazza del Duomo', placeId: 'duomo' },
+    ] },
+    { date: '2026-09-15', title: 'One last coffee', items: [{ id: 'tw-6', kind: 'meal', startsAt: '2026-09-15T09:00:00', title: 'Breakfast', subtitle: 'La Ménagère', placeId: 'la-menagere' }] },
   ],
 };
 
@@ -397,7 +507,7 @@ export const activity: ActivityEntry[] = [
   { id: 'ac-3', actorId: 'p-omar', planId: 'plan-wedding', type: 'rsvp', message: 'Omar is going to the wedding', createdAt: iso('2026-11-22T09:14:00'), readAt: iso('2026-11-22T10:00:00') },
 ];
 
-export const plans = [florenceTrip, fridayHangout, wedding, completedHangout, graduationDinner];
+export const plans = [florenceTrip, fridayHangout, wedding, completedHangout, graduationDinner, tuscanyWeekend];
 
 /** Seeded plan ids before the shared world tracked them (see store normalizeWorld). */
 export const ORIGINAL_PLAN_IDS = ['plan-florence', 'plan-friday', 'plan-wedding', 'plan-past-hangout'];

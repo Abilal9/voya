@@ -12,6 +12,8 @@ import type {
   PlaceSignal,
   Plan,
   RSVP,
+  TripPick,
+  TripPreferences,
   CohostPermissions,
   EventScheduleItem,
   SavedPlace,
@@ -123,7 +125,6 @@ export interface PlansService {
   listUpcoming(): Promise<Plan[]>;
   listPast(): Promise<Plan[]>;
   get(id: ID): Promise<Plan>;
-  createTrip(input: { title: string; destination: string; startsAt: string; endsAt: string }): Promise<Trip>;
   /** 13: the creator becomes organizer; invitees get pending invitations. */
   createHangout(input: { title: string; city: string; template: string; startsAt: string; invitees?: ID[] }): Promise<Hangout>;
   /** 18: the creator becomes host; `hosts` become hosts too. Cover is a local image URI to copy. */
@@ -212,15 +213,58 @@ export interface EventsService {
   guestProjection(eventId: ID): Promise<VoyaEvent>;
 }
 
+export interface TripInput {
+  /** 03: a city from the catalog. */
+  destination: string;
+  /** 04: date-only "YYYY-MM-DD". */
+  startDate: string;
+  endDate: string;
+  title?: string;
+}
+
 export interface TripsService {
+  /** 03–04: the creator becomes the organizer. */
+  create(input: TripInput): Promise<Trip>;
+  /** T02 (organizer). `coverUri: null` removes a picked cover. */
+  update(tripId: ID, patch: Partial<TripInput> & { accommodation?: string; coverUri?: string | null }): Promise<Trip>;
+  /** 05 / T03 / T04: invite friends; people already on the trip are skipped. */
+  invite(tripId: ID, personIds: ID[]): Promise<Trip>;
+  /** 12: the signed-in person joins or declines their invitation. */
+  respond(tripId: ID, answer: 'join' | 'decline'): Promise<Trip>;
+  /** T03 (organizer): remove a traveler or withdraw an invitation. */
+  removeTraveler(tripId: ID, personId: ID): Promise<Trip>;
+  /** T03 (organizer): hand the organizer role to another traveler. */
+  makeOrganizer(tripId: ID, personId: ID): Promise<Trip>;
+  /** 06: the signed-in traveler's preferences for this trip only. */
+  setPreferences(tripId: ID, prefs: Omit<TripPreferences, 'savedAt'>): Promise<Trip>;
+  /** 07: the signed-in traveler's pick for a place (null clears it). "Must do" adds a must-do. */
+  pick(tripId: ID, placeId: ID, pick: TripPick | null): Promise<Trip>;
+  /** 07 "Continue": the signed-in traveler is done choosing. */
+  finishChoosing(tripId: ID): Promise<Trip>;
+  /** Must-do on or off for the signed-in traveler (E09 Add to Plan uses the same record). */
   setMustDo(tripId: ID, placeId: ID, on: boolean): Promise<Trip>;
   /**
-   * Fixture-backed generation. This is NOT the production scheduler — the real
-   * deterministic greedy-insertion engine is a later backend milestone.
+   * 08 "Build our trip" / regenerate (organizer). Deterministic mock: the same
+   * inputs give the same days. Locked stops are kept. With an itinerary
+   * already there, it is only rebuilt when `rebuild` is true.
    */
-  generateItinerary(tripId: ID): Promise<Trip>;
+  generateItinerary(tripId: ID, options?: { rebuild?: boolean }): Promise<Trip>;
+  /** 10 (organizer): lock or unlock a stop's time. */
   toggleLock(tripId: ID, itemId: ID): Promise<Trip>;
+  /** 10/11 (organizer): replace a stop's place. Locked stops refuse. */
   replaceItem(tripId: ID, itemId: ID, placeId: ID): Promise<Trip>;
+  /** 10 "Move" (organizer): another day and/or start time. */
+  moveItem(tripId: ID, itemId: ID, to: { date: string; minutes: number }): Promise<Trip>;
+  /** 10 "Change duration" (organizer). */
+  setDuration(tripId: ID, itemId: ID, minutes: number): Promise<Trip>;
+  /** 10 "Remove" (organizer). Locked stops refuse. */
+  removeItem(tripId: ID, itemId: ID): Promise<Trip>;
+  /** 11: a traveler suggests replacing a stop; the organizer decides. */
+  suggestReplacement(tripId: ID, itemId: ID, suggestion: { placeId?: ID; note?: string }): Promise<Trip>;
+  /** 11 "Keep original" (organizer): clears the stop's replacement requests. */
+  keepOriginal(tripId: ID, itemId: ID): Promise<Trip>;
+  /** T01 Delete trip (organizer): removes it for everyone. */
+  remove(tripId: ID): Promise<void>;
 }
 
 /**

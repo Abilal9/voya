@@ -36,6 +36,10 @@ import {
   HANGOUT_TEMPLATES, VOYA_SUGGESTION, canFinalize, slotForCategory, slotMinutes, slotSummary, slotsFor,
 } from '@/services/hangoutRules';
 import {
+  DISCOVERIES, PACES, TRIP_INTERESTS, addDays, buildItinerary, canGenerateFor, durationLabel, isDateOnly, localDate,
+  minutesOf, nightsBetween, plannedDates, wallTime,
+} from '@/services/tripRules';
+import {
   DEFAULT_COHOST_PERMISSIONS, HOST_CAPABILITIES, ScheduleItemError, canDo, cohostCapabilities,
   hostMember, isHost, normaliseScheduleItem, permissionsOf, sortSchedule,
 } from '@/services/eventRules';
@@ -311,6 +315,7 @@ export function removePersonFromPlans(plans: Plan[], personId: ID): Plan[] {
     const plan = structuredClone(original) as Plan;
     const leaving = plan.members.find((m) => m.personId === personId);
     const touched = !!leaving || (plan.type === 'event' && plan.guests.some((g) => g.personId === personId))
+      || (plan.type === 'trip' && (plan.invites ?? []).some((i) => i.personId === personId))
       || (plan.type === 'hangout' && (plan.suggestions.some((sg) => sg.suggestedBy === personId || personId in sg.votes)
         || (plan.invites ?? []).some((i) => i.personId === personId)));
     if (!touched) {
@@ -319,6 +324,10 @@ export function removePersonFromPlans(plans: Plan[], personId: ID): Plan[] {
     }
     plan.members = plan.members.filter((m) => m.personId !== personId);
     if (plan.type === 'event') plan.guests = plan.guests.filter((g) => g.personId !== personId);
+    if (plan.type === 'trip') {
+      plan.invites = (plan.invites ?? []).filter((i) => i.personId !== personId);
+      forgetTraveler(plan, personId);
+    }
     if (plan.type === 'hangout') {
       plan.invites = (plan.invites ?? []).filter((i) => i.personId !== personId);
       for (const sg of plan.suggestions) {
@@ -493,22 +502,6 @@ const plans: PlansService = {
     }
     return visibleCopy(plan, me(state));
   },
-  createTrip: (input) =>
-    mutate((s) => {
-      const trip: Trip = {
-        id: uid('plan'), type: 'trip', title: input.title, destination: input.destination,
-        city: input.destination, lifecycle: 'active', ownerId: me(s), version: 1,
-        startsAt: input.startsAt, endsAt: input.endsAt, generated: false,
-        mustDoPlaceIds: [], days: [],
-        members: [{
-          personId: me(s), role: 'organizer',
-          capabilities: ['plan.edit', 'plan.delete', 'member.manage', 'invite.create'],
-          joinedAt: new Date().toISOString(),
-        }],
-      };
-      s.plans.push(trip);
-      return trip;
-    }),
   createHangout: (input) =>
     mutate((s) => {
       const title = input.title.trim();
@@ -576,7 +569,8 @@ const plans: PlansService = {
         const category = fx.places.find((p) => p.id === placeId)!.category;
         plan.suggestions.push({ id: uid('sg'), placeId, slot: slotForCategory(plan.template, category), suggestedBy: me(s), votes: {} });
       } else if (plan.type === 'trip') {
-        plan.mustDoPlaceIds.push(placeId);
+        setMustDoFor(plan, me(s), placeId, true);
+        plan.picks = { ...(plan.picks ?? {}), [me(s)]: { ...(plan.picks?.[me(s)] ?? {}), [placeId]: 'must' } };
       }
       plan.version += 1;
       return { added: true };
@@ -598,6 +592,10 @@ const plans: PlansService = {
       if (plan.type === 'hangout') {
         plan.invites = (plan.invites ?? []).filter((i) => i.personId !== who);
         for (const sg of plan.suggestions) delete sg.votes[who];
+      }
+      if (plan.type === 'trip') {
+        plan.invites = (plan.invites ?? []).filter((i) => i.personId !== who);
+        forgetTraveler(plan, who);
       }
       if (plan.ownerId === who) {
         const heir = plan.members[0];
@@ -1131,76 +1129,334 @@ const events: EventsService = {
 
 // --------------------------------------------------------------- trips
 
+const ORGANIZER_CAPS: Capability[] = ['plan.edit', 'plan.delete', 'member.manage', 'invite.create', 'timeline.finalize'];
+const TRAVELER_CAPS: Capability[] = ['suggestion.create', 'vote.cast'];
+
+function requireTrip(s: { plans: Plan[] }, tripId: ID, personId: ID, capability?: Capability): Trip {
+  const t = requirePlan<Trip>(s.plans, tripId, 'trip', personId);
+  if (capability && !can(t, personId, capability)) throw new ServiceError('forbidden', 'Only the organizer can do that.', false);
+  return t;
+}
+
+function requireTripOpen(t: Trip) {
+  if (t.lifecycle === 'cancelled' || classifyPlan(t) === 'past') throw new ServiceError('invalid', 'This trip has already happened.', false);
+}
+
+function tripItem(t: Trip, itemId: ID) {
+  for (const day of t.days) {
+    const item = day.items.find((i) => i.id === itemId);
+    if (item) return { day, item };
+  }
+  throw new ServiceError('not_found', 'That stop changed. Pull to refresh.', false);
+}
+
+function validTripDates(start: string | undefined, end: string | undefined, creating: boolean) {
+  if (!isDateOnly(start) || !isDateOnly(end)) throw new ServiceError('invalid', 'Choose your travel dates.', false);
+  if (end < start) throw new ServiceError('invalid', 'The trip can’t end before it starts.', false);
+  if (nightsBetween(start, end) > 30) throw new ServiceError('invalid', 'Keep trips to 30 nights or fewer.', false);
+  if (creating && start < localDate(new Date())) throw new ServiceError('invalid', 'Choose dates that haven’t passed.', false);
+}
+
+/** Keeps startsAt/endsAt (used for sorting and past/upcoming) in step with the date-only range. */
+function syncTripTimes(t: Trip) {
+  if (t.startDate) t.startsAt = new Date(`${t.startDate}T00:00:00`).toISOString();
+  if (t.endDate) t.endsAt = new Date(`${t.endDate}T23:59:00`).toISOString();
+}
+
+function setMustDoFor(t: Trip, personId: ID, placeId: ID, on: boolean) {
+  t.mustDoBy ??= {};
+  const by = new Set(t.mustDoBy[placeId] ?? []);
+  if (on) {
+    by.add(personId);
+    if (!t.mustDoPlaceIds.includes(placeId)) t.mustDoPlaceIds.push(placeId);
+  } else {
+    by.delete(personId);
+    // A must-do nobody is attached to anymore goes (legacy ones without attribution stay).
+    if (by.size === 0 && t.mustDoBy[placeId]) t.mustDoPlaceIds = t.mustDoPlaceIds.filter((x) => x !== placeId);
+  }
+  if (by.size) t.mustDoBy[placeId] = [...by];
+  else delete t.mustDoBy[placeId];
+}
+
+/** Takes someone's trip inputs off a trip (leaving, removal, account deletion). */
+export function forgetTraveler(t: Trip, personId: ID) {
+  delete t.preferences?.[personId];
+  delete t.picks?.[personId];
+  t.doneChoosing = (t.doneChoosing ?? []).filter((p) => p !== personId);
+  for (const placeId of Object.keys(t.mustDoBy ?? {})) setMustDoFor(t, personId, placeId, false);
+  for (const day of t.days) for (const item of day.items) {
+    item.replaceRequests = (item.replaceRequests ?? []).filter((r) => r.by !== personId);
+  }
+}
+
 const trips: TripsService = {
-  setMustDo: (tripId, placeId, on) =>
+  create: (input) =>
     mutate((s) => {
-      const t = requirePlan<Trip>(s.plans, tripId, 'trip', me(s));
-      t.mustDoPlaceIds = on
-        ? [...new Set([...t.mustDoPlaceIds, placeId])]
-        : t.mustDoPlaceIds.filter((x) => x !== placeId);
+      const dest = fx.DESTINATIONS.find((d) => d.city.toLowerCase() === input.destination?.trim().toLowerCase());
+      if (!dest) throw new ServiceError('invalid', 'Choose where you’re going.', false);
+      validTripDates(input.startDate, input.endDate, true);
+      const trip: Trip = {
+        id: uid('plan'), type: 'trip', title: input.title?.trim() || dest.city, destination: dest.city, country: dest.country,
+        city: dest.city, lifecycle: 'active', ownerId: me(s), version: 1, coverPhoto: dest.city === 'Florence' ? 'florence' : undefined,
+        startDate: input.startDate, endDate: input.endDate, generated: false,
+        mustDoPlaceIds: [], mustDoBy: {}, invites: [], preferences: {}, picks: {}, doneChoosing: [], days: [],
+        members: [{ personId: me(s), role: 'organizer', capabilities: [...ORGANIZER_CAPS, ...TRAVELER_CAPS], joinedAt: new Date().toISOString() }],
+      };
+      syncTripTimes(trip);
+      s.plans.push(trip);
+      return trip;
+    }),
+  async update(tripId, patch) {
+    const coverRef = patch.coverUri ? saveCover(patch.coverUri, tripId) : undefined;
+    let previous: string | undefined;
+    try {
+      const t = await mutate((s) => {
+        const t = requireTrip(s, tripId, me(s), 'plan.edit');
+        requireTripOpen(t);
+        if (patch.title !== undefined) {
+          const title = patch.title.trim();
+          if (!title) throw new ServiceError('invalid', 'Give your trip a name.', false);
+          t.title = title.slice(0, 60);
+        }
+        if (patch.destination !== undefined) {
+          const dest = fx.DESTINATIONS.find((d) => d.city.toLowerCase() === patch.destination!.trim().toLowerCase());
+          if (!dest) throw new ServiceError('invalid', 'Choose a destination from the list.', false);
+          if (dest.city !== t.destination && t.generated) {
+            throw new ServiceError('invalid', 'The itinerary is built for this destination. Delete it and start a new trip to go somewhere else.', false);
+          }
+          t.destination = dest.city; t.city = dest.city; t.country = dest.country;
+        }
+        if (patch.startDate !== undefined || patch.endDate !== undefined) {
+          const start = patch.startDate ?? t.startDate;
+          const end = patch.endDate ?? t.endDate;
+          validTripDates(start, end, false);
+          const shift = t.startDate ? nightsBetween(t.startDate, start!) : 0;
+          t.startDate = start; t.endDate = end;
+          // Days keep their order: the itinerary moves with the dates; days past the new end go.
+          const dates = plannedDates(start, end);
+          t.days = t.days.map((d) => {
+            const date = addDays(d.date, shift);
+            return { ...d, date, items: d.items.map((i) => ({ ...i, startsAt: addDays(i.startsAt.slice(0, 10), shift) + i.startsAt.slice(10), endsAt: i.endsAt ? addDays(i.endsAt.slice(0, 10), shift) + i.endsAt.slice(10) : undefined })) };
+          }).filter((d) => dates.includes(d.date));
+          syncTripTimes(t);
+        }
+        if (patch.accommodation !== undefined) t.accommodation = patch.accommodation.trim() || undefined;
+        if (patch.coverUri !== undefined) { previous = t.coverRef; t.coverRef = coverRef; }
+        t.version += 1;
+        return t;
+      });
+      if (previous && previous !== coverRef) removeCover(previous);
+      return t;
+    } catch (e) {
+      removeCover(coverRef);
+      throw e;
+    }
+  },
+  invite: (tripId, personIds) =>
+    mutate((s) => {
+      const t = requireTrip(s, tripId, me(s), 'invite.create');
+      requireTripOpen(t);
+      t.invites ??= [];
+      let added = 0;
+      for (const personId of new Set(personIds)) {
+        if (!fx.people.some((p) => p.id === personId) || t.members.some((m) => m.personId === personId)) continue;
+        const existing = t.invites.find((i) => i.personId === personId);
+        if (existing?.status === 'pending') continue;
+        if (existing) Object.assign(existing, { status: 'pending', invitedBy: me(s), invitedAt: new Date().toISOString() });
+        else t.invites.push({ personId, status: 'pending', invitedBy: me(s), invitedAt: new Date().toISOString() });
+        added += 1;
+      }
+      if (added) t.version += 1;
+      return t;
+    }),
+  respond: (tripId, answer) =>
+    mutate((s) => {
+      const t = s.plans.find((p) => p.id === tripId);
+      const invite = t?.type === 'trip' ? t.invites?.find((i) => i.personId === me(s) && i.status === 'pending') : undefined;
+      if (!t || t.type !== 'trip' || !invite) throw new ServiceError('not_found', 'This invitation isn’t available.', false);
+      requireTripOpen(t);
+      invite.status = answer === 'join' ? 'joined' : 'declined';
+      if (answer === 'join' && !t.members.some((m) => m.personId === me(s))) {
+        t.members.push({ personId: me(s), role: 'traveler', capabilities: [...TRAVELER_CAPS], joinedAt: new Date().toISOString() });
+      }
       t.version += 1;
       return t;
     }),
-  /** Fixture-backed. NOT the production scheduler. */
-  generateItinerary: (tripId) =>
+  removeTraveler: (tripId, personId) =>
     mutate((s) => {
-      const t = requirePlan<Trip>(s.plans, tripId, 'trip', me(s));
-      if (t.days.length === 0) {
-        const pool = fx.places.filter((p) => p.city === t.destination && !p.permanentlyClosed);
-        const must = t.mustDoPlaceIds
-          .map((id) => fx.places.find((p) => p.id === id))
-          .filter(Boolean) as Place[];
-        const ordered = [...must, ...pool.filter((p) => !t.mustDoPlaceIds.includes(p.id))];
-        const start = new Date(t.startsAt ?? new Date().toISOString());
-        const dayCount = 2;
-        t.days = Array.from({ length: dayCount }, (_, d) => {
-          const date = new Date(start.getTime() + d * 86400000);
-          const slice = ordered.slice(d * 3, d * 3 + 3);
-          return {
-            date: date.toISOString().slice(0, 10),
-            items: slice.map((place, i) => ({
-              id: uid('it'),
-              startsAt: new Date(date.getTime() + (10 + i * 4) * 3600000).toISOString(),
-              title: place.name,
-              subtitle: place.type,
-              placeId: place.id,
-              locked: t.mustDoPlaceIds.includes(place.id),
-              travelMinutes: i === 0 ? 0 : 8 + i * 3,
-            })),
-          };
-        });
+      const t = requireTrip(s, tripId, me(s), 'member.manage');
+      if (personId === t.ownerId) throw new ServiceError('forbidden', 'Hand over the organizer role first.', false);
+      if (!t.members.some((m) => m.personId === personId) && !t.invites?.some((i) => i.personId === personId)) {
+        throw new ServiceError('not_found', 'That person isn’t on this trip.', false);
       }
+      t.members = t.members.filter((m) => m.personId !== personId);
+      t.invites = (t.invites ?? []).filter((i) => i.personId !== personId);
+      forgetTraveler(t, personId);
+      t.version += 1;
+      return t;
+    }),
+  makeOrganizer: (tripId, personId) =>
+    mutate((s) => {
+      const t = requireTrip(s, tripId, me(s), 'member.manage');
+      if (t.ownerId !== me(s)) throw new ServiceError('forbidden', 'Only the organizer can hand over the trip.', false);
+      const next = t.members.find((m) => m.personId === personId);
+      if (!next) throw new ServiceError('not_found', 'That person isn’t a traveler yet.', false);
+      const mine = t.members.find((m) => m.personId === me(s))!;
+      next.role = 'organizer'; next.capabilities = [...ORGANIZER_CAPS, ...TRAVELER_CAPS];
+      mine.role = 'traveler'; mine.capabilities = [...TRAVELER_CAPS];
+      t.ownerId = personId;
+      t.version += 1;
+      return t;
+    }),
+  setPreferences: (tripId, prefs) =>
+    mutate((s) => {
+      const t = requireTrip(s, tripId, me(s));
+      if (!PACES.includes(prefs.pace) || !DISCOVERIES.includes(prefs.discoveries)) throw new ServiceError('invalid', 'Choose a pace and a style.', false);
+      const interests = prefs.interests.filter((i) => (TRIP_INTERESTS as readonly string[]).includes(i));
+      t.preferences = { ...(t.preferences ?? {}), [me(s)]: { interests: [...new Set(interests)], pace: prefs.pace, discoveries: prefs.discoveries, savedAt: new Date().toISOString() } };
+      t.version += 1;
+      return t;
+    }),
+  pick: (tripId, placeId, pick) =>
+    mutate((s) => {
+      const t = requireTrip(s, tripId, me(s));
+      requireTripOpen(t);
+      if (!fx.places.some((p) => p.id === placeId)) throw new ServiceError('not_found', 'Place not found.', false);
+      t.picks ??= {};
+      const mine = { ...(t.picks[me(s)] ?? {}) };
+      if (pick) mine[placeId] = pick;
+      else delete mine[placeId];
+      t.picks[me(s)] = mine;
+      setMustDoFor(t, me(s), placeId, pick === 'must');
+      t.version += 1;
+      return t;
+    }),
+  finishChoosing: (tripId) =>
+    mutate((s) => {
+      const t = requireTrip(s, tripId, me(s));
+      if (!(t.doneChoosing ?? []).includes(me(s))) t.doneChoosing = [...(t.doneChoosing ?? []), me(s)];
+      t.version += 1;
+      return t;
+    }),
+  setMustDo: (tripId, placeId, on) =>
+    mutate((s) => {
+      const t = requireTrip(s, tripId, me(s));
+      requireTripOpen(t);
+      if (!fx.places.some((p) => p.id === placeId)) throw new ServiceError('not_found', 'Place not found.', false);
+      setMustDoFor(t, me(s), placeId, on);
+      t.picks ??= {};
+      const mine = { ...(t.picks[me(s)] ?? {}) };
+      if (on) mine[placeId] = 'must';
+      else if (mine[placeId] === 'must') delete mine[placeId];
+      t.picks[me(s)] = mine;
+      t.version += 1;
+      return t;
+    }),
+  generateItinerary: (tripId, options) =>
+    mutate((s) => {
+      const t = requireTrip(s, tripId, me(s), 'timeline.finalize');
+      requireTripOpen(t);
+      if (t.generated && t.days.some((d) => d.items.length) && !options?.rebuild) return t; // repeated taps: no second build
+      if (!canGenerateFor(t, fx.places)) {
+        throw new ServiceError('unsupported', `Voya doesn’t have enough places in ${t.destination} to build a trip yet.`, false);
+      }
+      if (!plannedDates(t.startDate, t.endDate).length) throw new ServiceError('invalid', 'Choose your travel dates first.', false);
+      t.days = buildItinerary(t, fx.places, () => uid('it'));
       t.generated = true;
+      t.generatedAt = new Date().toISOString();
       t.version += 1;
       return t;
     }),
   toggleLock: (tripId, itemId) =>
     mutate((s) => {
-      const t = requirePlan<Trip>(s.plans, tripId, 'trip', me(s));
-      for (const day of t.days) {
-        const item = day.items.find((i) => i.id === itemId);
-        if (item) item.locked = !item.locked;
-      }
+      const t = requireTrip(s, tripId, me(s), 'plan.edit');
+      requireTripOpen(t);
+      const { item } = tripItem(t, itemId);
+      item.locked = !item.locked;
       t.version += 1;
       return t;
     }),
   replaceItem: (tripId, itemId, placeId) =>
     mutate((s) => {
-      const t = requirePlan<Trip>(s.plans, tripId, 'trip', me(s));
+      const t = requireTrip(s, tripId, me(s), 'plan.edit');
+      requireTripOpen(t);
+      const { item } = tripItem(t, itemId);
+      if (item.locked) throw new ServiceError('locked', 'This stop is locked. Unlock it to replace it.', false);
       const place = fx.places.find((p) => p.id === placeId);
-      for (const day of t.days) {
-        const item = day.items.find((i) => i.id === itemId);
-        if (item) {
-          if (item.locked) {
-            throw new ServiceError('locked', 'Unlock this item before replacing it.', false);
-          }
-          item.placeId = placeId;
-          item.title = place?.name ?? item.title;
-          item.subtitle = place?.type;
-        }
+      if (!place) throw new ServiceError('not_found', 'Place not found.', false);
+      if (t.days.some((d) => d.items.some((i) => i.placeId === placeId && i.id !== itemId))) {
+        throw new ServiceError('invalid', `${place.name} is already on the itinerary.`, false);
       }
+      item.placeId = place.id;
+      if (item.kind === 'meal') item.subtitle = place.name;
+      else { item.title = place.name; item.subtitle = durationLabel(item.durationMinutes); }
+      item.replaceRequests = [];
       t.version += 1;
       return t;
+    }),
+  moveItem: (tripId, itemId, to) =>
+    mutate((s) => {
+      const t = requireTrip(s, tripId, me(s), 'plan.edit');
+      requireTripOpen(t);
+      const { day, item } = tripItem(t, itemId);
+      if (item.locked) throw new ServiceError('locked', 'This stop is locked. Unlock it to move it.', false);
+      const target = t.days.find((d) => d.date === to.date);
+      if (!target) throw new ServiceError('invalid', 'Choose a day of the trip.', false);
+      if (!Number.isInteger(to.minutes) || to.minutes < 0 || to.minutes >= 1440) throw new ServiceError('invalid', 'Choose a valid time.', false);
+      const minutes = item.durationMinutes ?? 60;
+      day.items = day.items.filter((i) => i.id !== itemId);
+      item.startsAt = wallTime(target.date, to.minutes);
+      item.endsAt = wallTime(target.date, to.minutes + minutes);
+      target.items = [...target.items, item].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+      t.version += 1;
+      return t;
+    }),
+  setDuration: (tripId, itemId, minutes) =>
+    mutate((s) => {
+      const t = requireTrip(s, tripId, me(s), 'plan.edit');
+      requireTripOpen(t);
+      const { day, item } = tripItem(t, itemId);
+      if (!Number.isInteger(minutes) || minutes < 15 || minutes > 12 * 60) throw new ServiceError('invalid', 'Choose between 15 minutes and 12 hours.', false);
+      item.durationMinutes = minutes;
+      item.endsAt = wallTime(day.date, minutesOf(item.startsAt, day.date) + minutes);
+      if (item.kind === 'activity') item.subtitle = durationLabel(minutes);
+      t.version += 1;
+      return t;
+    }),
+  removeItem: (tripId, itemId) =>
+    mutate((s) => {
+      const t = requireTrip(s, tripId, me(s), 'plan.edit');
+      requireTripOpen(t);
+      const { day, item } = tripItem(t, itemId);
+      if (item.locked) throw new ServiceError('locked', 'This stop is locked. Unlock it to remove it.', false);
+      day.items = day.items.filter((i) => i.id !== itemId);
+      t.version += 1;
+      return t;
+    }),
+  suggestReplacement: (tripId, itemId, suggestion) =>
+    mutate((s) => {
+      const t = requireTrip(s, tripId, me(s));
+      requireTripOpen(t);
+      const { item } = tripItem(t, itemId);
+      const note = suggestion.note?.trim().slice(0, 200) || undefined;
+      if (!note && !suggestion.placeId) throw new ServiceError('invalid', 'Choose a place or add a note.', false);
+      if (suggestion.placeId && !fx.places.some((p) => p.id === suggestion.placeId)) throw new ServiceError('not_found', 'Place not found.', false);
+      item.replaceRequests = [...(item.replaceRequests ?? []).filter((r) => r.by !== me(s)), { id: uid('rr'), by: me(s), placeId: suggestion.placeId, note, at: new Date().toISOString() }];
+      t.version += 1;
+      return t;
+    }),
+  keepOriginal: (tripId, itemId) =>
+    mutate((s) => {
+      const t = requireTrip(s, tripId, me(s), 'plan.edit');
+      const { item } = tripItem(t, itemId);
+      item.replaceRequests = [];
+      t.version += 1;
+      return t;
+    }),
+  remove: (tripId) =>
+    mutate((s) => {
+      requireTrip(s, tripId, me(s), 'plan.delete');
+      s.plans = s.plans.filter((p) => p.id !== tripId);
     }),
 };
 

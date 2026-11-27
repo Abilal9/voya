@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ServiceError } from '@/services/types';
 import * as fx from './fixtures';
 import { fixtureWeekOffset, shiftFixtureDates } from './clock';
-import type { Account, AccountSettings, ActivityEntry, Plan, SavedPlace, PlaceSignal, ID } from '@/services/types';
+import type { Account, AccountSettings, ActivityEntry, Plan, SavedPlace, PlaceSignal, ID, Trip } from '@/services/types';
 
 /**
  * Mock persistence.
@@ -159,6 +159,7 @@ export function normalizeWorld(world: World, now: number = Date.now()): World {
   if (fresh.length) world.plans.push(...shiftFixtureDates(fresh, fixtureWeekOffset(now)));
   world.seededIds = [...new Set([...seeded, ...fx.plans.map((p) => p.id)])];
   for (const plan of world.plans) {
+    if (plan.type === 'trip') normalizeTrip(plan);
     if (plan.type === 'hangout') {
       plan.invites ??= plan.members
         .filter((m) => m.personId !== plan.ownerId)
@@ -167,6 +168,40 @@ export function normalizeWorld(world: World, now: number = Date.now()): World {
     }
   }
   return world;
+}
+
+/** A zoned ISO time as the phone's local wall time ("YYYY-MM-DDTHH:MM:00"). */
+function toWall(v: string) {
+  if (!/[zZ]|[+-]\d{2}:?\d{2}$/.test(v)) return v;
+  const d = new Date(v);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:00`;
+}
+
+/**
+ * Trips stored before F7: dates come from startsAt/endsAt, times become wall
+ * times, travelers become joined invites, and the new collections start
+ * empty. The itinerary itself is kept as it was.
+ */
+function normalizeTrip(t: Trip) {
+  if (!t.startDate && t.startsAt) t.startDate = toWall(t.startsAt).slice(0, 10);
+  if (!t.endDate && t.endsAt) t.endDate = toWall(t.endsAt).slice(0, 10);
+  t.invites ??= t.members.filter((m) => m.personId !== t.ownerId)
+    .map((m) => ({ personId: m.personId, status: 'joined' as const, invitedBy: t.ownerId, invitedAt: m.joinedAt }));
+  t.preferences ??= {};
+  t.picks ??= {};
+  t.doneChoosing ??= [];
+  t.mustDoBy ??= {};
+  for (const day of t.days) {
+    for (const item of day.items) {
+      item.startsAt = toWall(item.startsAt);
+      if (item.endsAt) item.endsAt = toWall(item.endsAt);
+    }
+  }
+  for (const m of t.members) {
+    if (m.role === 'traveler' && !m.capabilities.includes('suggestion.create')) m.capabilities = [...m.capabilities, 'suggestion.create'];
+    if (m.personId === t.ownerId && !m.capabilities.includes('timeline.finalize')) m.capabilities = [...m.capabilities, 'timeline.finalize', 'plan.edit'];
+  }
 }
 
 async function saveWorld(world: World) {
