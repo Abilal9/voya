@@ -13,6 +13,10 @@ export const ERROR_CODES = [
   'forbidden',
   'not_found',
   'conflict',
+  /** An invitation link past its expiry. */
+  'expired',
+  /** An invitation link its plan withdrew. */
+  'revoked',
   'rate_limited',
   'unavailable',
   'internal',
@@ -47,6 +51,8 @@ export const ERROR_STATUS: Record<ErrorCode, number> = {
   forbidden: 403,
   not_found: 404,
   conflict: 409,
+  expired: 410,
+  revoked: 410,
   rate_limited: 429,
   unavailable: 503,
   internal: 500,
@@ -60,6 +66,8 @@ export const ERROR_RETRYABLE: Record<ErrorCode, boolean> = {
   forbidden: false,
   not_found: false,
   conflict: false,
+  expired: false,
+  revoked: false,
   rate_limited: true,
   unavailable: true,
   internal: true,

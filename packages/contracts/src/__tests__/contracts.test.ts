@@ -1,5 +1,10 @@
 import {
   ApiErrorSchema,
+  CreateEventRequestSchema,
+  CreateHangoutRequestSchema,
+  CreateInvitationRequestSchema,
+  CreateTripRequestSchema,
+  InvitationTokenRequestSchema,
   ERROR_CODES,
   ERROR_RETRYABLE,
   ERROR_STATUS,
@@ -93,5 +98,28 @@ describe('me (B1)', () => {
 
   it('takes only a path to set an avatar', () => {
     expect(SetAvatarRequestSchema.safeParse({ path: 'a/b.jpg', profileId: 'x' }).success).toBe(false);
+  });
+});
+
+describe('plans (B2)', () => {
+  const startsAt = '2030-01-01T18:00:00.000Z';
+
+  it('accepts only known hangout templates and no client-chosen ids', () => {
+    expect(CreateHangoutRequestSchema.safeParse({ title: 'Friday', city: 'Riyadh', template: 'Dinner', startsAt }).success).toBe(true);
+    expect(CreateHangoutRequestSchema.safeParse({ title: 'Friday', city: 'Riyadh', template: 'Brunch', startsAt }).success).toBe(false);
+    expect(CreateHangoutRequestSchema.safeParse({ title: 'Friday', city: 'Riyadh', template: 'Dinner', startsAt, ownerId: 'x' }).success).toBe(false);
+  });
+
+  it('orders event and trip dates', () => {
+    expect(CreateEventRequestSchema.safeParse({ title: 'W', venue: 'Hall', startsAt, endsAt: '2029-12-31T00:00:00.000Z' }).success).toBe(false);
+    expect(CreateTripRequestSchema.safeParse({ destination: 'Florence', startDate: '2030-04-05', endDate: '2030-04-01' }).success).toBe(false);
+    expect(CreateTripRequestSchema.safeParse({ destination: 'Florence', startDate: '2030-04-01', endDate: '2030-04-01' }).success).toBe(true);
+  });
+
+  it('bounds invitation tokens and expiry', () => {
+    expect(InvitationTokenRequestSchema.safeParse({ token: 'a'.repeat(43) }).success).toBe(true);
+    expect(InvitationTokenRequestSchema.safeParse({ token: '../../etc' }).success).toBe(false);
+    expect(CreateInvitationRequestSchema.parse({})).toEqual({ expiresInHours: 336 });
+    expect(CreateInvitationRequestSchema.safeParse({ expiresInHours: 24 * 31 }).success).toBe(false);
   });
 });

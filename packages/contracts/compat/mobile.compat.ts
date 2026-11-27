@@ -23,6 +23,21 @@ export type Checks = [
   Assert<Equal<C.PlanMember, Mobile.PlanMember>>,
   Assert<Equal<C.PlanBase, Mobile.PlanBase>>,
   Assert<Equal<C.NotificationKey, Mobile.NotificationKey>>,
-  // Server-kept preferences are the app's settings minus per-plan mutes (device-local until B2).
+  Assert<Equal<C.TimelineItem, Mobile.TimelineItem>>,
+  Assert<Equal<C.TripPreferences, Mobile.TripPreferences>>,
+  Assert<Equal<C.TripInvite, Mobile.TripInvite>>,
+  Assert<Equal<C.TripItem, Mobile.TripItem>>,
+  Assert<Equal<C.TripDay, Mobile.TripDay>>,
+  Assert<Equal<C.Trip, Mobile.Trip>>,
+  Assert<Equal<C.HangoutInvite, Mobile.HangoutInvite>>,
+  Assert<Equal<C.Hangout, Mobile.Hangout>>,
+  Assert<Equal<C.Rsvp, Mobile.RSVP>>,
+  Assert<Equal<C.EventGuest, Mobile.EventGuest>>,
+  Assert<Equal<C.EventScheduleItem, Mobile.EventScheduleItem>>,
+  Assert<Equal<C.CohostPermissions, Mobile.CohostPermissions>>,
+  Assert<Equal<C.VoyaEvent, Mobile.VoyaEvent>>,
+  Assert<Equal<C.Plan, Mobile.Plan>>,
+  Assert<Equal<C.Invitation, Mobile.Invitation>>,
+  // Server-kept preferences are the app's settings minus per-plan mutes (membership state, see api/plans).
   Assert<Equal<C.AccountPreferences, Omit<Mobile.AccountSettings, 'mutedPlans'>>>,
 ];

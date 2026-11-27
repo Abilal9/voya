@@ -7,3 +7,4 @@ export * from './domain/place';
 export * from './domain/plan';
 export * from './api/places';
 export * from './api/me';
+export * from './api/plans';

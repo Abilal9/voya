@@ -89,8 +89,8 @@ const notificationShape = Object.fromEntries(NOTIFICATION_KEYS.map((k) => [k, z.
 export const NotificationPreferencesSchema = z.object(notificationShape).strict();
 
 /**
- * Account preferences kept on the server (V04–V06). Per-plan mutes stay on
- * the device until plans are served by the API (B2).
+ * Account preferences kept on the server (V04–V06). Per-plan mutes are plan
+ * membership state (B2: PUT /plans/:id/mute, GET /me/muted-plans).
  */
 export const AccountPreferencesSchema = z.object({
   notifications: NotificationPreferencesSchema,
