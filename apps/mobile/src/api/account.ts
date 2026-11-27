@@ -20,9 +20,10 @@ import { OFFLINE, createApiClient, type ApiClient } from './http';
  * Rules it keeps:
  * - It never falls back to mock credentials or seeded people. Without a
  *   Supabase session there is no account.
- * - The still-mocked services (plans, saves, activity) act as this account
+ * - The still-mocked services (saves, activity, Explore) act as this account
  *   only, in a namespace derived from the auth user id (`sb-<uuid>`), linked
- *   through the LocalAccountBridge, and unlinked on sign-out.
+ *   through the LocalAccountBridge, and unlinked on sign-out. Plans are
+ *   server data (B2, ./plans.ts): the account plans as its profile id.
  * - A session that ends anywhere (sign-out, refresh failure, a 401 from the
  *   API, account deletion) clears the stored tokens and tells the app.
  */
@@ -47,6 +48,8 @@ export interface RealAccountDeps {
   /** Public Supabase URL as THIS device reaches it; signed storage URLs are pointed at it. */
   supabaseUrl: string;
   bridge: LocalAccountBridge;
+  /** Per-plan mutes; defaults to the bridge (device-local). Real plans keep them on the server. */
+  mutes?: { mutedPlans(): Promise<string[]>; setMutedPlans(ids: string[]): Promise<string[]> };
   kv: KeyValue;
   /** Where the password-reset link returns (`voya://set-password`, or Expo Go's `exp://…/--/set-password`). */
   recoveryRedirect: () => string;
@@ -68,6 +71,7 @@ export const localIdFor = (authUserId: string) => `sb-${authUserId}`;
 
 export function createRealAccountServices(deps: RealAccountDeps) {
   const { supabase, bridge, kv } = deps;
+  const mutes = deps.mutes ?? bridge;
   const now = deps.now ?? Date.now;
   const listeners = new Set<() => void>();
   let current: { localId: string; email: string } | null = null;
@@ -164,7 +168,8 @@ export function createRealAccountServices(deps: RealAccountDeps) {
     const p = me.profile;
     return {
       id: p.id,
-      personId: who.localId,
+      // Plans are server data (B2): this account plans as its profile.
+      personId: p.id,
       firstName: p.firstName,
       lastName: p.lastName,
       displayName: p.displayName,
@@ -405,7 +410,7 @@ export function createRealAccountServices(deps: RealAccountDeps) {
 
     async getSettings() {
       const prefs = await api.call('GET', '/me/settings', AccountPreferencesSchema);
-      return withMutes(prefs, await bridge.mutedPlans());
+      return withMutes(prefs, await mutes.mutedPlans());
     },
 
     async updateSettings(patch) {
@@ -413,8 +418,8 @@ export function createRealAccountServices(deps: RealAccountDeps) {
       const prefs = Object.keys(server).length
         ? await api.call('PATCH', '/me/settings', AccountPreferencesSchema, server)
         : await api.call('GET', '/me/settings', AccountPreferencesSchema);
-      const mutes = mutedPlans ? await bridge.setMutedPlans(mutedPlans) : await bridge.mutedPlans();
-      return withMutes(prefs, mutes);
+      const muted = mutedPlans ? await mutes.setMutedPlans(mutedPlans) : await mutes.mutedPlans();
+      return withMutes(prefs, muted);
     },
 
     resetRecommendations() {
@@ -422,7 +427,7 @@ export function createRealAccountServices(deps: RealAccountDeps) {
     },
   };
 
-  return { auth, profile };
+  return { auth, profile, api };
 }
 
 function withMutes(prefs: AccountPreferences, mutedPlans: string[]): AccountSettings {

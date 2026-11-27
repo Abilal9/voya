@@ -79,7 +79,8 @@ describe('sign-up and email verification (A02 → A06)', () => {
     const account = await profile.getAccount();
     expect(account).toMatchObject({ firstName: 'Reem', lastName: 'Fahad', emailVerified: true, onboardingStep: 'profile' });
     expect(statusFor(account)).toBe('onboarding');
-    expect(account.personId).toBe(localIdFor(sb.users.get('reem@example.com')!.id));
+    // Plans are server data: the account plans as its profile, never as a fixture person.
+    expect(account.personId).toBe(account.id);
   });
 
   it('survives a restart between sign-up and verification', async () => {
@@ -116,7 +117,8 @@ describe('sign-in', () => {
     const { auth, profile } = build();
     const session = await auth.signIn('Omar.Real@example.com', 'secret12');
     const account = await profile.getAccount();
-    expect(session.accountId).toBe(account.personId);
+    expect(session.accountId).toBe(localIdFor(sb.users.get('omar.real@example.com')!.id));
+    expect(account.personId).toBe(account.id);
     expect(account.firstName).toBe('Omar');
     expect(await mockServices.plans.listUpcoming()).toEqual([]);
     expect(await mockServices.saved.list()).toEqual([]);

@@ -34,6 +34,7 @@ export function createApiClient(options: ApiClientOptions) {
     path: string,
     schema: ZodType<T, ZodTypeDef, unknown> | null,
     body?: unknown,
+    headers?: Record<string, string>,
   ): Promise<T> {
     const token = await options.accessToken();
     if (!token) {
@@ -50,6 +51,7 @@ export function createApiClient(options: ApiClientOptions) {
           authorization: `Bearer ${token}`,
           accept: 'application/json',
           ...(body === undefined ? {} : { 'content-type': 'application/json' }),
+          ...headers,
         },
         body: body === undefined ? undefined : JSON.stringify(body),
         signal: controller.signal,

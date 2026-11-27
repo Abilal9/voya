@@ -6,24 +6,32 @@ import type { RuntimeConfig } from '@/config/runtime';
 import type { AuthService, ProfileService, Services } from '@/services/contracts';
 import { ServiceError } from '@/services/types';
 import { createRealAccountServices } from './account';
+import { createRealPlanServices, type RealPlanServices } from './plans';
 import { secureStorage } from './secureStorage';
 import { clearStoredSession, createSupabase } from './supabase';
 
 /**
- * Real-mode services: Supabase Auth + Voya API for `auth` and `profile`;
- * every other service is still the mock (B2 onward), acting as the real
- * account through the bridge.
+ * Real-mode services: Supabase Auth + Voya API for `auth` and `profile`
+ * (B1) and for plans, their people, invitations and per-plan mutes (B2).
+ * Saves, activity and Explore are still the mock, acting as the real account
+ * through the bridge. Experience-specific plan actions that the API does not
+ * serve yet refuse in real mode (see ./plans.ts).
  */
 export function createRealServices(config: RuntimeConfig, mocks: Services, bridge: LocalAccountBridge): Services {
   if (config.problems.length > 0 || !config.supabaseUrl || !config.supabaseKey || !config.apiUrl) {
     return { ...mocks, ...unconfigured(config.problems) };
   }
   const supabase = createSupabase(config.supabaseUrl, config.supabaseKey);
-  const { auth, profile } = createRealAccountServices({
+  let shared: RealPlanServices | undefined;
+  const { auth, profile, api } = createRealAccountServices({
     supabase,
     apiUrl: config.apiUrl,
     supabaseUrl: config.supabaseUrl,
     bridge,
+    mutes: {
+      mutedPlans: () => shared!.mutedPlans(),
+      setMutedPlans: (ids) => shared!.setMutedPlans(ids),
+    },
     kv: secureStorage,
     recoveryRedirect: () => Linking.createURL('/set-password'),
     uploadFile: async (localUri, url, contentType) => {
@@ -40,7 +48,35 @@ export function createRealServices(config: RuntimeConfig, mocks: Services, bridg
   // Password-reset links (cold start and while running).
   void Linking.getInitialURL().then((url) => (url ? auth.handleUrl(url) : undefined));
   Linking.addEventListener('url', ({ url }) => void auth.handleUrl(url));
-  return { ...mocks, auth, profile };
+  const planServices = createRealPlanServices(api);
+  shared = planServices;
+  return {
+    ...mocks,
+    auth: withPlanReset(auth, planServices),
+    profile,
+    plans: planServices.plans,
+    invitations: planServices.invitations,
+    hangouts: planServices.hangouts,
+    events: planServices.events,
+    trips: planServices.trips,
+    catalog: { ...mocks.catalog, people: planServices.people },
+  };
+}
+
+/** What one account saw of its plans is forgotten whenever the account changes or ends. */
+function withPlanReset(auth: AuthService, plans: RealPlanServices): AuthService {
+  auth.onSessionEnded?.(() => plans.reset());
+  const reset = <A extends unknown[], R>(fn: (...args: A) => Promise<R>) =>
+    async (...args: A) => {
+      plans.reset();
+      return fn(...args);
+    };
+  return Object.assign(auth, {
+    signIn: reset(auth.signIn.bind(auth)),
+    signUp: reset(auth.signUp.bind(auth)),
+    signOut: reset(auth.signOut.bind(auth)),
+    deleteAccount: reset(auth.deleteAccount.bind(auth)),
+  });
 }
 
 /**

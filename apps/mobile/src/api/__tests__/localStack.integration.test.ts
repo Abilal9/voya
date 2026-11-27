@@ -6,6 +6,7 @@ import { mockServices } from '@/mocks/services';
 import { resetAll, simulation } from '@/mocks/store';
 import { statusFor } from '@/stores/session';
 import { createRealAccountServices } from '../account';
+import { createRealPlanServices } from '../plans';
 import { memoryKv } from './fakes';
 
 /**
@@ -60,11 +61,13 @@ function device() {
     auth: { storage: kv, persistSession: true, autoRefreshToken: false, detectSessionInUrl: false, flowType: 'pkce', lock: processLock },
     realtime,
   });
+  let shared: ReturnType<typeof createRealPlanServices> | undefined;
   const services = createRealAccountServices({
     supabase,
     apiUrl: API,
     supabaseUrl: SUPABASE,
     bridge: localAccountBridge,
+    mutes: { mutedPlans: () => shared!.mutedPlans(), setMutedPlans: (ids) => shared!.setMutedPlans(ids) },
     kv: memoryKv(),
     recoveryRedirect: () => 'voya://set-password',
     uploadFile: async (_uri, url, contentType) =>
@@ -73,7 +76,8 @@ function device() {
       kv.map.clear();
     },
   });
-  return { ...services, kv };
+  shared = createRealPlanServices(services.api);
+  return { ...services, kv, shared };
 }
 
 run('mobile real provider against the local stack', () => {
@@ -98,8 +102,8 @@ run('mobile real provider against the local stack', () => {
     expect(account.city).toBe('Riyadh');
     await phone.profile.setInterests(['Coffee', 'Padel']);
     await phone.profile.completeOnboardingStep('profile');
-    const settings = await phone.profile.updateSettings({ discoveryRadiusKm: 40, mutedPlans: ['local-plan'] });
-    expect(settings).toMatchObject({ discoveryRadiusKm: 40, mutedPlans: ['local-plan'] });
+    const settings = await phone.profile.updateSettings({ discoveryRadiusKm: 40 });
+    expect(settings).toMatchObject({ discoveryRadiusKm: 40, mutedPlans: [] });
 
     account = await phone.profile.setAvatar('file:///picked/photo.png');
     const photo = await fetch(account.avatarRef!);
@@ -127,5 +131,47 @@ run('mobile real provider against the local stack', () => {
     await restarted.auth.deleteAccount();
     expect(await restarted.auth.getSession()).toBeNull();
     await expect(restarted.auth.signIn(email, 'Mobile-pass-1')).rejects.toThrow('That email and password do not match.');
+  });
+
+  it('shares a hangout between two real accounts through the API', async () => {
+    const [a, b] = [device(), device()];
+    const emails = [`it-mobile-a-${stamp}@example.com`, `it-mobile-b-${stamp}@example.com`];
+    for (const [phone, email, name] of [[a, emails[0]!, 'Ahmad'], [b, emails[1]!, 'Khaled']] as const) {
+      await phone.auth.signUp(email, 'Mobile-pass-1', { firstName: name, lastName: 'Test' });
+      await phone.auth.verifyEmailCode(await codeFor(email));
+    }
+    const me = await a.profile.getAccount();
+    const friend = await b.profile.getAccount();
+    expect(me.personId).toBe(me.id);
+
+    const startsAt = new Date(Date.now() + 3 * 86_400_000).toISOString();
+    const hangout = await a.shared.plans.createHangout({ title: 'Friday', city: 'Riyadh', template: 'Dinner', startsAt });
+    expect((await b.shared.plans.listUpcoming()).map((p) => p.id)).not.toContain(hangout.id);
+    await expect(b.shared.plans.get(hangout.id)).rejects.toMatchObject({ code: 'not_found' });
+
+    const invitation = await a.shared.invitations.createForPlan(hangout.id);
+    expect(await b.shared.invitations.resolve(invitation.token)).toMatchObject({ planTitle: 'Friday', inviterName: 'Ahmad' });
+    expect(await b.shared.invitations.accept(invitation.token)).toMatchObject({ planId: hangout.id, alreadyMember: false });
+    await b.shared.plans.get(hangout.id);
+    const joined = await b.shared.hangouts.respond(hangout.id, 'in');
+    expect(joined.members.map((m) => m.personId)).toEqual([me.id, friend.id]);
+
+    await a.shared.plans.get(hangout.id);
+    await a.shared.hangouts.update(hangout.id, { title: 'Friday dinner' });
+    expect((await b.shared.plans.get(hangout.id)).title).toBe('Friday dinner');
+    await expect(b.shared.hangouts.update(hangout.id, { title: 'Mine' })).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(b.shared.hangouts.vote(hangout.id, 's', 'up')).rejects.toMatchObject({ code: 'not_available' });
+    expect((await a.shared.people()).map((p) => p.id)).toEqual(expect.arrayContaining([me.id, friend.id]));
+
+    // Mutes live on the server for each account.
+    expect((await b.profile.updateSettings({ mutedPlans: [hangout.id] })).mutedPlans).toEqual([hangout.id]);
+    expect((await a.profile.getSettings()).mutedPlans).toEqual([]);
+
+    // The organizer deletes their account: the hangout passes to Khaled.
+    await a.auth.deleteAccount();
+    const handed = await b.shared.plans.get(hangout.id);
+    expect(handed.ownerId).toBe(friend.id);
+    await b.shared.hangouts.remove(hangout.id);
+    await b.auth.deleteAccount();
   });
 });
