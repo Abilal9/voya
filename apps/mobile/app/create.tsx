@@ -3,7 +3,6 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { CalendarDays, Plane, Users } from 'lucide-react-native';
 import { Screen, Text, TopBar } from '@/components/ui';
-import { useServices } from '@/services/ServicesProvider';
 import { board, colors, icon } from '@/theme';
 
 const C = board.create;
@@ -17,29 +16,10 @@ const OPTIONS = [
 /** 02 Create a Plan — board figure "02". */
 export default function Create() {
   const router = useRouter();
-  const services = useServices();
-  const [busy, setBusy] = React.useState(false);
 
-  // Hangouts (13) and Events (18) have their own creation flows. KNOWN GAP: Trip
-  // creation (03–09) is not built yet; that option creates a draft and opens it.
-  const create = async (type: (typeof OPTIONS)[number]['type']) => {
-    if (busy) return;
-    if (type === 'hangout' || type === 'event') {
-      router.push(type === 'hangout' ? '/hangout/new' : '/event/new');
-      return;
-    }
-    setBusy(true);
-    try {
-      const now = Date.now();
-      const soon = new Date(now + 7 * 86400000).toISOString();
-      const plan = await services.plans.createTrip({
-        title: 'New trip', destination: 'Dubai', startsAt: soon,
-        endsAt: new Date(now + 10 * 86400000).toISOString(),
-      });
-      router.replace(`/plan/${plan.id}`);
-    } finally {
-      setBusy(false);
-    }
+  // Each kind of plan has its own creation flow: Trip (03–06), Hangout (13), Event (18).
+  const create = (type: (typeof OPTIONS)[number]['type']) => {
+    router.push(type === 'trip' ? '/trip/new' : type === 'hangout' ? '/hangout/new' : '/event/new');
   };
 
   return (
@@ -55,8 +35,7 @@ export default function Create() {
           key={type}
           accessibilityRole="button"
           accessibilityLabel={`${title}. ${body}`}
-          disabled={busy}
-          onPress={() => void create(type)}
+          onPress={() => create(type)}
           style={[styles.option, { backgroundColor: C.optionBackgrounds[i] }]}
         >
           <View style={styles.symbol}>
