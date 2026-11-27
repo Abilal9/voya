@@ -88,3 +88,15 @@ describe('simulated offline', () => {
     expect((await services.plans.listUpcoming()).map((p) => p.id)).toEqual(before.map((p) => p.id));
   });
 });
+
+describe('activity (38)', () => {
+  it('is per account and hides plans the person can no longer see', async () => {
+    await as('ahmad');
+    const before = (await services.notifications.list()).map((a) => a.planId);
+    expect(before).toContain('plan-wedding');
+    await services.plans.leave('plan-florence');
+    expect((await services.notifications.list()).map((a) => a.planId)).not.toContain('plan-florence');
+    await as('nisreen');
+    expect((await services.notifications.list()).every((a) => a.planId !== 'plan-friday')).toBe(true);
+  });
+});

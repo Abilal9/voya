@@ -1474,9 +1474,11 @@ const trips: TripsService = {
 // ------------------------------------------------------- notifications
 
 const notifications: NotificationsService = {
+  /** Only activity about plans this person can still see (not ones they left or were removed from). */
   async list() {
     const { state } = await read();
-    return [...state.activity].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const visible = (planId?: ID) => !planId || state.plans.some((p) => p.id === planId && canSee(p, me(state)));
+    return state.activity.filter((a) => visible(a.planId)).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   },
   markAllRead: () =>
     mutate((s) => {
@@ -1485,7 +1487,10 @@ const notifications: NotificationsService = {
     }),
   async unreadCount() {
     const snapshot = await peek();
-    return snapshot?.state.activity.filter((a) => !a.readAt).length ?? 0;
+    if (!snapshot) return 0;
+    const { state } = snapshot;
+    const visible = (planId?: ID) => !planId || state.plans.some((p) => p.id === planId && canSee(p, me(state)));
+    return state.activity.filter((a) => !a.readAt && visible(a.planId)).length;
   },
 };
 
