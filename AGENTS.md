@@ -15,20 +15,28 @@ is the most visible part; the collaboration machinery underneath is the hard par
 
 ## Current phase
 
-**Frontend-only, mock-everything.** No NestJS, no Supabase, no Google, no real
-auth, no network. The app runs entirely on local fixtures and AsyncStorage.
-See `docs/frontend-progress.md` for what is built.
+**Backend B0 done; the app is still mock-everything.** The frontend is
+technically frozen (F9). `apps/api` (NestJS + Prisma + local Supabase) exists,
+but the mobile app does not call it yet: it runs entirely on local fixtures
+and AsyncStorage until each service is migrated (B1 onward). See
+`docs/frontend-progress.md` and `docs/backend.md`.
 
 ## Repository
 
 ```
 voya/
-  apps/mobile/          Expo + Expo Router app (the only app for now)
+  apps/mobile/          Expo + Expo Router app (frozen at F9)
+  apps/api/             NestJS API, Prisma schema/migrations, local Supabase config
+  packages/contracts/   Zod contracts shared by the API and (later) the app
   reference/            Frozen design V1 + CHECKSUMS.txt — READ ONLY
-  docs/                 Inventory, progress, mock data, integration notes
+  docs/                 Inventory, progress, mock data, integration notes, backend.md
 ```
 
-Do not scaffold `apps/api`, `apps/admin` or any `packages/*` yet.
+Do not scaffold `apps/admin` yet. Backend rules: Prisma Migrate is the only way
+the app schema changes (never the Supabase dashboard); every table gets RLS on
+and no `anon`/`authenticated` grants; contracts never import NestJS, Prisma or
+React Native; no secrets in the repo (`.env` and `supabase/signing_keys.json`
+are gitignored).
 
 ## Hard rules
 
@@ -101,8 +109,12 @@ pnpm install            # at the repo root
 pnpm start              # expo start
 pnpm typecheck          # tsc --noEmit
 pnpm lint
-pnpm test               # jest (jest-expo) — mock services and pure rules
+pnpm test               # jest across the workspace (mobile, contracts, API)
+pnpm --filter @voya/api test:integration   # needs the local Supabase stack
 ```
+
+Backend setup (Supabase CLI is a project devDependency, not global): see
+`docs/backend.md`.
 
 If dependency versions conflict, run `npx expo install --fix` inside
 `apps/mobile` — it realigns every package to the installed Expo SDK.

@@ -6,20 +6,24 @@ Voya is a premium social planning app with three experiences — **Trips**,
 **Hangouts** and **Events** — over one journey: Discover → Decide → Plan → Go.
 Navigation is **Home | Explore | Profile**, with a floating peach `+` to create a plan.
 
-> **Everything is mocked.** This is the frontend-only phase. There is no backend,
-> no Supabase, no Google Places/Routes and no real authentication. All data comes
-> from local fixtures persisted to AsyncStorage. Nothing leaves the device.
+> **The app is still fully mocked.** All app data comes from local fixtures
+> persisted to AsyncStorage; nothing leaves the device. The backend foundation
+> (`apps/api`: NestJS, Prisma, local Supabase) runs on its own and is not wired
+> to the app yet. See [`docs/backend.md`](docs/backend.md).
 
 ## Stack
 
 - Expo SDK 54 · Expo Router 6 · React Native 0.81.5 · React 19.1 · TypeScript (strict)
 - TanStack Query, Zustand, React Hook Form + Zod
 - Reanimated 4 + Gesture Handler for the Explore swipe deck
-- pnpm workspace; the only app is `apps/mobile`
+- pnpm workspace: `apps/mobile`, `apps/api`, `packages/contracts`
+- API: NestJS 11 · Prisma 6 · Supabase (Postgres 17, Auth, Storage) · Zod contracts
 
 ```
 voya/
   apps/mobile/   Expo app (screens in app/, everything else in src/)
+  apps/api/      NestJS API (setup in docs/backend.md)
+  packages/contracts/  Zod contracts shared by API and app
   reference/     Frozen design V1 and approved brand SVGs — read only
   docs/          Progress, screen inventory, mock data, integration notes
   AGENTS.md      Conventions for contributors and AI agents — read first

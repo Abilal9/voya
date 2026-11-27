@@ -174,13 +174,13 @@ Status: **TECHNICALLY FROZEN — Manual UX Verification Deferred** (2026-11-27).
 
 ---
 
-## Backend and integration (later — not current work)
+## Backend and integration
 
 | ID | Item | P | Status | Type |
 |---|---|---|---|---|
-| BE-01 | NestJS modular monolith (`apps/api`) | P3 | Deferred | Real |
-| BE-02 | PostgreSQL schema + Prisma migrations | P3 | Deferred | Real |
-| BE-03 | Supabase Auth, JWT verification, session lifecycle | P3 | Deferred | Real |
+| BE-01 | NestJS modular monolith (`apps/api`) | P1 | Implemented (B0) | Real |
+| BE-02 | PostgreSQL schema + Prisma migrations | P1 | Implemented (B0 foundation: profiles, places, plans, members, invitations, activity) | Real |
+| BE-03 | Supabase Auth, JWT verification, session lifecycle | P1 | In Progress (B0: JWKS verification + identity mapping; sign-in/session lifecycle is B1) | Real |
 | BE-04 | Real Apple / Google sign-in | P3 | Deferred | Real |
 | BE-05 | Plans, membership and domain authorization | P3 | Deferred | Real |
 | BE-06 | Invitation tokens, Universal Links / App Links (`voya.events/i/{token}`) | P3 | Deferred | Real |
@@ -210,7 +210,7 @@ Status: **TECHNICALLY FROZEN — Manual UX Verification Deferred** (2026-11-27).
 | ID | Item | P | Status | Type |
 |---|---|---|---|---|
 | IN-01 | Public website `voya.events` on Cloudflare (repo `voya.events`) | P3 | Deferred | Ops |
-| IN-02 | Railway: API, worker, admin; staging and production | P3 | Deferred | Ops |
+| IN-02 | Railway: API, worker, admin; staging and production | P2 | In Progress (API Dockerfile + railway.json prepared; nothing deployed) | Ops |
 | IN-03 | Supabase projects (staging, production) | P3 | Deferred | Ops |
 | IN-04 | Domains: `api.`, `staging-api.`, `admin.voya.events` (to confirm) | P3 | Deferred | Ops |
 | IN-05 | Expo EAS build profiles | P3 | Deferred | Ops |
