@@ -148,17 +148,17 @@ integration or enhancement.
 
 ### F9 — Frontend validation and freeze
 
-Status: **Implementation complete — device verification pending.** No P0 open; no P1 open in what could be exercised. Real taps are blocked (F9-01).
+Status: **TECHNICALLY FROZEN — Manual UX Verification Deferred** (2026-11-27). Typecheck, lint and 167/167 tests pass; iOS and Android development builds compile, install and launch with no crash or JS error. No known P0/P1 open. Manual tap-through was stopped by product decision and is deferred (checklist in `docs/frontend-progress.md`).
 
 | ID | Item | P | Status | Type | Design | Depends | Acceptance |
 |---|---|---|---|---|---|---|---|
-| F9-01 | Real taps on the iOS Simulator | P0 | In Progress | Ops | all | — | Tapped so far (iPhone 17 Pro, Expo Go 54): log out with confirm, wrong-email error, sign in as Khaled, Home, hangout lobby → group suggestions → vote and unvote, event guest view. Remaining journeys: see the checklist in `docs/frontend-progress.md` |
+| F9-01 | Real taps on the iOS Simulator | P1 | Deferred | Ops | all | — | Stopped 2026-11-27 by product decision; automated journeys cover the flows. Tapped (iPhone 17 Pro, Expo Go 54): log out with confirm, wrong-email error, sign in as Khaled, Home, hangout lobby → suggestions → vote/unvote, event guest view, trip create with the real calendar → "Tokyo is ready." → invite two friends → preferences → honest "No places in Tokyo yet". Not tapped: itinerary edit/lock/rebuild, map, Today, invitation states, S01–S09 sheets, Explore/Profile/Hangout/Event host smoke. Checklist in `docs/frontend-progress.md` |
 | F9-02 | Route-level journey tests (real screens, router, query cache, mock services in Jest; not native) | P1 | Implemented | Test | — | — | 15 journeys in `src/journeys/__tests__` |
-| F9-03 | Defects found by the journeys | P1 | Implemented | Fix | — | — | Fixed: invitation lost after sign-in (P1); "You're in." never showed (P1); cold start offline stuck on boot (P1); splash error on sign-out found by real taps (P2) |
+| F9-03 | Defects found by the journeys | P1 | Implemented | Fix | — | — | Fixed: invitation lost after sign-in (P1); "You're in." never showed (P1); cold start offline stuck on boot (P1); splash error on sign-out found by real taps (P2); trip calendar put every date one weekday early on iPhone (percentage cells wrapped after six; P1, found by real taps); test suite depended on the wall clock and failed once the seeded Friday Night passed (P1 test defect, clock now pinned) |
 | F9-04 | Accessibility pass | P2 | In Progress | Ops | — | — | Text fields now carry their label; full VoiceOver pass needs a device |
 | F9-05 | Mock boundary review | P1 | Verified | Ops | — | — | Only `src/services/index.ts` and the dev menu import mocks; only `store.ts` touches AsyncStorage |
-| F9-06 | Development build (native icon, splash, permissions) | P2 | Blocked | Ops | Icon, 41 | F9-01 (Xcode selection) | — |
-| F9-07 | Android pass | P2 | In Progress | Ops | — | — | Expo Go 54.0.8 (from Expo's official release) installed on a new `Voya_Test_API_31` emulator (the Pixel 3a AVD's 800 MB storage was too small); the app bundles; taps via adb not yet run |
+| F9-06 | Development build (native icon, splash, permissions) | P2 | Verified | Ops | Icon, 41 | — | `expo run:ios` (Debug, simulator, no signing): Build Succeeded, 0 errors, 1 pod deployment-target warning (react-native-maps privacy bundle); installs and launches to Welcome on iPhone 17 Pro. Needs CocoaPods ≥ 1.16 (1.15 omits the ReactCodegen module map). Permission prompts, image picker, calendar and deep links in the dev build were not exercised by hand (deferred) |
+| F9-07 | Android pass | P2 | Verified (build) | Ops | — | — | `expo run:android` with JDK 17: BUILD SUCCESSFUL; debug APK installs on `Voya_Test_API_31` (API 31) and launches to Welcome, no FATAL or JS error in logcat. Needs JDK 17 (the Mac has only JDK 8). The 2 GB emulator is slow (first launch ~2 min). Tap-through deferred |
 | F9-08 | Real network detection (NetInfo) | P3 | Deferred | Real | S04 | backend | Nothing needs the network yet; adding it now would only show a banner with nothing to protect |
 | F9-09 | Board photos as fixture imagery | P2 | Blocked | Product | all | Licence for app distribution | The board's 4 photos carry no licence information, so they stay development references and the fixtures keep flat tints |
 | F9-10 | Dev tools gated (`__DEV__`): dev menu, deep links, test clock, invite route, dev account | P0 | Verified | Ops | — | — | Code review |

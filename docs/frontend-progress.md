@@ -15,7 +15,7 @@ TypeScript compiles. Item-level detail lives in `docs/product-backlog.md`.
 | F6 — Events | 18–24, 40, EV01–EV06 | 🟡 All 14 frames built on the shared mock plan; unit-tested across accounts; 12 screenshotted; tap-through (F6-08) blocked |
 | F7 — Trips | 03–12, 35, 36, T01–T06 | 🟡 All 18 frames built on the shared mock plan with a deterministic mock generator; unit-tested across accounts; 15 screenshotted; tap-through (F7-10) blocked |
 | F8 — Invitations, Activity, states | 38, joins, S01–S09 | 🟡 S01–S09 implemented; one invitation flow for all plan types with a dev-only link; tap-through (F8-12) blocked |
-| **F9 — Validation & freeze** | Full review, journeys, Android, dev build | 🟡 Implementation complete — device verification pending (blocked on F9-01) |
+| **F9 — Validation & freeze** | Full review, journeys, Android, dev build | ✅ TECHNICALLY FROZEN — Manual UX Verification Deferred (2026-11-27) |
 
 Working rules: develop on `main` only, Conventional Commits with monorepo
 scopes (see `AGENTS.md`), validate (`pnpm typecheck && pnpm lint && pnpm test`)
@@ -97,7 +97,19 @@ to whatever the installed Expo SDK actually expects.
 - All Hangout, Event and Trip flows — Phases 5–7
 
 
-## F9 manual verification checklist
+## Development builds (local, no signing)
+
+- iOS: CocoaPods 1.16+ is required. From `apps/mobile`: `npx expo prebuild -p ios`, then
+  `cd ios && pod install`, then `npx expo run:ios --device "iPhone 17 Pro" --no-install`.
+- Android: JDK 17 is required (`JAVA_HOME`). `npx expo run:android --device Voya_Test_API_31`.
+  The first build downloads NDK 27, SDK 36 and CMake (about 40 minutes).
+- `expo run:*` rewrites the `ios`/`android` scripts in `package.json`; do not commit that.
+  `ios/` and `android/` are generated and gitignored.
+
+## F9 manual verification checklist (deferred)
+
+Deferred by product decision on 2026-11-27: F9 froze on technical validation. Run this
+before launch or when UX verification is scheduled.
 
 Run on the iPhone 17 Pro Simulator (Expo Go 54) with Metro running. Sign in with the
 seeded accounts (`<name>@example.com`, any 6+ character password) or your dev account.
