@@ -5,6 +5,18 @@ const base = {
   SUPABASE_URL: 'http://127.0.0.1:54321',
 };
 
+const REF = 'abcdefghijklmnopqrst';
+const OTHER = 'zyxwvutsrqponmlkjihg';
+const hosted = {
+  NODE_ENV: 'production',
+  APP_ENV: 'staging',
+  SUPABASE_PROJECT_REF: REF,
+  SUPABASE_URL: `https://${REF}.supabase.co`,
+  DATABASE_URL: `postgresql://postgres.${REF}:pw@aws-0-eu-central-1.pooler.supabase.com:6543/postgres?pgbouncer=true`,
+  DIRECT_URL: `postgresql://postgres:pw@db.${REF}.supabase.co:5432/postgres`,
+  SUPABASE_SECRET_KEY: 'sb_secret_placeholder_for_tests',
+};
+
 describe('loadEnv', () => {
   it('applies safe defaults and derives the Supabase JWT settings', () => {
     const env = loadEnv(base);
@@ -37,12 +49,49 @@ describe('loadEnv', () => {
   });
 
   it('enforces production safety', () => {
-    const prod = { ...base, NODE_ENV: 'production' };
+    const prod = { ...hosted, SUPABASE_URL: 'http://127.0.0.1:54321' };
     expect(() => loadEnv(prod)).toThrow(/SUPABASE_URL: Must be https/);
-    expect(() => loadEnv({ ...prod, SUPABASE_URL: 'https://x.supabase.co', CORS_ORIGINS: '*' })).toThrow(/Wildcard/);
-    expect(() => loadEnv({ ...prod, SUPABASE_URL: 'https://x.supabase.co' })).toThrow(/SUPABASE_SECRET_KEY: Required/);
-    const ok = { ...prod, SUPABASE_URL: 'https://x.supabase.co', SUPABASE_SECRET_KEY: 'sb_secret_placeholder_for_tests' };
-    expect(loadEnv(ok).NODE_ENV).toBe('production');
+    expect(() => loadEnv({ ...hosted, CORS_ORIGINS: '*' })).toThrow(/Wildcard/);
+    expect(() => loadEnv({ ...hosted, SUPABASE_SECRET_KEY: '' })).toThrow(/SUPABASE_SECRET_KEY: Required/);
+    expect(loadEnv(hosted).NODE_ENV).toBe('production');
+  });
+
+  it('refuses a production build labelled local', () => {
+    expect(() => loadEnv({ ...hosted, APP_ENV: 'local' })).toThrow(/APP_ENV: Must be staging or production/);
+  });
+
+  it('binds staging to one hosted Supabase project', () => {
+    expect(() => loadEnv({ ...hosted, SUPABASE_PROJECT_REF: '' })).toThrow(/SUPABASE_PROJECT_REF: Required/);
+    expect(() => loadEnv({ ...hosted, NODE_ENV: 'development' })).toThrow(/NODE_ENV: Must be production/);
+    expect(() => loadEnv({ ...hosted, SUPABASE_URL: `https://${OTHER}.supabase.co` })).toThrow(
+      /SUPABASE_URL: Must be the project URL/,
+    );
+    // Staging API pointed at another project's (e.g. production's) database.
+    expect(() =>
+      loadEnv({ ...hosted, DATABASE_URL: `postgresql://postgres.${OTHER}:pw@aws-0-eu-central-1.pooler.supabase.com:6543/postgres?pgbouncer=true` }),
+    ).toThrow(/DATABASE_URL: Must belong to SUPABASE_PROJECT_REF/);
+    expect(() => loadEnv({ ...hosted, DIRECT_URL: `postgresql://postgres:pw@db.${OTHER}.supabase.co:5432/postgres` })).toThrow(
+      /DIRECT_URL: Must belong/,
+    );
+    expect(() => loadEnv({ ...hosted, DIRECT_URL: 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' })).toThrow(
+      /DIRECT_URL: Must be a hosted database/,
+    );
+    expect(() => loadEnv({ ...hosted, DIRECT_URL: '' })).toThrow();
+    expect(() => loadEnv({ ...hosted, DATABASE_URL: hosted.DATABASE_URL.replace('?pgbouncer=true', '') })).toThrow(
+      /needs \?pgbouncer=true/,
+    );
+  });
+
+  it('does not echo database passwords in hosted errors', () => {
+    let message = '';
+    try {
+      loadEnv({ ...hosted, DATABASE_URL: `postgresql://postgres.${OTHER}:hunter2@pooler.supabase.com:6543/postgres` });
+    } catch (e) {
+      message = (e as Error).message;
+    }
+    expect(message).toContain('DATABASE_URL');
+    expect(message).not.toContain('hunter2');
+    expect(message).not.toContain(OTHER);
   });
 
   it('treats a blank secret key as unset', () => {

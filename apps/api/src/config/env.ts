@@ -35,6 +35,13 @@ export const EnvSchema = z
 
     /** Supabase project URL, e.g. http://127.0.0.1:54321 locally. */
     SUPABASE_URL: z.string().url(),
+    /**
+     * Hosted environments only (APP_ENV staging/production): the Supabase
+     * project ref this deployment belongs to. SUPABASE_URL, DATABASE_URL and
+     * DIRECT_URL must all point at this one project, so a staging API can
+     * never boot against another project's database or Auth.
+     */
+    SUPABASE_PROJECT_REF: z.preprocess((v) => (v === '' ? undefined : v), z.string().regex(/^[a-z0-9]{15,40}$/, 'Must be a Supabase project ref').optional()),
     /** Expected `iss` claim. Defaults to `${SUPABASE_URL}/auth/v1`. */
     SUPABASE_JWT_ISSUER: z.string().url().optional(),
     /** Expected `aud` claim. */
@@ -63,6 +70,12 @@ export const EnvSchema = z
     SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().min(0).max(60000).default(10000),
   })
   .superRefine((env, ctx) => {
+    if (env.NODE_ENV === 'production' && env.APP_ENV !== 'staging' && env.APP_ENV !== 'production') {
+      ctx.addIssue({ code: 'custom', path: ['APP_ENV'], message: 'Must be staging or production when NODE_ENV is production' });
+    }
+    if (env.APP_ENV === 'staging' || env.APP_ENV === 'production') {
+      hostedIssues(env).forEach(([path, message]) => ctx.addIssue({ code: 'custom', path: [path], message }));
+    }
     if (env.NODE_ENV === 'production') {
       if (!env.SUPABASE_URL.startsWith('https://')) {
         ctx.addIssue({ code: 'custom', path: ['SUPABASE_URL'], message: 'Must be https in production' });
@@ -86,6 +99,47 @@ export const EnvSchema = z
   }));
 
 export type Env = z.infer<typeof EnvSchema>;
+
+const LOCAL_HOST = /^(localhost|127\.\d+\.\d+\.\d+|0\.0\.0\.0|\[?::1\]?|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|host\.docker\.internal|[^.]+\.local)$/i;
+
+/**
+ * Staging and production must be wired to exactly one hosted Supabase
+ * project: no loopback/LAN hosts (a local stack), and the same project ref in
+ * the Auth URL and both database URLs (no staging API on another project's
+ * database). Messages name the variable, never its value.
+ */
+function hostedIssues(env: {
+  NODE_ENV: string;
+  SUPABASE_PROJECT_REF?: string;
+  SUPABASE_URL: string;
+  DATABASE_URL: string;
+  DIRECT_URL?: string;
+}): [string, string][] {
+  const issues: [string, string][] = [];
+  if (env.NODE_ENV !== 'production') issues.push(['NODE_ENV', 'Must be production in staging and production']);
+  const ref = env.SUPABASE_PROJECT_REF;
+  if (!ref) {
+    issues.push(['SUPABASE_PROJECT_REF', 'Required in staging and production']);
+    return issues;
+  }
+  if (new URL(env.SUPABASE_URL).hostname !== `${ref}.supabase.co`) {
+    issues.push(['SUPABASE_URL', 'Must be the project URL of SUPABASE_PROJECT_REF']);
+  }
+  const databases: [string, string | undefined][] = [['DATABASE_URL', env.DATABASE_URL], ['DIRECT_URL', env.DIRECT_URL]];
+  for (const [name, value] of databases) {
+    if (!value) continue;
+    const url = new URL(value);
+    if (LOCAL_HOST.test(url.hostname)) issues.push([name, 'Must be a hosted database, not a local one']);
+    // Pooler: user `postgres.<ref>`; direct: host `db.<ref>.supabase.co`.
+    const bound = url.username.endsWith(`.${ref}`) || url.hostname === `db.${ref}.supabase.co`;
+    if (!bound) issues.push([name, 'Must belong to SUPABASE_PROJECT_REF']);
+    if (name === 'DATABASE_URL' && url.port === '6543' && url.searchParams.get('pgbouncer') !== 'true') {
+      issues.push([name, 'The transaction pooler (port 6543) needs ?pgbouncer=true']);
+    }
+  }
+  if (!env.DIRECT_URL) issues.push(['DIRECT_URL', 'Required in staging and production (migrations)']);
+  return issues;
+}
 
 /**
  * Parses `source` (normally `process.env`). Throws one readable error listing
