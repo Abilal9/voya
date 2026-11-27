@@ -13,6 +13,7 @@ import {
 } from '@voya/contracts';
 import type { Profile } from '@prisma/client';
 import { CurrentAuth } from '../auth/current-auth.decorator';
+import { RateLimit } from '../common/http/rate-limit';
 import { zodDto } from '../common/validation/zod';
 import { AccountService } from './account.service';
 import { AvatarService } from './avatar.service';
@@ -82,6 +83,7 @@ export class MeController {
 
   /** POST /api/v1/me/avatar/uploads — a signed upload URL inside the caller's own folder. */
   @Post('avatar/uploads')
+  @RateLimit('avatarUpload')
   async createAvatarUpload(@CurrentAuth() auth: AuthContext, @Body() body: CreateAvatarUploadDto): Promise<AvatarUpload> {
     return this.avatars.createUpload(await this.identity.resolveProfile(auth), body.contentType);
   }
@@ -103,6 +105,7 @@ export class MeController {
   /** DELETE /api/v1/me — deletes the account (profile + login) for good. */
   @Delete()
   @HttpCode(204)
+  @RateLimit('accountDelete')
   async remove(@CurrentAuth() auth: AuthContext): Promise<void> {
     await this.accounts.delete(await this.identity.resolveProfile(auth));
   }

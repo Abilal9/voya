@@ -24,6 +24,7 @@ import {
 } from '@voya/contracts';
 import { CurrentAuth } from '../auth/current-auth.decorator';
 import { AppError } from '../common/errors/app-error';
+import { RateLimit } from '../common/http/rate-limit';
 import { zodDto } from '../common/validation/zod';
 import { IdentityService } from '../users/identity.service';
 import { InvitationsService } from './invitations.service';
@@ -114,6 +115,7 @@ export class PlansController {
 
   @Post(':id/invitees')
   @HttpCode(200)
+  @RateLimit('invite')
   async invite(@CurrentAuth() auth: AuthContext, @Param('id') id: string, @Body() body: InvitePeopleDto): Promise<Plan> {
     return this.membership.invite(await this.identity.resolveProfile(auth), id, body.personIds);
   }
@@ -173,6 +175,7 @@ export class PlansController {
   }
 
   @Post(':id/invitations')
+  @RateLimit('invitationCreate')
   async createInvitation(
     @CurrentAuth() auth: AuthContext,
     @Param('id') id: string,
@@ -202,6 +205,7 @@ export class InvitationsController {
 
   @Post('resolve')
   @HttpCode(200)
+  @RateLimit('invitationOpen')
   async resolve(@CurrentAuth() auth: AuthContext, @Body() body: InvitationTokenDto): Promise<Invitation> {
     await this.identity.assertLive(auth);
     return this.invitations.resolve(body.token);
@@ -209,6 +213,7 @@ export class InvitationsController {
 
   @Post('accept')
   @HttpCode(200)
+  @RateLimit('invitationOpen')
   async accept(@CurrentAuth() auth: AuthContext, @Body() body: InvitationTokenDto): Promise<AcceptInvitationResponse> {
     return this.invitations.accept(await this.identity.resolveProfile(auth), body.token);
   }

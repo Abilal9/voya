@@ -59,7 +59,7 @@ export class AppErrorFilter implements ExceptionFilter {
         ...(issues ? { issues } : {}),
       },
     };
-    if (code === 'rate_limited' || code === 'unavailable') res.setHeader('Retry-After', '5');
+    if ((code === 'rate_limited' || code === 'unavailable') && !res.getHeader('Retry-After')) res.setHeader('Retry-After', '5');
     res.status(ERROR_STATUS[code]).json(body);
   }
 
