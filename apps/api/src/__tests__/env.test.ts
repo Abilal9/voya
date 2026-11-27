@@ -40,6 +40,24 @@ describe('loadEnv', () => {
     const prod = { ...base, NODE_ENV: 'production' };
     expect(() => loadEnv(prod)).toThrow(/SUPABASE_URL: Must be https/);
     expect(() => loadEnv({ ...prod, SUPABASE_URL: 'https://x.supabase.co', CORS_ORIGINS: '*' })).toThrow(/Wildcard/);
-    expect(loadEnv({ ...prod, SUPABASE_URL: 'https://x.supabase.co' }).NODE_ENV).toBe('production');
+    expect(() => loadEnv({ ...prod, SUPABASE_URL: 'https://x.supabase.co' })).toThrow(/SUPABASE_SECRET_KEY: Required/);
+    const ok = { ...prod, SUPABASE_URL: 'https://x.supabase.co', SUPABASE_SECRET_KEY: 'sb_secret_placeholder_for_tests' };
+    expect(loadEnv(ok).NODE_ENV).toBe('production');
+  });
+
+  it('treats a blank secret key as unset', () => {
+    expect(loadEnv({ ...base, SUPABASE_SECRET_KEY: '' }).SUPABASE_SECRET_KEY).toBeUndefined();
+  });
+
+  it('never echoes a bad value, only the variable name', () => {
+    const secret = 'short';
+    let message = '';
+    try {
+      loadEnv({ ...base, SUPABASE_SECRET_KEY: secret });
+    } catch (e) {
+      message = (e as Error).message;
+    }
+    expect(message).toContain('SUPABASE_SECRET_KEY');
+    expect(message).not.toContain(`: ${secret}`);
   });
 });

@@ -21,7 +21,9 @@ function placeRow(n: number) {
 
 function fakePrisma() {
   return {
-    $queryRaw: jest.fn().mockResolvedValue([{ pending: BigInt(0) }]),
+    // Readiness asks about migrations; the identity gate asks whether the auth user and session are live.
+    $queryRaw: jest.fn((strings: TemplateStringsArray) =>
+      Promise.resolve(strings.join('').includes('auth.users') ? [{ user_ok: true, session_ok: true }] : [{ pending: BigInt(0) }])),
     $disconnect: jest.fn(),
     place: { findMany: jest.fn().mockResolvedValue([]), findUnique: jest.fn().mockResolvedValue(null) },
     profile: { upsert: jest.fn() },
@@ -179,7 +181,7 @@ describe('Voya API (database and JWKS replaced)', () => {
 
     it('returns the caller profile for a valid Supabase token', async () => {
       prisma.profile.upsert.mockResolvedValue(profile);
-      const token = await signer.sign({ sub: USER_ID, role: 'authenticated', email: 'omar@example.com', session_id: 's1' });
+      const token = await signer.sign({ sub: USER_ID, role: 'authenticated', email: 'omar@example.com', session_id: '33333333-3333-4333-8333-333333333333' });
       const res = await http().get('/api/v1/me').set('Authorization', `Bearer ${token}`).expect(200);
       const me = MeResponseSchema.parse(res.body);
       expect(me.auth).toEqual({ authUserId: USER_ID, email: 'omar@example.com' });

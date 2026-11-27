@@ -43,6 +43,16 @@ export const EnvSchema = z
     SUPABASE_JWKS_URL: z.string().url().optional(),
 
     /**
+     * Server-only Supabase secret key (`sb_secret_…`, or the legacy
+     * service_role JWT). Used for Storage only: signed avatar upload and
+     * download URLs, and removing a deleted account's photos. Never sent to
+     * clients and never logged. Required in production.
+     */
+    SUPABASE_SECRET_KEY: z.preprocess((v) => (v === '' ? undefined : v), z.string().min(20).optional()),
+    /** Lifetime of signed avatar download URLs, in seconds. */
+    AVATAR_URL_TTL_SECONDS: z.coerce.number().int().min(60).max(7 * 24 * 3600).default(12 * 3600),
+
+    /**
      * Origins allowed to call the API from a browser. Native mobile requests
      * carry no Origin and are unaffected. Empty = no browser origins.
      */
@@ -59,6 +69,9 @@ export const EnvSchema = z
       }
       if (env.CORS_ORIGINS.includes('*')) {
         ctx.addIssue({ code: 'custom', path: ['CORS_ORIGINS'], message: 'Wildcard origin is not allowed in production' });
+      }
+      if (!env.SUPABASE_SECRET_KEY) {
+        ctx.addIssue({ code: 'custom', path: ['SUPABASE_SECRET_KEY'], message: 'Required in production (avatar storage)' });
       }
       if (env.LOG_PRETTY) {
         ctx.addIssue({ code: 'custom', path: ['LOG_PRETTY'], message: 'Pretty logs are for local development only' });

@@ -41,8 +41,8 @@ describe('backend against the local Supabase stack', () => {
              has_table_privilege('authenticated', c.oid, 'SELECT') AS authed
       FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
       WHERE n.nspname = 'public' AND c.relname IN
-        ('profiles','places','plans','plan_members','invitations','activity_entries')`;
-    expect(rows).toHaveLength(6);
+        ('profiles','places','plans','plan_members','invitations','activity_entries','account_settings')`;
+    expect(rows).toHaveLength(7);
     for (const row of rows) expect(row).toMatchObject({ rls: true, anon: false, authed: false });
   });
 

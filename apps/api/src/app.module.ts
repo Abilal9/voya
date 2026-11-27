@@ -10,6 +10,7 @@ import type { Env } from './config/env';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { PlacesModule } from './places/places.module';
+import { StorageModule } from './storage/storage.module';
 import { UsersModule } from './users/users.module';
 
 /**
@@ -42,6 +43,7 @@ export class AppModule {
           },
         }),
         DatabaseModule,
+        StorageModule,
         AuthModule,
         HealthModule,
         UsersModule,

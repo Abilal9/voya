@@ -27,6 +27,15 @@ interface SupabaseClaims extends JWTPayload {
   email?: string;
   role?: string;
   session_id?: string;
+  is_anonymous?: boolean;
+  user_metadata?: Record<string, unknown>;
+}
+
+/** A sign-up name from user metadata: a short single-line string, or nothing. */
+function metadataName(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const name = value.replace(/\s+/g, ' ').trim();
+  return name ? name.slice(0, 40) : undefined;
 }
 
 /**
@@ -55,14 +64,19 @@ export class SupabaseJwtVerifier {
       throw toAuthError(error);
     }
 
-    if (payload.role !== 'authenticated') {
+    // Anonymous sign-ins are disabled; refuse them even if a project enables them.
+    if (payload.role !== 'authenticated' || payload.is_anonymous === true) {
       throw AppError.unauthenticated();
     }
+    const metadata = payload.user_metadata ?? {};
+    const firstName = metadataName(metadata.first_name);
+    const lastName = metadataName(metadata.last_name);
     const context = AuthContextSchema.safeParse({
       authUserId: payload.sub,
       email: payload.email || undefined,
       role: payload.role,
       sessionId: payload.session_id,
+      signUpNames: firstName || lastName ? { firstName, lastName } : undefined,
     });
     if (!context.success) throw AppError.unauthenticated();
     return context.data;
