@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Check, ChevronDown, Heart, LayoutGrid, Map as MapIcon, MapPin, Search, SlidersHorizontal, Sparkles, X,
+  Compass,
 } from 'lucide-react-native';
 import { EmptyState, ErrorState, LoadingState, Text } from '@/components/ui';
 import { SwipeDeck, type SwipeDeckHandle } from '@/features/explore/SwipeDeck';
@@ -182,9 +183,10 @@ export default function Explore() {
         {places.isPending ? (
           <LoadingState label="Finding places" />
         ) : places.isError ? (
-          <ErrorState onRetry={() => void places.refetch()} />
+          <ErrorState onRetry={() => void places.refetch()} error={places.error} />
         ) : results.length === 0 || !current ? (
           <EmptyState
+            icon={Compass}
             title={results.length === 0 ? 'No places match' : "You've seen everything here"}
             body={filterCount ? 'Try fewer filters or another city.' : 'Try another city or category.'}
             actionLabel="Reset filters"

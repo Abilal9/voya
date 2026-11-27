@@ -53,9 +53,9 @@ export default function PastPlans() {
         {past.isPending ? (
           <LoadingState label="Loading past plans" />
         ) : past.isError ? (
-          <ErrorState onRetry={() => void past.refetch()} />
+          <ErrorState onRetry={() => void past.refetch()} error={past.error} />
         ) : shown.length === 0 ? (
-          <EmptyState title="Nothing here yet" body="Finished plans will be kept here." />
+          <EmptyState title="No past Plans yet" body="Finished plans are kept here." actionLabel="Make a Plan" onAction={() => router.push('/create')} />
         ) : (
           shown.map((p: Plan) => (
             <Pressable key={p.id} accessibilityRole="button" onPress={() => router.push(`/plan/${p.id}`)} style={styles.card}>

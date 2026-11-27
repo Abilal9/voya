@@ -60,7 +60,7 @@ export default function AddToPlan() {
         {targets.isPending ? (
           <LoadingState label="Finding your plans" />
         ) : targets.isError ? (
-          <ErrorState onRetry={() => void targets.refetch()} />
+          <ErrorState onRetry={() => void targets.refetch()} error={targets.error} />
         ) : (targets.data ?? []).length === 0 ? (
           <EmptyState title="No plans to add to yet" body="Create a hangout or trip and add this place to it." />
         ) : (

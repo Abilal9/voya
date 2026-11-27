@@ -46,9 +46,10 @@ export default function Saved() {
         {saved.isPending || (saved.data && places.isPending) ? (
           <LoadingState />
         ) : saved.isError || places.isError ? (
-          <ErrorState onRetry={() => void saved.refetch()} />
+          <ErrorState onRetry={() => void saved.refetch()} error={saved.error} />
         ) : all.length === 0 ? (
           <EmptyState
+            icon={Heart}
             title="Nothing saved yet"
             body="Tap Save on a place in Explore and it lands here."
             actionLabel="Open Explore"

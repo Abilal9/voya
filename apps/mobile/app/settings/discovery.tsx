@@ -41,7 +41,7 @@ export default function Discovery() {
       <ScrollView showsVerticalScrollIndicator={false}>
         <AuthIntro tight title={'Location &\nDiscovery'} body="Make Explore feel closer to you." />
         {!settings.data ? (
-          <LoadingState />
+          <LoadingState compact />
         ) : (
           <>
             <SettingsRow title="Default location" subtitle={city ?? ''} onPress={() => router.push('/location')} />

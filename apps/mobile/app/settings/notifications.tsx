@@ -39,7 +39,7 @@ export default function NotificationSettings() {
       <ScrollView showsVerticalScrollIndicator={false}>
         <AuthIntro tight title="Notifications" />
         {!settings.data ? (
-          <LoadingState />
+          <LoadingState compact />
         ) : (
           GROUPS.map((g) => (
             <React.Fragment key={g.label}>

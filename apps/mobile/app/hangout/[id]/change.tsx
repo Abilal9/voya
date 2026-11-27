@@ -61,7 +61,7 @@ export default function SuggestChange() {
           onPress={() => setPicking((v) => !v)}
         />
         {picking ? (
-          options.isPending ? <LoadingState /> : (options.data ?? []).filter((p) => p.id !== current).map((p) => (
+          options.isPending ? <LoadingState compact /> : (options.data ?? []).filter((p) => p.id !== current).map((p) => (
             <Pressable key={p.id} accessibilityRole="button" accessibilityState={{ selected: p.id === placeId }} onPress={() => { setPlaceId(p.id); setPicking(false); }} style={styles.row}>
               <Text style={[styles.rowText, styles.flex]}>{p.name}</Text>
               {p.id === placeId ? <Check size={icon.md} color={colors.brand.violet} strokeWidth={icon.strokeWidth} /> : null}

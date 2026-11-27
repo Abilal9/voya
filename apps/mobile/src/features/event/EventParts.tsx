@@ -53,13 +53,13 @@ export function Cover({ event, coverRef, pendingUri, style }: {
   );
 }
 
-export type CoverPick = { uri: string } | { error: string } | null;
+export type CoverPick = { uri: string } | { error: string; denied?: boolean } | null;
 
 /** Photo library, 16:9 crop. null = cancelled. The file is copied by the service, not uploaded. */
 export async function pickCover(): Promise<CoverPick> {
   try {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) return { error: 'Allow photo access in Settings to choose a cover.' };
+    if (!permission.granted) return { error: 'Allow photo access in Settings to choose a cover.', denied: true };
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [16, 9], quality: 0.8 });
     if (result.canceled || !result.assets[0]) return null;
     return { uri: result.assets[0].uri };

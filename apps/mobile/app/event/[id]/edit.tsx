@@ -1,3 +1,4 @@
+import { usePhotoAccessSheet } from '@/features/permissions/PhotoAccess';
 import * as React from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
@@ -19,6 +20,7 @@ const E = board.event;
 export default function EditEvent() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { showPhotoAccess, photoAccessSheet } = usePhotoAccessSheet();
   const h = useEvent(id);
   const event = h.event;
   const [title, setTitle] = React.useState<string>();
@@ -44,7 +46,7 @@ export default function EditEvent() {
   const chooseCover = async () => {
     const picked = await pickCover();
     if (!picked) return;
-    if ('error' in picked) return h.setError(picked.error);
+    if ('error' in picked) return picked.denied ? showPhotoAccess() : h.setError(picked.error);
     setCover(picked.uri);
   };
   const save = async () => {
@@ -103,6 +105,7 @@ export default function EditEvent() {
         <Button label="Discard changes" variant="danger" onPress={() => { setConfirmLeave(false); setSaved(true); router.back(); }} />
         <Button label="Keep editing" variant="ghost" onPress={() => setConfirmLeave(false)} />
       </BottomSheet>
+      {photoAccessSheet}
     </Screen>
   );
 }

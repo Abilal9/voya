@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Bell } from 'lucide-react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { EmptyState, ErrorState, LoadingState, Screen, Text, TopBar } from '@/components/ui';
 import { usePeople } from '@/features/catalog';
@@ -66,9 +67,9 @@ export default function Activity() {
         {list.isPending ? (
           <LoadingState label="Loading activity" />
         ) : list.isError ? (
-          <ErrorState onRetry={() => void list.refetch()} />
+          <ErrorState onRetry={() => void list.refetch()} error={list.error} />
         ) : groups.length === 0 ? (
-          <EmptyState title="All quiet" body="Updates from your plans will show up here." />
+          <EmptyState icon={Bell} title="All quiet" body="Updates from your plans will show up here." actionLabel="Back to Home" onAction={() => router.replace('/(tabs)')} />
         ) : (
           groups.map((g) => (
             <View key={g.label}>

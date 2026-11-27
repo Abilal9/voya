@@ -13,6 +13,6 @@ export default function PlanRedirect() {
   const services = useServices();
   const plan = useQuery({ queryKey: ['plan', id], queryFn: () => services.plans.get(id!) });
   if (plan.isPending) return <Screen><LoadingState /></Screen>;
-  if (plan.isError || !plan.data) return <Screen><TopBar /><ErrorState onRetry={() => void plan.refetch()} /></Screen>;
+  if (plan.isError || !plan.data) return <Screen><TopBar /><ErrorState onRetry={() => void plan.refetch()} error={plan.error} /></Screen>;
   return <Redirect href={`/${plan.data.type}/${plan.data.id}` as never} />;
 }

@@ -1,3 +1,4 @@
+import { usePhotoAccessSheet } from '@/features/permissions/PhotoAccess';
 import * as React from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
@@ -19,6 +20,7 @@ const toDate = (d: string) => new Date(`${d}T12:00:00`);
 export default function EditTrip() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { showPhotoAccess, photoAccessSheet } = usePhotoAccessSheet();
   const h = useTrip(id);
   const destinations = useQuery({ queryKey: ['catalog', 'destinations'], queryFn: () => h.services.catalog.destinations() });
   const [title, setTitle] = React.useState<string>();
@@ -50,7 +52,7 @@ export default function EditTrip() {
   const chooseCover = async () => {
     const picked = await pickCover();
     if (!picked) return;
-    if ('error' in picked) return h.setError(picked.error);
+    if ('error' in picked) return picked.denied ? showPhotoAccess() : h.setError(picked.error);
     setCover(picked.uri);
   };
 
@@ -119,6 +121,7 @@ export default function EditTrip() {
         <Button label="Discard changes" variant="danger" onPress={() => { setSheet(null); setSaved(true); router.back(); }} />
         <Button label="Keep editing" variant="ghost" onPress={() => setSheet(null)} />
       </BottomSheet>
+      {photoAccessSheet}
     </Screen>
   );
 }

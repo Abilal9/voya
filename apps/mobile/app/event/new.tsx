@@ -1,3 +1,4 @@
+import { usePhotoAccessSheet } from '@/features/permissions/PhotoAccess';
 import * as React from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -26,6 +27,7 @@ function suggestedStart() {
 /** 18 Create Event. Cover, name, date & time, location, hosts, details. */
 export default function NewEvent() {
   const router = useRouter();
+  const { showPhotoAccess, photoAccessSheet } = usePhotoAccessSheet();
   const services = useServices();
   const qc = useQueryClient();
   const account = useSession((s) => s.account);
@@ -50,7 +52,7 @@ export default function NewEvent() {
   const chooseCover = async () => {
     const picked = await pickCover();
     if (!picked) return;
-    if ('error' in picked) return setError(picked.error);
+    if ('error' in picked) return picked.denied ? showPhotoAccess() : setError(picked.error);
     setCover(picked.uri);
   };
 
@@ -131,6 +133,7 @@ export default function NewEvent() {
         ))}
         <Button label="Done" onPress={() => setSheet(null)} />
       </BottomSheet>
+      {photoAccessSheet}
     </Screen>
   );
 }

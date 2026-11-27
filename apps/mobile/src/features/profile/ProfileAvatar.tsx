@@ -1,3 +1,4 @@
+import { usePhotoAccessSheet } from '@/features/permissions/PhotoAccess';
 import * as React from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -49,14 +50,14 @@ export function AvatarPicker({ storedRef, pending, onPicked, firstName, lastName
 }) {
   const P = board.photoEdit;
   const [message, setMessage] = React.useState<string | undefined>();
+  const { showPhotoAccess, photoAccessSheet } = usePhotoAccessSheet();
   const change = async () => {
     setMessage(undefined);
     const picked = await pickPhoto();
     if (!picked) return;
     if ('error' in picked) {
-      setMessage(picked.error === 'denied'
-        ? 'Allow photo access in Settings to choose a photo.'
-        : 'That photo could not be opened. Try another.');
+      if (picked.error === 'denied') showPhotoAccess();
+      else setMessage('That photo could not be opened. Try another.');
       return;
     }
     onPicked(picked.uri);
@@ -73,6 +74,7 @@ export function AvatarPicker({ storedRef, pending, onPicked, firstName, lastName
         </Pressable>
       </View>
       {message ? <Text style={styles.message}>{message}</Text> : null}
+      {photoAccessSheet}
     </View>
   );
 }

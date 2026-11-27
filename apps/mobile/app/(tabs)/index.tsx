@@ -63,12 +63,12 @@ export default function Home() {
         {plans.isPending ? (
           <LoadingState label="Loading your plans" />
         ) : plans.isError ? (
-          <ErrorState onRetry={() => void plans.refetch()} />
+          <ErrorState onRetry={() => void plans.refetch()} error={plans.error} />
         ) : !upNext ? (
           <EmptyState
-            title="Nothing planned yet"
-            body="Create a trip, hangout or event and it will show up here."
-            actionLabel="Create a plan"
+            title="No upcoming Plans"
+            body="When something good is coming up, it’ll show here."
+            actionLabel="Make a Plan"
             onAction={() => router.push('/create')}
           />
         ) : (

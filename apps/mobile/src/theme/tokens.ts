@@ -271,6 +271,18 @@ export const board = {
   stateHero: {
     paddingTop: 30, symbolSize: 67, symbolRadius: 22, symbolMarginBottom: 27, symbolIcon: 28,
     symbolBackground: '#E4D6F5', bodySize: 14, bodyLineHeight: 23.8, bodyMaxWidth: 330,
+    paddingBottom: 55, actionsMarginTop: 24,
+  },
+  /** Board `.xp-skeleton` (S01). */
+  skeleton: {
+    color: '#EEE7E7', radius: 10, gap: 12, smallHeight: 12, smallWidth: '48%', titleWidth: 140, shortWidth: '63%',
+    lineHeight: 18, lineWidth: '76%', imageHeight: 300, imageRadius: 24, imageMarginY: 23,
+  },
+  /** Board `.toast` (S08), `.fx-success-mark` (S07, S09), `.xp-danger` action (S06). */
+  feedback: {
+    toastBottom: 40, toastPadding: 13, toastRadius: 13, toastFontSize: 12, toastDuration: 2600,
+    markSize: 42, markRadius: 14, markBackground: '#EDE2F7', markMarginBottom: 20,
+    dangerBackground: '#F0DFE1', dangerText: '#823A47',
   },
   /** Board `.xp-code`: six one-digit boxes. */
   code: { gap: 9, height: 60, radius: 14, border: '#DED4DF', fontSize: 23, marginTop: 26, marginBottom: 20 },

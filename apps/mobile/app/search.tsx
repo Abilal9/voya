@@ -139,7 +139,7 @@ export default function Search() {
         {results.isPending ? (
           <LoadingState label="Searching" />
         ) : results.isError ? (
-          <ErrorState onRetry={() => void results.refetch()} />
+          <ErrorState onRetry={() => void results.refetch()} error={results.error} />
         ) : (
           list.map((p) => {
             const isSaved = saved.isSaved(p.id);
