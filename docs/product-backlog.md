@@ -116,14 +116,18 @@ integration or enhancement.
 
 | ID | Item | P | Status | Type | Design | Depends | Acceptance |
 |---|---|---|---|---|---|---|---|
-| F7-01 | Destination, dates, invite travelers | P1 | Not Started | Mock | 03–05 | F1-10 | — |
-| F7-02 | Preferences, discover places, Must Dos | P1 | Not Started | Mock | 06, 07 | F7-01 | — |
-| F7-03 | Group progress | P1 | Not Started | Mock | 08 | F7-02 | — |
-| F7-04 | Mock generation + generated itinerary (multi-day) | P1 | Not Started | Mock | 09 | F7-03 | Deterministic fixture result, isolated for later swap |
-| F7-05 | Activity controls, locks, replacement decision | P1 | Not Started | Mock | 10, 11 | F7-04 | Edits update the itinerary |
-| F7-06 | Overview, Today, itinerary map, travel segments | P1 | Not Started | Mock | 35, 36, T06 | F7-04, F3-05 | — |
-| F7-07 | Join trip | P1 | Not Started | Mock | 12 | F8-01 | — |
-| F7-08 | Settings, edit, travelers, share, completed | P1 | Not Started | Mock | T01–T05 | F7-01 | — |
+| F7-01 | Trip creation: destination, dates | P1 | Implemented | Mock | 03, 04 | F1-10 | Date-only values; invalid and past ranges refused |
+| F7-02 | Travelers and invitations, join / decline | P1 | Implemented | Mock | 05, 12, T03 | F7-01 | Declined people never become travelers |
+| F7-03 | Trip preferences and Must Dos (shared with Explore Add to Plan) | P1 | Implemented | Mock | 06, 07 | F7-01 | Per traveler; account interests untouched; attributed |
+| F7-04 | Group progress and readiness | P1 | Implemented | Mock | 08 | F7-03 | From real picks, never a fixed "ready" |
+| F7-05 | Deterministic mock itinerary generation (build, rebuild with locks, unsupported destinations) | P1 | Implemented | Mock | 08, 09 | F7-04 | Same inputs → same days; isolated for the real scheduler |
+| F7-06 | Daily itinerary and activity controls | P1 | Implemented | Mock | 09, 10 | F7-05 | — |
+| F7-07 | Edit, move, duration, remove, lock, replacement decision | P1 | Implemented | Mock | 10, 11 | F7-06 | Locked stops refuse change; travelers suggest, organizer decides |
+| F7-08 | Overview, Today (dev test clock), itinerary map | P1 | Implemented | Mock | 35, 36, T06 | F7-05 | — |
+| F7-09 | Settings, edit, travelers, share, completed trip | P1 | Implemented | Mock | T01–T05 | F7-01 | — |
+| F7-10 | On-device tap-through of the trip journey | P1 | Blocked | Ops | 03–12, 35, 36, T01–T06 | Simulator control | Screenshots + 141 unit tests so far |
+| F7-11 | Travel times between stops, real opening hours, invite links and codes | P2 | Blocked | API | 09, 11, 36, T04, T06 | Google Routes / Places, backend | Shown only when real |
+| F7-12 | Drag to reorder stops (board 23-style handles not on trips; 09 uses Move) | P3 | Deferred | Product | 09, 10 | — | Times stay the order |
 
 ### F8 — Invitations, Activity and system states
 

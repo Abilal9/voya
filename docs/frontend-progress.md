@@ -13,8 +13,8 @@ TypeScript compiles. Item-level detail lives in `docs/product-backlog.md`.
 | F4 — Profile & Settings | 03, V01–V13 | 🟡 All V01–V10, V13 built, screenshotted and unit-tested; on-device tap-through (F4-09) blocked |
 | F5 — Hangouts | 13–17, 37, H01–H07 | 🟡 All 13 frames built on the shared mock plan; unit-tested across accounts and screenshotted; on-device tap-through (F5-09) blocked |
 | F6 — Events | 18–24, 40, EV01–EV06 | 🟡 All 14 frames built on the shared mock plan; unit-tested across accounts; 12 screenshotted; tap-through (F6-08) blocked |
-| **F7 — Trips** | 03–12, 35, 36, T01–T06 | ⬜ Next |
-| F8 — Invitations, Activity, states | 38, joins, S01–S09 | 🟡 Activity (38) built; rest pending |
+| F7 — Trips | 03–12, 35, 36, T01–T06 | 🟡 All 18 frames built on the shared mock plan with a deterministic mock generator; unit-tested across accounts; 15 screenshotted; tap-through (F7-10) blocked |
+| **F8 — Invitations, Activity, states** | 38, joins, S01–S09 | 🟡 Next. Activity (38) built; rest pending |
 | F9 — Validation & freeze | Full review, journeys, Android, dev build | ⬜ Not started |
 
 Working rules: develop on `main` only, Conventional Commits with monorepo

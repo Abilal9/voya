@@ -4,7 +4,7 @@ Source: `reference/voya-design-v1.html` — 97 presentations (96 screens/states 
 They are not 97 React Native screens: many are variants, sheets or states of one screen.
 Updated 2026-11-26 from the rendered board.
 
-**Coverage:** 70 implemented · 5 partial · 22 missing (of 97).
+**Coverage:** 88 implemented · 4 partial · 5 missing (of 97).
 
 **Columns.** *Implementation*: Implemented / Partial / Missing. *Interaction check*: how it was
 checked — "Screenshot" means rendered on the iOS Simulator and inspected by screenshot or deep link
@@ -79,24 +79,24 @@ were taken from the board CSS and compared side by side.
 
 | Code | Board caption | Kind | Route / component | Implementation | Interaction check | Visual | Gap | Backlog |
 |---|---|---|---|---|---|---|---|---|
-| `03` | Destination | Screen | — | Missing | — | — |  | F7-01 |
-| `04` | Dates | Screen | — | Missing | — | — |  | F7-01 |
-| `05` | Invite travelers | Screen | — | Missing | — | — |  | F7-01 |
-| `06` | Preferences | Screen | — | Missing | — | — |  | F7-02 |
-| `07` | Discover places | Screen | — | Missing | — | — |  | F7-02 |
-| `08` | Group progress | Screen | — | Missing | — | — |  | F7-03 |
-| `09` | Generated itinerary | Screen | — | Missing | — | — |  | F7-04 |
-| `10` | Activity controls | Sheet | — | Missing | — | — |  | F7-05 |
-| `11` | Replacement decision | Modal | — | Missing | — | — |  | F7-05 |
-| `12` | Join trip | Screen | — | Missing | — | — |  | F7-07 |
-| `35` | Trip — Overview | Screen | app/plan/[id].tsx (read-only timeline) | Partial | Screenshot | Not matched | Not grouped by day; no overview | F7-06 |
-| `36` | Trip — Today | Screen | — | Missing | — | — |  | F7-06 |
-| `T01` | Trip settings | Screen | — | Missing | — | — |  | F7-08 |
-| `T02` | Edit trip details | Screen | — | Missing | — | — |  | F7-08 |
-| `T03` | Manage travelers | Screen | — | Missing | — | — |  | F7-08 |
-| `T04` | Share / invite to trip | Screen | — | Missing | — | — |  | F7-08 |
-| `T05` | Completed trip | State | — | Missing | — | — |  | F7-08 |
-| `T06` | Trip — Itinerary Map | Screen | — | Missing | — | — |  | F7-06 |
+| `03` | Destination | Screen | app/trip/new.tsx (step 1) | Implemented | Screenshot + unit tests | Board-matched | Destination photo is a tint; tagline only on the board | F7-01 |
+| `04` | Dates | Screen | app/trip/new.tsx (step 2) | Implemented | Unit tests | Board-matched in code | Not screenshotted (needs a tap to reach step 2) | F7-01 |
+| `05` | Who's coming | Screen | app/trip/[id]/travelers.tsx | Implemented | Screenshot + unit tests | Board-matched | No invite code: codes don’t exist yet | F7-02 |
+| `06` | Preferences | Screen | app/trip/[id]/preferences.tsx | Implemented | Screenshot + unit tests | Board-matched | Trip-only; account interests only pre-fill | F7-03 |
+| `07` | Discover places | Screen | app/trip/[id]/discover.tsx | Implemented | Screenshot + unit tests | Board-matched | Deck = the destination’s fixture places (14 in Florence) | F7-03 |
+| `08` | Group progress | Screen | app/trip/[id]/group.tsx | Implemented | Screenshot + unit tests | Board-matched | Readiness from real picks; generation via "Build our trip" | F7-04 |
+| `09` | Generated itinerary | Screen | app/trip/[id]/itinerary.tsx | Implemented | Screenshot + unit tests | Board-matched | No walking times between stops (no routing); honest intro line | F7-05 |
+| `10` | Activity controls | Sheet | app/trip/[id]/itinerary.tsx (sheet) | Implemented | Unit tests | Board-matched in code | Not screenshotted (needs a tap) | F7-06 |
+| `11` | Replacement decision | Modal | app/trip/[id]/decision.tsx | Implemented | Screenshot + unit tests | Board-matched | No distances ("12 min away") shown | F7-07 |
+| `12` | Join trip | Screen | app/trip/[id]/index.tsx (Join) | Implemented | Unit tests | Board-matched in code | Decline is in the "…" menu; not screenshotted (no pending invitee in local data) | F7-02 |
+| `35` | Trip — Overview | Screen | app/trip/[id]/index.tsx (Overview) | Implemented | Screenshot + unit tests | Board-matched |  | F7-08 |
+| `36` | Trip — Today | Screen | app/trip/[id]/today.tsx | Implemented | Screenshot (dev test clock) + unit tests | Board-matched | No walk time; dev-only test clock for screenshots | F7-08 |
+| `T01` | Trip settings | Screen | app/trip/[id]/settings.tsx | Implemented | Screenshot + unit tests | Board-matched | Trip permissions opens an explanation (no switches on the board) | F7-09 |
+| `T02` | Edit trip details | Screen | app/trip/[id]/edit.tsx | Implemented | Screenshot + unit tests | Board-matched | Destination locked once the itinerary exists | F7-09 |
+| `T03` | Manage travelers | Screen | app/trip/[id]/people.tsx | Implemented | Screenshot + unit tests | Board-matched |  | F7-09 |
+| `T04` | Share / invite to trip | Sheet | src/features/trip/InviteSheet.tsx | Implemented | Code only | Board-matched in code | No invite code; Copy invite code shows "Available when invite codes go live" | F7-09 |
+| `T05` | Completed trip | State | app/trip/[id]/index.tsx (Completed) | Implemented | Screenshot + unit tests | Board-matched |  | F7-09 |
+| `T06` | Trip — Itinerary Map | Screen | app/trip/[id]/map.tsx | Implemented | Screenshot + unit tests | Board-matched | Apple Maps, not the illustrated basemap; dashed line is order, not a route | F7-08 |
 
 ## Hangouts
 
