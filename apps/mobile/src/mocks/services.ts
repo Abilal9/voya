@@ -947,7 +947,7 @@ const events: EventsService = {
       const e = await mutate((s) => {
         const ev = requireEvent(s, eventId, me(s), 'plan.edit');
         requireEventOpen(ev);
-        if (fields.startsAt && !patch.endsAt && ev.endsAt) {
+        if (fields.startsAt && patch.endsAt === undefined && ev.endsAt) {
           // Keep the same length when only the start moves.
           const length = Date.parse(ev.endsAt) - Date.parse(ev.startsAt!);
           fields.endsAt = new Date(Date.parse(fields.startsAt) + length).toISOString();
