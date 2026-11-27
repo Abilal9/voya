@@ -15,11 +15,13 @@ is the most visible part; the collaboration machinery underneath is the hard par
 
 ## Current phase
 
-**Backend B0 done; the app is still mock-everything.** The frontend is
-technically frozen (F9). `apps/api` (NestJS + Prisma + local Supabase) exists,
-but the mobile app does not call it yet: it runs entirely on local fixtures
-and AsyncStorage until each service is migrated (B1 onward). See
-`docs/frontend-progress.md` and `docs/backend.md`.
+**Backend B1 done: real auth and profiles; everything else still mocked.**
+The frontend is technically frozen (F9). Two providers, chosen in
+`src/config/runtime.ts`: **mock** (development default) and **real**
+(`EXPO_PUBLIC_VOYA_AUTH=supabase`; always in non-development builds), where
+`auth` + `profile` use Supabase Auth and the API (`src/api/`) and the other
+services stay mocks acting as that real account (`src/mocks/localAccount.ts`).
+Plans move in B2. See `docs/backend.md`.
 
 ## Repository
 
@@ -64,7 +66,8 @@ are gitignored).
 Conventional Commits with a monorepo scope: `type(scope): summary`.
 Types: `feat`, `fix`, `refactor`, `chore`, `test`, `docs`.
 Scopes: `mobile`, `api`, `admin`, `db`, `contracts`, `config`, `infra`,
-`architecture` (docs), `integration` (spans areas). Split multi-area changes
+`integration` (spans areas). Docs: `docs(<area>)`, or `docs(architecture)`
+for cross-cutting docs. No milestone tags (see docs/backend.md). Split multi-area changes
 into separate commits where it makes sense. Run
 `pnpm typecheck && pnpm lint && pnpm test` before pushing to `origin/main`.
 
@@ -111,6 +114,8 @@ pnpm typecheck          # tsc --noEmit
 pnpm lint
 pnpm test               # jest across the workspace (mobile, contracts, API)
 pnpm --filter @voya/api test:integration   # needs the local Supabase stack
+pnpm --filter @voya/mobile env:local        # real-auth .env.local from the local stack
+pnpm --filter @voya/mobile test:local-stack # app provider vs stack + running API
 ```
 
 Backend setup (Supabase CLI is a project devDependency, not global): see
@@ -121,8 +126,10 @@ If dependency versions conflict, run `npx expo install --fix` inside
 
 ## Dev affordances
 
-`app/dev.tsx` (Profile → Developer menu) switches seeded users, toggles
-offline/error/latency simulation and resets all mock data. It is `__DEV__`-gated
-and must never ship.
+`app/dev.tsx` (Profile → Developer menu) switches seeded users (mock mode
+only — never in real mode), toggles offline/error/latency simulation and
+resets all mock data. It is `__DEV__`-gated and must never ship.
 
-Mock verification code: **424242**. There is no universal bypass.
+Mock verification code: **424242** (mock provider only). Real mode emails a
+code; read it in Mailpit (http://127.0.0.1:54324). There is no universal bypass.
+Real mode must never fall back to mock accounts or seeded identities.

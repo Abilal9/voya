@@ -22,7 +22,7 @@ swap should not touch a single screen.
 
 | Area | Why | Work required |
 |---|---|---|
-| **Apple / Google sign-in** | `signInWithApple()` currently resolves instantly. Real native auth needs signed development builds, nonce handling, cancellation paths and Apple private-relay emails. | A real spike on physical devices. Budget days, not hours. |
+| **Apple / Google sign-in** | Mock: `signInWithApple()` resolves instantly. Real mode (B1) refuses both with "not available yet" rather than faking a session; email sign-in is real. Real native auth needs signed development builds, nonce handling, cancellation paths and Apple private-relay emails. | A real spike on physical devices. Budget days, not hours. |
 | **Universal / App Links** | There is no invitation URL handling at all yet — invites are resolved from in-memory tokens. Real links need live association files on the production domain and a cold/warm × installed/fresh-install test matrix. | The highest-risk integration in the product. |
 | **Push notifications** | `NotificationsService` reads a local Activity list. Real push needs APNs/FCM credentials, device tokens, receipts and invalid-token handling. | Activity must stay durable and independent of delivery. |
 | **Maps** | The map toggle currently switches to a list view and says so. Real `react-native-maps` needs restricted platform keys. | Keep the map UI provider-agnostic so the swap is contained. |
