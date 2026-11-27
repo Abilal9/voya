@@ -28,15 +28,21 @@ function fakeDb() {
   const profiles = new Map<string, Row>();
   const settings = new Map<string, Row>();
   const users = new Map<string, { deleted: boolean; sessions: Set<string> }>();
-  const counts = { plans: 0, members: 0, invitations: 0 };
+  const plans = { fail: false };
 
   const byAuth = (authUserId: string) => [...profiles.values()].find((p) => p.authUserId === authUserId);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db: any = {
-    profiles, settings, users, counts,
+    profiles, settings, users, plans,
     $disconnect: jest.fn(),
     $queryRaw: jest.fn(async (strings: TemplateStringsArray, ...values: unknown[]) => {
-      if (!strings.join('').includes('auth.users')) return [{ pending: BigInt(0) }];
+      const sql = strings.join('');
+      if (sql.includes('FROM plans p')) {
+        // Account deletion's plan hand-over (exercised against Postgres in test/integration/plans.test.ts).
+        if (plans.fail) throw new Error('plan hand-over failed');
+        return [];
+      }
+      if (!sql.includes('auth.users')) return [{ pending: BigInt(0) }];
       const [userId, sessionId] = values as [string, string | null];
       const user = users.get(userId);
       return [{ user_ok: !!user && !user.deleted, session_ok: sessionId === null || !!user?.sessions.has(sessionId) }];
@@ -75,12 +81,9 @@ function fakeDb() {
         settings.set(where.profileId, row ? { ...row, ...update } : { ...create, id: where.profileId });
       }),
     },
-    plan: { count: jest.fn(async () => counts.plans) },
-    planMember: { count: jest.fn(async () => counts.members) },
-    invitation: { count: jest.fn(async () => counts.invitations) },
   };
   return db as {
-    profiles: typeof profiles; settings: typeof settings; users: typeof users; counts: typeof counts;
+    profiles: typeof profiles; settings: typeof settings; users: typeof users; plans: typeof plans;
   };
 }
 
@@ -365,12 +368,11 @@ describe('B1 /api/v1/me (in-memory database and storage)', () => {
       expect(db.profiles.size).toBe(0);
     });
 
-    it('refuses (and deletes nothing) while the account is part of shared plans — a B2 dependency', async () => {
+    it('deletes nothing when taking the account off its shared plans fails', async () => {
       const u = await user();
       await u.as('get', '/me').expect(200);
-      db.counts.members = 1;
-      const res = await u.as('delete', '/me').expect(409);
-      expect(errorCode(res.body)).toBe('conflict');
+      db.plans.fail = true;
+      await u.as('delete', '/me').expect(500);
       expect(db.profiles.size).toBe(1);
       expect(db.users.get(u.id)!.deleted).toBe(false);
     });

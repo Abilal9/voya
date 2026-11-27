@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { Profile } from '@prisma/client';
 import { AppError } from '../common/errors/app-error';
 import { PrismaService } from '../database/prisma.service';
+import { removeFromAllPlans } from '../plans/plan-store';
 import { AvatarService } from './avatar.service';
 
 /**
@@ -15,10 +16,11 @@ import { AvatarService } from './avatar.service';
  * Profile photos are removed from Storage afterwards (best effort; a
  * leftover object sits in a private folder nobody can sign for).
  *
- * B2 dependency: shared plans need an ownership hand-over and membership
- * policy before an account that owns or belongs to a plan can be removed.
- * Until then such an account is refused with `conflict` — nothing is
- * deleted half-way. In B1 real accounts cannot hold server plans yet.
+ * Shared plans (B2): in the same transaction the person is first taken off
+ * every plan (see `removePerson`): plans they own pass to the member who
+ * joined next, their votes and trip inputs go, their suggestions stay
+ * credited to a former member, and a plan with nobody left on it is
+ * deleted. Links they created go with the profile.
  */
 @Injectable()
 export class AccountService {
@@ -32,22 +34,13 @@ export class AccountService {
   async delete(profile: Profile): Promise<void> {
     if (!profile.authUserId) throw AppError.forbidden();
     const authUserId = profile.authUserId;
+    let plans = { updated: 0, deleted: 0 };
     await this.prisma.$transaction(async (tx) => {
-      const [owned, memberships, invitations] = await Promise.all([
-        tx.plan.count({ where: { ownerId: profile.id } }),
-        tx.planMember.count({ where: { profileId: profile.id } }),
-        tx.invitation.count({ where: { createdById: profile.id } }),
-      ]);
-      if (owned + memberships + invitations > 0) {
-        throw new AppError(
-          'conflict',
-          'Accounts that are part of shared plans cannot be deleted yet. Leave or hand over your plans first.',
-        );
-      }
+      plans = await removeFromAllPlans(tx, profile.id);
       await tx.profile.delete({ where: { id: profile.id } });
       await tx.$executeRaw`DELETE FROM auth.users WHERE id = ${authUserId}::uuid`;
-    });
-    this.logger.log({ profileId: profile.id }, 'account deleted');
+    }, { timeout: 30_000 });
+    this.logger.log({ profileId: profile.id, plansUpdated: plans.updated, plansDeleted: plans.deleted }, 'account deleted');
     await this.avatars.removeOthers(profile.id, null);
   }
 }

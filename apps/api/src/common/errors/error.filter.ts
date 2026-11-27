@@ -25,6 +25,8 @@ const SAFE_MESSAGES: Record<ErrorCode, string> = {
   forbidden: 'You do not have access to this.',
   not_found: 'Not found.',
   conflict: 'Someone else changed this. Refresh and try again.',
+  expired: 'This invitation has expired.',
+  revoked: 'This invitation was withdrawn.',
   rate_limited: 'Too many requests. Try again shortly.',
   unavailable: 'Voya is temporarily unavailable. Try again shortly.',
   internal: 'Something went wrong on our side.',

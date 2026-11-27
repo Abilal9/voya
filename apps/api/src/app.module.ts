@@ -10,14 +10,15 @@ import type { Env } from './config/env';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { PlacesModule } from './places/places.module';
+import { PlansModule } from './plans/plans.module';
 import { StorageModule } from './storage/storage.module';
 import { UsersModule } from './users/users.module';
 
 /**
- * Root of the modular monolith. Feature modules map to Voya domains; B0 ships
- * Health, Auth (verification), Users (identity mapping) and Places (read-only
- * catalogue). Plans, Invitations, Membership, Activities and Notifications are
- * added as modules when their milestones start — see docs/backend.md.
+ * Root of the modular monolith. Feature modules map to Voya domains: Health,
+ * Auth (verification), Users (identity, profile, account), Places (read-only
+ * catalogue) and Plans (plans, membership, invitations — B2). Activities and
+ * Notifications are added when their milestones start — see docs/backend.md.
  */
 @Module({})
 export class AppModule {
@@ -48,6 +49,7 @@ export class AppModule {
         HealthModule,
         UsersModule,
         PlacesModule,
+        PlansModule,
       ],
       providers: [
         { provide: APP_PIPE, useClass: ZodValidationPipe },

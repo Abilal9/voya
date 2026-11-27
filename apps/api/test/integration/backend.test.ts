@@ -40,9 +40,11 @@ describe('backend against the local Supabase stack', () => {
              has_table_privilege('anon', c.oid, 'SELECT') AS anon,
              has_table_privilege('authenticated', c.oid, 'SELECT') AS authed
       FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE n.nspname = 'public' AND c.relname IN
-        ('profiles','places','plans','plan_members','invitations','activity_entries','account_settings')`;
-    expect(rows).toHaveLength(7);
+      WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relname <> '_prisma_migrations'`;
+    // Every app table, including ones added later (B2: plan_invitees).
+    expect(rows.map((r) => r.relname).sort()).toEqual([
+      'account_settings', 'activity_entries', 'invitations', 'places', 'plan_invitees', 'plan_members', 'plans', 'profiles',
+    ]);
     for (const row of rows) expect(row).toMatchObject({ rls: true, anon: false, authed: false });
   });
 
@@ -50,14 +52,15 @@ describe('backend against the local Supabase stack', () => {
     const count = async () => [
       await prisma.profile.count({ where: { seedRef: { not: null } } }),
       await prisma.place.count(),
-      await prisma.plan.count(),
+      await prisma.plan.count({ where: { seedRef: { not: null } } }),
       await prisma.planMember.count(),
+      await prisma.planInvitee.count({ where: { plan: { seedRef: { not: null } } } }),
     ];
     await prisma.$transaction((tx) => seed(tx as PrismaClient), { timeout: 30_000 });
     const first = await count();
     await prisma.$transaction((tx) => seed(tx as PrismaClient), { timeout: 30_000 });
     expect(await count()).toEqual(first);
-    expect(first).toEqual([5, 27, 6, expect.any(Number)]);
+    expect(first).toEqual([5, 27, 6, expect.any(Number), 16]);
   });
 
   it('preserves damaged place data as absence', async () => {
