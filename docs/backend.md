@@ -8,8 +8,13 @@ backend reference: setup, structure, decisions and milestones.
 avatars and account deletion work end to end against the local stack. The
 mobile app uses them when real mode is on (`EXPO_PUBLIC_VOYA_AUTH=supabase`
 in development; always in non-development builds); mock mode stays the
-development default. Plans, saves, activity and Explore are still mock
-services (B2 onward). Nothing is deployed.
+development default. Nothing is deployed.
+
+**Status (B2, 2026-11-28):** the API serves plans, membership and
+invitations (see "Plans, membership and invitations"), and account deletion
+hands shared plans over instead of refusing. The app does **not** use these
+routes yet: its plans, saves, activity and Explore are still mock services,
+and each experience switches over with its own mutations in B3.
 
 ## Layout
 
@@ -33,6 +38,7 @@ voya/
         storage/            Server-only Supabase Storage client (signed URLs; holds the secret key)
         users/              identity gate + mapping, /me profile, preferences, avatar, deletion
         places/             read-only catalogue, GET /api/v1/places[/:id]
+        plans/              plans, membership, invitations, people, mutes (B2)
       prisma/
         schema.prisma       App schema (public)
         migrations/         Prisma Migrate history — the only way the schema changes
@@ -49,10 +55,10 @@ voya/
       compat/               Compile-time check that contracts == mobile types
 ```
 
-Feature modules map to Voya domains. B0 ships **Auth/Identity, Users, Places**
-and **Health**. **Plans, Invitations, Membership, Activities, Notifications**
-already have tables (see Schema) and get their modules when their milestones
-start, rather than as empty boilerplate now.
+Feature modules map to Voya domains: **Auth/Identity, Users, Places,
+Health** (B0/B1) and **Plans** (B2: plans, membership, invitations).
+**Activities, Notifications** already have tables and get their modules
+when their milestones start, rather than as empty boilerplate now.
 
 ## Prerequisites
 
@@ -198,6 +204,17 @@ public.
 | PUT | `/api/v1/me/avatar` | bearer | Commit an uploaded photo (ownership, ≤5 MB, magic bytes); old photos removed |
 | DELETE | `/api/v1/me/avatar` | bearer | Back to initials |
 | DELETE | `/api/v1/me` | bearer | Delete the account (profile + login), see Account lifecycle |
+| GET | `/api/v1/plans?timing=upcoming\|past` | bearer | `PlansList`: plans the caller can see, upcoming soonest first / past latest first, each projected for the caller |
+| GET | `/api/v1/plans/:id` | bearer | `Plan` (member view, or the guest view of an event); `404` when the caller may not see it |
+| POST | `/api/v1/plans/hangouts` · `/events` · `/trips` | bearer | Create; the caller becomes organizer/host. Invitees and co-hosts must be people the caller already plans with |
+| POST | `/api/v1/plans/:id/leave` | bearer | `204`; `If-Match: <version>` optional, `409` when stale |
+| DELETE | `/api/v1/plans/:id` | bearer | `204`; hangout organizer / trip `plan.delete`; events are cancelled, never deleted (`403`); `If-Match` as above |
+| PUT | `/api/v1/plans/:id/mute` | bearer | `{ muted }`, H01 per-plan notifications |
+| GET | `/api/v1/me/muted-plans` | bearer | `{ planIds }` |
+| GET / POST | `/api/v1/plans/:id/invitations` | bearer (`invite.create`) | List links (never the token) / create one: the raw token is returned once |
+| DELETE | `/api/v1/plans/:id/invitations/:invitationId` | bearer (`invite.create`) | Revoke (idempotent) |
+| POST | `/api/v1/invitations/resolve` · `/accept` | bearer | `{ token }` in the body. Resolve → `Invitation` (flags expired/revoked); accept → `{ planId, planType, alreadyMember }`, `410 expired` / `410 revoked` |
+| GET | `/api/v1/people` | bearer | `PeopleList`: everyone the caller plans with (see below) |
 | GET | `/api/v1/places?limit&cursor&city&category` | public (B0) | `PlacesPage`, cursor-paginated |
 | GET | `/api/v1/places/:id` | public (B0) | `Place` |
 
@@ -253,9 +270,10 @@ unique), created on first authenticated call by an idempotent upsert, named
 from the sign-up metadata (else from the email). Seeded demo people have no
 `auth_user_id`; nothing ever links by name or email.
 
-**Authorization:** every route is under `/me` and resolves the caller from
-the token in the service layer; no route takes a user or profile id, and
-request bodies reject id fields (`.strict()` schemas).
+**Authorization:** every `/me` route resolves the caller from the token in
+the service layer; no route takes a user or profile id to act on, and
+request bodies reject id fields (`.strict()` schemas). Plan routes take a
+plan id and decide access from the caller's relation to that plan (below).
 
 ### Preferences: where each setting lives
 
@@ -263,7 +281,7 @@ request bodies reject id fields (`.strict()` schemas).
 |---|---|---|
 | Profile: names, city, bio, interests, onboarding step, photo | Postgres `profiles` (+ Storage) | Account data, every device |
 | Notification preferences (V04), precise location, discovery radius (V06) | Postgres `account_settings` (row created on first change; defaults from `DEFAULT_ACCOUNT_PREFERENCES`) | Account preferences the server will act on (push delivery, discovery); same on every device |
-| Per-plan mute (H01) | Phone (mock store), per account | Plans are still mock; becomes `plan_members` state in B2 |
+| Per-plan mute (H01) | Phone (mock store) today; the API keeps it on `plan_members` / `plan_invitees` (B2) | The app switches to the server copy with its plans (B3) |
 | Explore likes/skips, recent searches, chosen city | Phone (mock store), per account | Explore is still mock |
 | OS permissions (location, photos, notifications) | The OS | Outcomes belong to the device, not the account |
 | Dev menu (simulation, clock) | Phone, `__DEV__` only | Never ships |
@@ -290,17 +308,85 @@ one transaction**, then removes the photos. Outstanding access tokens fail
 immediately at the identity gate. On the phone, the account's local data is
 forgotten and the device is signed out.
 
-**B2 dependency:** an account that owns, belongs to, or created invitations
-for a server plan is refused with `409 conflict` and nothing is deleted.
-Deleting such an account needs the B2 ownership hand-over and membership
-policy (the mock already models it: plans pass to the next member,
-suggestions stay, votes go). In B1 real accounts cannot hold server plans,
-so deletion always completes; their plans exist only in the phone's mock
-world and are cleaned up there.
+**Shared plans (B2):** in the same transaction, before the profile goes,
+the person is taken off every plan they own, belong to, are invited to or
+are still named in, one locked plan at a time, by the policy in "Leaving
+and hand-over" with `deleted` set: suggestions are credited to
+`former-member`, and a plan they would still own (nobody left to hand it to,
+e.g. an event with guests but no other host) is deleted. Links they created
+go with the profile. If any of it fails, nothing is deleted. (The B1
+`409 conflict` guard is gone.) Plans a real account made in real mode still
+live only in the phone's mock world until B3, and are cleaned up there.
 
 Not yet built: data export, a grace period/undo, deleting an unverified
 sign-up that was abandoned (Supabase keeps it until verified or cleaned up),
 and email change (V03 shows the email without a destination).
+
+## Plans, membership and invitations (B2)
+
+**Storage.** `plans` keeps the shared columns; each experience's own state
+(hangout suggestions/timeline, trip days/picks/must-dos, event schedule and
+name-only guests, `coverPhoto`) is a JSON document in `plans.details`, with
+real profile and place ids inside, until B3 gives each experience tables.
+Who may see a plan is never read from the JSON: it comes from two tables.
+
+| Table | Holds |
+|---|---|
+| `plan_members` | Organizer, participants, travelers, hosts, co-hosts: role (label) + capabilities (what they may do) + join order + mute |
+| `plan_invitees` | People invited to a plan and their answer (`pending` / `accepted` / `maybe` / `declined`, shown as in/joined/going per experience), who invited them, through which link, and their mute. For events these are the guests on Voya; the row id is the guest id |
+
+**Relation → view** (server-side; the app's `relationTo`/`guestView` were
+the simulation of this):
+
+| Relation | Who | Sees |
+|---|---|---|
+| member | on `plan_members` | The whole plan |
+| guest | on an event's invitees, any answer | The guest view: no host-only schedule items, no co-host settings, other guests anonymised (answers kept for counts), own row marked `viewerGuestId` |
+| invited | a pending hangout/trip invitee | The plan, to show its invitation (12, 17) |
+| none | anyone else, including a hangout/trip invitee who declined | `404 not_found`, the same as a plan that does not exist |
+
+**People** (`GET /people`): on plans the caller is a member of, the other
+members and invitees; on plans the caller is only a guest of or invited to,
+the members (hosts/organizer), never the other guests. People added when
+creating a plan must come from this set; anyone else joins by link.
+
+**Writes** lock the plan row (`SELECT … FOR UPDATE`) and bump `version`.
+Leave and delete take `If-Match: <version>`; a stale version is
+`409 conflict`. Without it the write applies to the current version.
+
+**Leaving and hand-over** (the mock's policy, now enforced): the person's
+membership and invitation go; hangout votes go (their suggestions stay);
+trip preferences, picks, "done choosing", replacement requests and
+must-dos only they wanted go. A leaving owner hands the plan to the member
+who joined next, who takes the owner's role and capabilities. A plan with
+nobody left is deleted, except an event that still has guests, which stays
+for them.
+
+**Invitations.** A link is 32 random bytes (base64url); only its SHA-256 is
+stored and the raw token is returned once, to the creator, so a database
+leak leaks no working link. Links need `invite.create`, expire (14 days by
+default, at most 30) and can be revoked; a plan that is over or cancelled
+takes no new links or people. Tokens travel in request bodies, never in
+URLs, so they stay out of access logs. Accepting puts the person on the
+invite list (pending) — answering is the plan's own invitation screen, as
+for an in-app invite. Accepting again is a no-op; a declined hangout/trip
+invite goes back to pending; an event guest who answered keeps the answer.
+The app keeps building links behind its existing invitation boundary until
+the production domain is decided.
+
+**Not built yet:** the type-specific mutations (respond, vote, finalize,
+schedule, itinerary, co-hosts, cancel — B3), cover uploads, pagination of
+the plan list (a person's plans are listed whole), and the app using any of
+this. Trip dates are calendar dates; without the destination's time zone
+the server anchors them in UTC (00:00–23:59) only to file trips as
+upcoming/past.
+
+**Why the app has not switched yet.** Moving only the plan reads would show
+server plans that every type-specific action (vote, RSVP, itinerary) then
+fails on, because those still change the phone's mock world, and real
+accounts plan as `sb-<uid>` locally but as their profile id on the server.
+Each experience switches in one step in B3: its reads, its mutations and
+the identity, together.
 
 **Real mode is not production-ready yet:** plans, saves, activity and Explore
 are still device-local mocks for real accounts; social sign-in, push and
@@ -309,9 +395,9 @@ production email (SMTP, branded templates) are not set up.
 ## Tests
 
 ```bash
-pnpm test                                       # whole workspace: mobile 219 + contracts 12 + API 63
+pnpm test                                       # whole workspace: mobile 220 + contracts 15 + API 80
 pnpm --filter @voya/api test                    # API unit + e2e (no Docker needed)
-pnpm --filter @voya/api test:integration        # API against the running local stack (16)
+pnpm --filter @voya/api test:integration        # API against the running local stack (27)
 pnpm --filter @voya/mobile test:local-stack     # the app's real provider against the stack + a running API
 ```
 
@@ -324,7 +410,10 @@ pnpm --filter @voya/mobile test:local-stack     # the app's real provider agains
   Provisioning (once, from sign-up names), deleted users and revoked
   sessions refused, profile/interests/onboarding/settings validation, two
   accounts kept apart, no id-taking routes, avatar ownership/size/type/magic
-  bytes and clean-up, deletion and its B2 guard.
+  bytes and clean-up, deletion (rolled back when the plan hand-over fails).
+- **plan rules** (`src/__tests__/plans.rules.test.ts`): relation, the guest
+  projection, timing, hand-over, forgetting a person's inputs, former-member
+  credit, and that every seeded plan translates with no fixture refs left.
 - **integration** (`test/integration`): real Postgres and real Supabase Auth.
   Migrations applied, RLS and grants, seed idempotency, damaged-data
   preservation, pagination without gaps, readiness, and a real sign-up token
@@ -333,8 +422,14 @@ pnpm --filter @voya/mobile test:local-stack     # the app's real provider agains
   unknown credentials, persistence across an API restart, isolation,
   refresh + sign-out revocation, the recovery link end to end, avatars in
   the private bucket (signed only; disguised files and other accounts'
-  uploads refused), and deletion. Needs `supabase:start`, `db:deploy` and
-  `db:seed` first, and `SUPABASE_SECRET_KEY` in `.env`.
+  uploads refused), and deletion. `plans.test.ts` (B2): every seeded plan
+  served as a valid document, plans invisible to outsiders (also by id),
+  invitees limited to people already planned with, links (token shown once,
+  hash stored, idempotent accept, revoked/expired refused with their code),
+  the event guest view, hand-over on leave, stale `If-Match`, delete rules,
+  mutes, upcoming/past, and account deletion inside shared plans. Needs
+  `supabase:start`, `db:deploy` and `db:seed` first, and
+  `SUPABASE_SECRET_KEY` in `.env`.
 - **mobile** (`apps/mobile/src/api/__tests__`): the real provider against
   Supabase/API doubles (provider selection, sign-up/verify, sign-in errors,
   restore, 401 and revocation, offline sign-out, account switching,
@@ -408,6 +503,19 @@ pnpm --filter @voya/mobile test:local-stack     # the app's real provider agains
 | Real mode always in non-development builds; mock only behind `__DEV__` | A release can never ship mock credentials or the seeded-user switcher |
 | Still-mock services act as the real account in its own `sb-<uid>` namespace | Real and mock identities never mix; plans created locally stay with that account |
 
+## Decisions (B2)
+
+| Decision | Why |
+|---|---|
+| Access from `plan_members` + a new `plan_invitees` table, never from `plans.details` | Indexable "plans I can see", one source of truth for who is invited, and the JSON can never widen access |
+| Type-specific state stays a JSON document until B3, with real ids inside | Serves the frozen app's shapes whole now without modelling every experience first; the seed translates fixture refs by field |
+| Projections (member / guest / invited) decided on the server; outsiders get `404` | A guest's phone never receives what it must not show; existence of a plan never leaks |
+| People for pickers = people you already plan with; others join by link | No user directory or search to enumerate profiles |
+| Row lock per plan write, `version` bump, optional `If-Match` | Concurrent writers serialise; a client acting on a stale screen gets `409` instead of a lost update |
+| Tokens in bodies, `410 expired` / `410 revoked` error codes | Tokens stay out of URLs and logs; the app's distinct expired/revoked screens map one to one |
+| Deletion = hand-over in the same transaction; plans nobody can manage go | No half-deleted accounts and no ownerless plans (`plans.owner_id` stays `RESTRICT`) |
+| The app keeps its mock plans until each experience moves whole (B3) | A read-only switch would show plans the person cannot act on |
+
 ## Architecture review (B1)
 
 **Commit conventions.** Keep Conventional Commits with the existing scopes
@@ -445,28 +553,15 @@ healthcheck and restarts).
 
 ## Next milestones
 
-1. **B2 — Plans, memberships and invitations:** see below.
-2. **B3 — Hangouts, Events, Trips** domain APIs, one experience at a time,
-   moving each out of `Plan.details` into its own tables.
+1. **B2 — Plans, memberships and invitations:** API done (see above).
+2. **B3 — Hangouts, Events, Trips** domain APIs, one experience at a time:
+   its mutations (respond, vote, finalize / RSVP, schedule, co-hosts,
+   cancel / itinerary), moving it out of `Plan.details` into its own tables,
+   and switching the app's plans + that experience + per-plan mutes + the
+   people catalogue to the API in the same step (real accounts then plan as
+   their profile id). Suggested order: Events (host-led, fewest shared
+   writes), Hangouts, Trips.
 3. Activity, Notifications (push), social sign-in.
 4. Railway staging + Supabase staging project (needs explicit approval) —
-   worth doing early in B2, since phone testing of reset links needs it.
-
-### Recommended B2 scope
-
-Plans become server data for real accounts, behind the existing
-`PlansService`/`InvitationsService` contracts:
-- `GET /api/v1/plans` (upcoming/past for the caller), `GET /plans/:id` with
-  member/guest/invitee projection decided server-side (the guest view of an
-  event stripped on the server, as `guestProjection` does in the mock).
-- Create/leave/delete with capability checks from `plan_members` and
-  `version` preconditions (`409 conflict` on a stale write).
-- Invitations: create (raw token shown once, SHA-256 stored), resolve,
-  accept → invitee, revoke, expiry; links stay behind the existing
-  invitation boundary until the production domain is decided.
-- Per-plan mute moves to `plan_members`; the people catalogue for a plan
-  comes from membership.
-- Account deletion's B2 dependency: ownership hand-over and membership
-  removal policy (as the mock defines), then lift the `409` guard.
-- Migrate the mobile plan screens per service in `src/services/index.ts`,
-  one experience's read path first.
+   worth doing early in B3, since phone testing of reset links and
+   invitation links needs it.
