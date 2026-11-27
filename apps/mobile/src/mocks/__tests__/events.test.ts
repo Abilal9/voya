@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { mockServices as services } from '../services';
 import { normalizeWorld, resetAll, seedWorld, simulation } from '../store';
-import { eventRole, hostLine, rsvpCounts } from '@/services/eventRules';
+import { eventRole, eventScreen, hostLine, rsvpCounts } from '@/services/eventRules';
 import { classifyPlan } from '@/services/planRules';
 import type { VoyaEvent } from '@/services';
 
@@ -261,5 +261,74 @@ describe('stored worlds', () => {
     expect(ids).not.toContain('plan-friday');
     const again = normalizeWorld({ ...upgraded, plans: upgraded.plans.filter((p) => p.id !== 'plan-graduation') });
     expect(again.plans.map((p) => p.id)).not.toContain('plan-graduation');
+  });
+});
+
+describe('which screen each person sees (/event/[id])', () => {
+  const screenFor = async (who: string, id: string, details = false) => {
+    await as(who);
+    const e = await event(id);
+    const me = who === 'ahmad' ? 'p-ahmad' : `p-${who}`;
+    return eventScreen(e, me, e.lifecycle === 'cancelled' || classifyPlan(e) === 'past', details);
+  };
+
+  it('routes hosts, co-hosts, invitees and guests to their own view', async () => {
+    expect(await screenFor('ahmad', 'plan-wedding')).toBe('host');
+    expect(await screenFor('nisreen', 'plan-wedding')).toBe('host');
+    expect(await screenFor('faisal', 'plan-wedding')).toBe('invitation');
+    expect(await screenFor('faisal', 'plan-wedding', true)).toBe('guest');
+    expect(await screenFor('khaled', 'plan-wedding')).toBe('guest');
+    await as('ahmad');
+    await services.events.addCohosts('plan-wedding', ['p-omar']);
+    expect(await screenFor('omar', 'plan-wedding')).toBe('host');
+  });
+
+  it('answering moves an invitee from the invitation to the guest view', async () => {
+    expect(await screenFor('faisal', 'plan-wedding')).toBe('invitation');
+    await services.events.respond('plan-wedding', 'declined');
+    expect(await screenFor('faisal', 'plan-wedding')).toBe('guest');
+  });
+
+  it('completed and cancelled events show the closed view to everyone', async () => {
+    expect(await screenFor('ahmad', 'plan-graduation')).toBe('closed');
+    expect(await screenFor('faisal', 'plan-graduation')).toBe('closed');
+    await as('ahmad');
+    await services.events.cancel('plan-wedding');
+    expect(await screenFor('khaled', 'plan-wedding')).toBe('closed');
+  });
+
+  it('someone not on the event gets nothing back', async () => {
+    await as('ahmad');
+    const e = await create();
+    await as('omar');
+    await expect(services.plans.get(e.id)).rejects.toMatchObject({ code: 'not_found' });
+  });
+});
+
+describe('schedule conflict between hosts', () => {
+  it('Ahmad’s stale save is refused after Nisreen saves; reloading shows her change', async () => {
+    await as('ahmad');
+    const ahmadBase = await event('plan-wedding');
+    await as('nisreen');
+    const theirs = await event('plan-wedding');
+    await services.events.saveSchedule('plan-wedding', [...theirs.schedule, { title: 'Sparklers', startsAt: theirs.startsAt }], theirs.version);
+    await as('ahmad');
+    await expect(services.events.saveSchedule('plan-wedding', ahmadBase.schedule.slice(1), ahmadBase.version)).rejects.toMatchObject({ code: 'conflict' });
+    const latest = await event('plan-wedding');
+    expect(latest.schedule.map((i) => i.title)).toContain('Sparklers');
+    expect(latest.schedule).toHaveLength(ahmadBase.schedule.length + 1);
+  });
+});
+
+describe('edit details (EV02)', () => {
+  it('clears the end time when asked, and keeps it when only the start moves', async () => {
+    await as('ahmad');
+    const e = await create();
+    const cleared = await services.events.update(e.id, { startsAt: e.startsAt, endsAt: '' });
+    expect(cleared.endsAt).toBeUndefined();
+    const moved = await services.events.update(e.id, { venue: '  Garden Hall ' });
+    expect(moved.venue).toBe('Garden Hall');
+    await as('nisreen');
+    await expect(services.plans.get(e.id)).rejects.toMatchObject({ code: 'not_found' });
   });
 });
