@@ -12,9 +12,11 @@ development default. Nothing is deployed.
 
 **Status (B2, 2026-11-28):** the API serves plans, membership and
 invitations (see "Plans, membership and invitations"), and account deletion
-hands shared plans over instead of refusing. The app does **not** use these
-routes yet: its plans, saves, activity and Explore are still mock services,
-and each experience switches over with its own mutations in B3.
+hands shared plans over instead of refusing. In real mode the app's plans,
+plan people, invitations and per-plan mutes now come from the API; actions
+that belong to B3 (votes, schedules, itineraries…) refuse in real mode
+instead of changing a local copy. Saves, activity and Explore are still
+mock services. Mock mode is unchanged.
 
 ## Layout
 
@@ -207,6 +209,12 @@ public.
 | GET | `/api/v1/plans?timing=upcoming\|past` | bearer | `PlansList`: plans the caller can see, upcoming soonest first / past latest first, each projected for the caller |
 | GET | `/api/v1/plans/:id` | bearer | `Plan` (member view, or the guest view of an event); `404` when the caller may not see it |
 | POST | `/api/v1/plans/hangouts` · `/events` · `/trips` | bearer | Create; the caller becomes organizer/host. Invitees and co-hosts must be people the caller already plans with |
+| PATCH | `/api/v1/plans/:id` | bearer (`plan.edit`) | Shared details, per type (`UPDATABLE_PLAN_FIELDS`); `If-Match` **required**, `409` when stale |
+| POST | `/api/v1/plans/:id/cancel` | bearer (event host) | Event becomes `cancelled`, read-only for everyone; `If-Match` optional |
+| POST | `/api/v1/plans/:id/invitees` | bearer (`invite.create`) | In-app invitations to people the caller already plans with |
+| POST | `/api/v1/plans/:id/response` | bearer (the invitee) | `{ answer: accept\|maybe\|decline }` to one's own invitation → `{ plan \| null }` |
+| DELETE | `/api/v1/plans/:id/people/:personId` | bearer (`member.manage`) | Remove a member or invitee (never the owner, never yourself) |
+| POST | `/api/v1/plans/:id/owner` | bearer (owner) | `{ personId }` hand the plan to another member, atomically |
 | POST | `/api/v1/plans/:id/leave` | bearer | `204`; `If-Match: <version>` optional, `409` when stale |
 | DELETE | `/api/v1/plans/:id` | bearer | `204`; hangout organizer / trip `plan.delete`; events are cancelled, never deleted (`403`); `If-Match` as above |
 | PUT | `/api/v1/plans/:id/mute` | bearer | `{ muted }`, H01 per-plan notifications |
@@ -315,7 +323,12 @@ and hand-over" with `deleted` set: suggestions are credited to
 `former-member`, and a plan they would still own (nobody left to hand it to,
 e.g. an event with guests but no other host) is deleted. Links they created
 go with the profile. If any of it fails, nothing is deleted. (The B1
-`409 conflict` guard is gone.) Plans a real account made in real mode still
+`409 conflict` guard is gone.) This is genuinely atomic because Supabase
+Auth's `auth.users` lives in the same Postgres database as the app tables,
+so the login, the profile and the plan changes commit or roll back
+together; only the photo clean-up in Storage runs afterwards, best effort
+(a leftover object sits in a private folder nobody can sign for). A retry
+after a failure starts again from a consistent state. Plans a real account made in real mode still
 live only in the phone's mock world until B3, and are cleaned up there.
 
 Not yet built: data export, a grace period/undo, deleting an unverified
@@ -350,9 +363,24 @@ members and invitees; on plans the caller is only a guest of or invited to,
 the members (hosts/organizer), never the other guests. People added when
 creating a plan must come from this set; anyone else joins by link.
 
-**Writes** lock the plan row (`SELECT … FOR UPDATE`) and bump `version`.
-Leave and delete take `If-Match: <version>`; a stale version is
-`409 conflict`. Without it the write applies to the current version.
+**Writes** lock the plan row (`SELECT … FOR UPDATE`), check the caller's
+capabilities on that plan, and bump `version` once, in one transaction.
+Destructive and editing writes take `If-Match: <version>`; a stale version
+is `409 conflict` and nothing is written (PATCH requires it). Two
+concurrent edits from the same version: one wins, the other gets `409`.
+
+**Membership** (role is the label, capabilities decide):
+
+| Experience | Owner | Others | Answering an invitation |
+|---|---|---|---|
+| Hangout | organizer (edit, manage, invite, finalize, suggest, vote) | participants (suggest, vote) | in / maybe → participant member; can't → not a member, plan hidden (they can still change their answer) |
+| Trip | organizer (+ delete) | travelers (suggest, vote) | join → traveler member; decline |
+| Event | host (edit, delete, manage, invite, schedule); co-hosts by permission (B3) | guests are **not** members | going / maybe / can't is their RSVP |
+
+Hand-over (`/owner`): hangout and trip swap organizer and participant/
+traveler roles; an event passes between hosts (a co-host must be made a
+host first, B3). Removing someone forgets their votes and trip inputs like
+leaving does. Invitees are never counted as members.
 
 **Leaving and hand-over** (the mock's policy, now enforced): the person's
 membership and invitation go; hangout votes go (their suggestions stay);
@@ -361,6 +389,14 @@ must-dos only they wanted go. A leaving owner hands the plan to the member
 who joined next, who takes the owner's role and capabilities. A plan with
 nobody left is deleted, except an event that still has guests, which stays
 for them.
+
+**Who an invitation is for.** Two kinds, matching the app: an **in-app
+invitation** (13, 05, 40) is a `plan_invitees` row for one profile — only
+that account can see or answer it, nobody else can claim it. An
+**invitation link** is a bearer link the organizer shares (the app's "share
+invite" flow): whoever opens it while signed in is put on the invite list as
+themselves, and then answers like an in-app invitee. Links are not bound to
+an email; email/SMS delivery and email-bound invitations come with B6.
 
 **Invitations.** A link is 32 random bytes (base64url); only its SHA-256 is
 stored and the raw token is returned once, to the creator, so a database
@@ -374,19 +410,29 @@ invite goes back to pending; an event guest who answered keeps the answer.
 The app keeps building links behind its existing invitation boundary until
 the production domain is decided.
 
-**Not built yet:** the type-specific mutations (respond, vote, finalize,
-schedule, itinerary, co-hosts, cancel — B3), cover uploads, pagination of
-the plan list (a person's plans are listed whole), and the app using any of
-this. Trip dates are calendar dates; without the destination's time zone
+**Not built yet:** the type-specific mutations (vote, finalize, change
+requests, schedule, co-hosts and their permissions, name-only guests, host
+RSVP overrides, preferences, picks, itinerary — B3), cover uploads, and
+pagination of the plan list (a person's plans are listed whole). Trip dates are calendar dates; without the destination's time zone
 the server anchors them in UTC (00:00–23:59) only to file trips as
 upcoming/past.
 
-**Why the app has not switched yet.** Moving only the plan reads would show
-server plans that every type-specific action (vote, RSVP, itinerary) then
-fails on, because those still change the phone's mock world, and real
-accounts plan as `sb-<uid>` locally but as their profile id on the server.
-Each experience switches in one step in B3: its reads, its mutations and
-the identity, together.
+### The app in real mode (B2)
+
+`src/api/plans.ts` implements the plan services over the API; the
+composition root (`src/api/index.ts`) uses it for `plans`, `invitations`,
+`hangouts`, `events`, `trips`, `catalog.people` and the mute part of
+settings. Real accounts now plan as their profile id. The provider keeps
+the last version it saw of each plan and sends it as `If-Match`; it is
+forgotten on sign-in, sign-out, session end and deletion.
+
+| Works end to end in real mode | Refuses with `not_available` (B3) |
+|---|---|
+| Home lists, plan detail (server projection), create hangout / event (no cover) / trip, edit details, invite friends, answer invitations (17, 12, 20), remove someone, hand a trip over, leave, delete hangout/trip, cancel event, invitation links, per-plan mute, people pickers | Suggestions, votes, Choose together, finalize, change requests; event schedule, co-hosts, permissions, name-only guests, RSVP overrides, covers; trip preferences, picks, must-dos, itinerary, destination change; Add to Plan from Explore |
+
+The refusals say what is not shared yet, through the screens' existing
+error text; no screen changed. Nothing in real mode falls back to the
+phone's mock plans.
 
 **Real mode is not production-ready yet:** plans, saves, activity and Explore
 are still device-local mocks for real accounts; social sign-in, push and
@@ -395,9 +441,9 @@ production email (SMTP, branded templates) are not set up.
 ## Tests
 
 ```bash
-pnpm test                                       # whole workspace: mobile 220 + contracts 15 + API 80
+pnpm test                                       # whole workspace: mobile 229 + contracts 15 + API 80
 pnpm --filter @voya/api test                    # API unit + e2e (no Docker needed)
-pnpm --filter @voya/api test:integration        # API against the running local stack (27)
+pnpm --filter @voya/api test:integration        # API against the running local stack (33)
 pnpm --filter @voya/mobile test:local-stack     # the app's real provider against the stack + a running API
 ```
 
@@ -427,7 +473,13 @@ pnpm --filter @voya/mobile test:local-stack     # the app's real provider agains
   invitees limited to people already planned with, links (token shown once,
   hash stored, idempotent accept, revoked/expired refused with their code),
   the event guest view, hand-over on leave, stale `If-Match`, delete rules,
-  mutes, upcoming/past, and account deletion inside shared plans. Needs
+  mutes, upcoming/past, and account deletion inside shared plans.
+  `plans-collab.test.ts` (B2): the brief's scenarios — A shared trip
+  (invite, join, read, organizer edits, others refused), B event guests
+  refused on host-only actions, C recipient-bound invitations, concurrent
+  link acceptance, decline and change of mind, cancelled plans, D atomic
+  hand-over, removal, last member leaving, E two concurrent edits (one
+  wins, one `409`), F isolation across accounts. Needs
   `supabase:start`, `db:deploy` and `db:seed` first, and
   `SUPABASE_SECRET_KEY` in `.env`.
 - **mobile** (`apps/mobile/src/api/__tests__`): the real provider against
@@ -514,7 +566,8 @@ pnpm --filter @voya/mobile test:local-stack     # the app's real provider agains
 | Row lock per plan write, `version` bump, optional `If-Match` | Concurrent writers serialise; a client acting on a stale screen gets `409` instead of a lost update |
 | Tokens in bodies, `410 expired` / `410 revoked` error codes | Tokens stay out of URLs and logs; the app's distinct expired/revoked screens map one to one |
 | Deletion = hand-over in the same transaction; plans nobody can manage go | No half-deleted accounts and no ownerless plans (`plans.owner_id` stays `RESTRICT`) |
-| The app keeps its mock plans until each experience moves whole (B3) | A read-only switch would show plans the person cannot act on |
+| Real mode uses server plans now and refuses B3 actions explicitly | No hybrid where a plan looks shared but its votes or schedule live on one phone |
+| Links are bearer (anyone signed in who opens one joins the invite list); in-app invitations are bound to one profile | Matches the app's share-link and friend-picker flows; email-bound invites need delivery (B6) |
 
 ## Architecture review (B1)
 
@@ -553,14 +606,13 @@ healthcheck and restarts).
 
 ## Next milestones
 
-1. **B2 — Plans, memberships and invitations:** API done (see above).
+1. **B2 — Plans, memberships and invitations:** done (API + real-mode app provider).
 2. **B3 — Hangouts, Events, Trips** domain APIs, one experience at a time:
-   its mutations (respond, vote, finalize / RSVP, schedule, co-hosts,
-   cancel / itinerary), moving it out of `Plan.details` into its own tables,
-   and switching the app's plans + that experience + per-plan mutes + the
-   people catalogue to the API in the same step (real accounts then plan as
-   their profile id). Suggested order: Events (host-led, fewest shared
-   writes), Hangouts, Trips.
+   its mutations (hangout suggestions/votes/finalize; event schedule,
+   co-hosts, name-only guests, covers; trip preferences/picks/itinerary),
+   moving its state out of `Plan.details` into its own tables, and replacing
+   that experience's `not_available` refusals in `src/api/plans.ts`.
+   Suggested order: Events (host-led, fewest shared writes), Hangouts, Trips.
 3. Activity, Notifications (push), social sign-in.
 4. Railway staging + Supabase staging project (needs explicit approval) —
    worth doing early in B3, since phone testing of reset links and

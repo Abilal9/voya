@@ -15,13 +15,14 @@ is the most visible part; the collaboration machinery underneath is the hard par
 
 ## Current phase
 
-**Backend B2 done (API): plans, membership, invitations. The app still uses mock plans.**
+**Backend B2 done: real shared plans, membership and invitations.**
 The frontend is technically frozen (F9). Two providers, chosen in
 `src/config/runtime.ts`: **mock** (development default) and **real**
 (`EXPO_PUBLIC_VOYA_AUTH=supabase`; always in non-development builds), where
-`auth` + `profile` use Supabase Auth and the API (`src/api/`) and the other
-services stay mocks acting as that real account (`src/mocks/localAccount.ts`).
-The API serves plans (B2); the app switches one experience at a time in B3.
+`auth`, `profile`, plans, invitations and plan people use Supabase Auth and
+the API (`src/api/`); B3-only plan actions refuse with `not_available`;
+saves, activity and Explore stay mocks acting as that real account
+(`src/mocks/localAccount.ts`). B3 replaces the refusals one experience at a time.
 See `docs/backend.md`.
 
 ## Repository
