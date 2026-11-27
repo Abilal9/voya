@@ -11,6 +11,7 @@ import type {
   PlaceCategory,
   PlaceSignal,
   Plan,
+  PlanType,
   RSVP,
   TripPick,
   TripPreferences,
@@ -141,7 +142,12 @@ export interface PlansService {
 
 export interface InvitationsService {
   resolve(token: string): Promise<Invitation>;
-  accept(token: string): Promise<{ planId: ID; alreadyMember: boolean }>;
+  /**
+   * Opening an invitation (development deep link today, real links later):
+   * puts the signed-in person on the plan's invite list, so the plan's own
+   * invitation screen (12, 17, 20) shows next. Joining happens there.
+   */
+  accept(token: string): Promise<{ planId: ID; planType: PlanType; alreadyMember: boolean }>;
   createForPlan(planId: ID): Promise<Invitation>;
 }
 

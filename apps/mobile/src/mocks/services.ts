@@ -627,6 +627,10 @@ const INVITES: Record<string, Invitation> = {
     token: fx.INVITE_TOKENS.validEvent, planId: 'plan-wedding', planType: 'event',
     planTitle: "Ahmad & Nisreen's Wedding", inviterName: 'Ahmad', role: 'guest',
   },
+  [fx.INVITE_TOKENS.validTrip]: {
+    token: fx.INVITE_TOKENS.validTrip, planId: 'plan-florence', planType: 'trip',
+    planTitle: 'Florence', inviterName: 'Ahmad', role: 'traveler',
+  },
   [fx.INVITE_TOKENS.expired]: {
     token: fx.INVITE_TOKENS.expired, planId: 'plan-friday', planType: 'hangout',
     planTitle: 'Friday Night', inviterName: 'Ahmad', role: 'participant', expired: true,
@@ -643,7 +647,11 @@ const invitations: InvitationsService = {
     if (!invite) throw new ServiceError('invalid_invite', 'This invitation link is not valid.', false);
     return invite;
   },
-  /** Idempotent, mirroring the real acceptance transaction: a repeat is not an error. */
+  /**
+   * Idempotent: opening the same invitation again is not an error. It only
+   * puts the person on the invite list; answering happens on the plan's own
+   * invitation screen, through the same service as an in-app invite.
+   */
   accept: (token) =>
     mutate((s) => {
       const invite = INVITES[token];
@@ -651,24 +659,27 @@ const invitations: InvitationsService = {
       if (invite.expired) throw new ServiceError('expired', 'This invitation has expired.', false);
       if (invite.revoked) throw new ServiceError('revoked', 'This invitation was revoked.', false);
 
-      const joined = s.plans.find((p) => p.id === invite.planId);
-      if (!joined) throw new ServiceError('not_found', 'That plan no longer exists.', false);
-      if (canSee(joined, me(s))) return { planId: joined.id, alreadyMember: true };
-
-      if (joined.type === 'event') {
-        // Event invitations make you a guest, not a host.
-        joined.guests.push({
-          id: uid('g'), personId: me(s), displayName: s.account.displayName, rsvp: 'pending',
-        });
-      } else {
-        joined.members.push({
-          personId: me(s), role: invite.role,
-          capabilities: ['suggestion.create', 'vote.cast'],
-          joinedAt: new Date().toISOString(),
-        });
+      const plan = s.plans.find((p) => p.id === invite.planId);
+      if (!plan || plan.lifecycle === 'cancelled' || classifyPlan(plan) === 'past') {
+        throw new ServiceError('not_found', 'That plan isn’t available anymore.', false);
       }
-      joined.version += 1;
-      return { planId: joined.id, alreadyMember: false };
+      const who = me(s);
+      const result = { planId: plan.id, planType: plan.type, alreadyMember: false };
+      if (plan.members.some((m) => m.personId === who)) return { ...result, alreadyMember: true };
+      const now = new Date().toISOString();
+      if (plan.type === 'event') {
+        const guest = plan.guests.find((g) => g.personId === who);
+        if (guest) return { ...result, alreadyMember: guest.rsvp !== 'pending' };
+        plan.guests.push({ id: uid('g'), personId: who, displayName: s.account.displayName, rsvp: 'pending', invitedBy: plan.ownerId, invitedAt: now });
+      } else {
+        plan.invites ??= [];
+        const existing = (plan.invites as { personId: ID; status: string; invitedBy: ID; invitedAt: string }[]).find((i) => i.personId === who);
+        if (existing?.status === 'pending') return result;
+        if (existing) Object.assign(existing, { status: 'pending', invitedBy: plan.ownerId, invitedAt: now });
+        else (plan.invites as unknown[]).push({ personId: who, status: 'pending', invitedBy: plan.ownerId, invitedAt: now });
+      }
+      plan.version += 1;
+      return result;
     }),
   async createForPlan(planId) {
     const { state } = await read();

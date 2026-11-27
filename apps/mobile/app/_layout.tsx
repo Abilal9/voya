@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack, useRouter, useSegments, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -8,6 +8,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ServicesProvider } from '@/services/ServicesProvider';
 import { ToastProvider } from '@/components/ui/Toast';
+import { inviteTokenFrom } from '@/features/invite/link';
 import { useSession } from '@/stores/session';
 import { colors } from '@/theme';
 
@@ -24,7 +25,10 @@ const queryClient = new QueryClient({
 function useProtectedRoute() {
   const status = useSession((s) => s.status);
   const step = useSession((s) => s.account?.onboardingStep);
+  const pendingInvite = useSession((s) => s.pendingInviteToken);
+  const setPendingInvite = useSession((s) => s.setPendingInvite);
   const segments = useSegments();
+  const pathname = usePathname();
   const router = useRouter();
 
   React.useEffect(() => {
@@ -33,8 +37,14 @@ function useProtectedRoute() {
     const inAuth = group === '(auth)';
     const inOnboarding = group === '(onboarding)';
     const onVerify = inAuth && segments[1] === 'verify';
+    // An invitation opened before signing in is kept and resumed afterwards.
+    const invite = inviteTokenFrom(pathname);
+    if (status !== 'ready' && invite) setPendingInvite(invite);
 
-    if (status === 'signed-out' && !inAuth) {
+    if (status === 'ready' && pendingInvite) {
+      setPendingInvite(null); // consumed once, so it never replays
+      router.replace(`/invite/${pendingInvite}` as never);
+    } else if (status === 'signed-out' && !inAuth) {
       router.replace('/(auth)/welcome');
     } else if (status === 'verifying' && !onVerify) {
       router.replace('/(auth)/verify');
@@ -45,7 +55,7 @@ function useProtectedRoute() {
     } else if (status === 'ready' && (inAuth || inOnboarding)) {
       router.replace('/(tabs)');
     }
-  }, [status, step, segments, router]);
+  }, [status, step, segments, pathname, router, pendingInvite, setPendingInvite]);
 }
 
 function RootNavigator() {
@@ -84,6 +94,7 @@ function RootNavigator() {
       <Stack.Screen name="hangout/new" />
       <Stack.Screen name="event/new" />
       <Stack.Screen name="trip/new" />
+      <Stack.Screen name="invite/[token]" />
       <Stack.Screen name="trip/[id]/index" />
       <Stack.Screen name="trip/[id]/map" options={{ animation: 'fade' }} />
       <Stack.Screen name="event/[id]/index" />

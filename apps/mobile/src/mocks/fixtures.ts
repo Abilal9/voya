@@ -515,6 +515,7 @@ export const ORIGINAL_PLAN_IDS = ['plan-florence', 'plan-friday', 'plan-wedding'
 export const INVITE_TOKENS = {
   validHangout: 'inv-friday-night',
   validEvent: 'inv-wedding',
+  validTrip: 'inv-florence',
   expired: 'inv-expired',
   revoked: 'inv-revoked',
 } as const;
