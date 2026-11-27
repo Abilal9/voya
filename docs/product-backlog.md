@@ -152,15 +152,15 @@ Status: **Implementation complete — device verification pending.** No P0 open;
 
 | ID | Item | P | Status | Type | Design | Depends | Acceptance |
 |---|---|---|---|---|---|---|---|
-| F9-01 | Real taps on a device or simulator | P0 | Blocked | Ops | all | You: `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`, or approve "Simulator" for computer use; Android needs Expo Go 54 on the emulator (the AVD has Expo Go 57) | Journeys below run by real taps |
+| F9-01 | Real taps on the iOS Simulator | P0 | In Progress | Ops | all | — | Tapped so far (iPhone 17 Pro, Expo Go 54): log out with confirm, wrong-email error, sign in as Khaled, Home, hangout lobby → group suggestions → vote and unvote, event guest view. Remaining journeys: see the checklist in `docs/frontend-progress.md` |
 | F9-02 | Route-level journey tests (real screens, router, query cache, mock services in Jest; not native) | P1 | Implemented | Test | — | — | 15 journeys in `src/journeys/__tests__` |
-| F9-03 | Defects found by the journeys | P1 | Implemented | Fix | — | — | Fixed: invitation lost after sign-in (P1); "You're in." never showed (P1); cold start offline stuck on boot (P1) |
+| F9-03 | Defects found by the journeys | P1 | Implemented | Fix | — | — | Fixed: invitation lost after sign-in (P1); "You're in." never showed (P1); cold start offline stuck on boot (P1); splash error on sign-out found by real taps (P2) |
 | F9-04 | Accessibility pass | P2 | In Progress | Ops | — | — | Text fields now carry their label; full VoiceOver pass needs a device |
 | F9-05 | Mock boundary review | P1 | Verified | Ops | — | — | Only `src/services/index.ts` and the dev menu import mocks; only `store.ts` touches AsyncStorage |
 | F9-06 | Development build (native icon, splash, permissions) | P2 | Blocked | Ops | Icon, 41 | F9-01 (Xcode selection) | — |
-| F9-07 | Android pass | P2 | Blocked | Ops | — | Expo Go 54 APK on the emulator (download needs your OK) | — |
+| F9-07 | Android pass | P2 | In Progress | Ops | — | — | Expo Go 54.0.8 (from Expo's official release) installed on a new `Voya_Test_API_31` emulator (the Pixel 3a AVD's 800 MB storage was too small); the app bundles; taps via adb not yet run |
 | F9-08 | Real network detection (NetInfo) | P3 | Deferred | Real | S04 | backend | Nothing needs the network yet; adding it now would only show a banner with nothing to protect |
-| F9-09 | Board photos as fixture imagery (4 images in the board's sprite: Florence, Uffizi, restaurant, wedding) | P2 | Blocked | Product | all | Your OK on using the board's photos | Flat tints until approved |
+| F9-09 | Board photos as fixture imagery | P2 | Blocked | Product | all | Licence for app distribution | The board's 4 photos carry no licence information, so they stay development references and the fixtures keep flat tints |
 | F9-10 | Dev tools gated (`__DEV__`): dev menu, deep links, test clock, invite route, dev account | P0 | Verified | Ops | — | — | Code review |
 
 ### Design system (cross-phase)
