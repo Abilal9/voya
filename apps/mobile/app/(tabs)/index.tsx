@@ -35,7 +35,7 @@ export default function Home() {
   const upNext = plans.data?.[0];
   const rest = plans.data?.slice(1) ?? [];
   const recent = past.data?.[0];
-  const open = (p: Plan) => router.push(p.type === 'hangout' ? `/hangout/${p.id}` : p.type === 'event' ? `/event/${p.id}` : `/plan/${p.id}`);
+  const open = (p: Plan) => router.push(`/${p.type}/${p.id}` as never);
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.root}>

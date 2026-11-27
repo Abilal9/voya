@@ -82,6 +82,9 @@ function RootNavigator() {
       <Stack.Screen name="place/[id]" />
       <Stack.Screen name="hangout/new" />
       <Stack.Screen name="event/new" />
+      <Stack.Screen name="trip/new" />
+      <Stack.Screen name="trip/[id]/index" />
+      <Stack.Screen name="trip/[id]/map" options={{ animation: 'fade' }} />
       <Stack.Screen name="event/[id]/index" />
       <Stack.Screen name="event/[id]/invitation" />
       <Stack.Screen name="hangout/[id]/index" />
