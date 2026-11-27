@@ -40,6 +40,32 @@ describe('provider selection', () => {
   });
 });
 
+describe('release builds', () => {
+  const KEY = 'sb_publishable_example';
+  const release = (env: Record<string, string>) =>
+    resolveRuntimeConfig({ dev: false, env: { EXPO_PUBLIC_SUPABASE_KEY: KEY, ...env }, host: 'localhost' }).problems;
+
+  it('refuse the local stack, LAN addresses and plain http', () => {
+    expect(release({ EXPO_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54321', EXPO_PUBLIC_API_URL: 'http://192.168.1.20:3000' })).toEqual([
+      'EXPO_PUBLIC_SUPABASE_URL must be a hosted https URL',
+      'EXPO_PUBLIC_API_URL must be a hosted https URL',
+    ]);
+    expect(release({ EXPO_PUBLIC_SUPABASE_URL: 'https://10.0.2.2', EXPO_PUBLIC_API_URL: 'https://voya-mac.local' })).toHaveLength(2);
+    expect(release({ EXPO_PUBLIC_SUPABASE_URL: 'http://x.supabase.co', EXPO_PUBLIC_API_URL: 'https://api.staging.test' })).toEqual([
+      'EXPO_PUBLIC_SUPABASE_URL must be a hosted https URL',
+    ]);
+  });
+
+  it('accept hosted https services', () => {
+    expect(release({ EXPO_PUBLIC_SUPABASE_URL: 'https://x.supabase.co', EXPO_PUBLIC_API_URL: 'https://voya-api-staging.up.railway.app/' })).toEqual([]);
+  });
+
+  it('leave development builds free to use the Mac', () => {
+    const c = resolveRuntimeConfig({ dev: true, env: { EXPO_PUBLIC_VOYA_AUTH: 'supabase', EXPO_PUBLIC_SUPABASE_KEY: KEY }, host: '192.168.1.20' });
+    expect(c.problems).toEqual([]);
+  });
+});
+
 describe('devHost', () => {
   it('uses the Metro host so a phone on Wi-Fi reaches the Mac', () => {
     expect(devHost('192.168.1.20:8081', 'ios')).toBe('192.168.1.20');

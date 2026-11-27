@@ -39,6 +39,14 @@ export function devHost(hostUri: string | undefined = Constants.expoConfig?.host
   return loopback && os === 'android' ? '10.0.2.2' : host;
 }
 
+const LOCAL_HOST = /^(localhost|127\.\d+\.\d+\.\d+|0\.0\.0\.0|\[::1\]|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|[^.]+\.local)$/i;
+
+/** https, and not a loopback, emulator, LAN or mDNS host. */
+export function isHostedHttps(value: string): boolean {
+  const match = /^https:\/\/([^/:?#]+|\[[^\]]+\])(?::\d+)?(?:[/?#]|$)/i.exec(value.trim());
+  return !!match?.[1] && !LOCAL_HOST.test(match[1]);
+}
+
 export function resolveRuntimeConfig(input: {
   dev: boolean;
   env: Record<string, string | undefined>;
@@ -55,6 +63,12 @@ export function resolveRuntimeConfig(input: {
     if (!supabaseKey) problems.push('EXPO_PUBLIC_SUPABASE_KEY');
     if (!apiUrl) problems.push('EXPO_PUBLIC_API_URL');
     if (supabaseKey && /^sb_secret_|service_role/.test(supabaseKey)) problems.push('EXPO_PUBLIC_SUPABASE_KEY must be the public key');
+    // A release (staging/production) build must reach hosted services over
+    // https: never the local stack, a LAN address or a plain-http host.
+    if (!dev) {
+      if (supabaseUrl && !isHostedHttps(supabaseUrl)) problems.push('EXPO_PUBLIC_SUPABASE_URL must be a hosted https URL');
+      if (apiUrl && !isHostedHttps(apiUrl)) problems.push('EXPO_PUBLIC_API_URL must be a hosted https URL');
+    }
   }
   return { authProvider, supabaseUrl, supabaseKey, apiUrl, problems };
 }
