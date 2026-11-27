@@ -96,18 +96,21 @@ integration or enhancement.
 | F5-08 | Join Hangout (from invite) | P1 | Implemented | Mock | 17 | F8-01 | In-app invitation for pending invitees; invite-link entry stays with F8-01 |
 | F5-09 | On-device tap-through of the hangout journey (create, vote, finalize, change, leave) | P1 | Blocked | Ops | 13–17, 37, H01–H07 | Simulator control | Exercised by real taps; screenshots + 98 unit tests so far |
 | F5-10 | Real invite links and drive-time estimates | P2 | Blocked | API | H04, 16 | backend / routing provider | Copy link and travel times appear only when real |
+| F5-11 | Review the organizer's "Finalize plan" action (not drawn on the board) against product intent | P2 | Not Started | Product | 37, 16 | — | Kept working as built until reviewed |
 
 ### F6 — Events
 
 | ID | Item | P | Status | Type | Design | Depends | Acceptance |
 |---|---|---|---|---|---|---|---|
-| F6-01 | Create Event (details, cover, venue) | P1 | Not Started | Mock | 18 | F1-10 | — |
-| F6-02 | Host event page | P1 | Not Started | Mock | 19 | F6-01 | — |
-| F6-03 | Guest invitation + guest event details | P1 | Not Started | Mock | 20, 21 | F6-02 | Host-only data never shown to guests |
-| F6-04 | RSVP + confirmation | P1 | Not Started | Mock | 24 | F6-03 | RSVP updates guest list and counts |
-| F6-05 | Guests list + hosts & co-hosts | P1 | Not Started | Mock | 40, EV03 | F6-02 | — |
-| F6-06 | Schedule, host schedule editor, add/edit item | P1 | Not Started | Mock | 22, 23, EV06 | F6-02 | — |
-| F6-07 | Settings, edit, share, completed | P1 | Not Started | Mock | EV01, EV02, EV04, EV05 | F6-02 | — |
+| F6-01 | Create Event (details, cover, venue) | P1 | Implemented | Mock | 18 | F1-10 | — |
+| F6-02 | Host event page | P1 | Implemented | Mock | 19 | F6-01 | — |
+| F6-03 | Guest invitation + guest event details | P1 | Implemented | Mock | 20, 21 | F6-02 | Host-only data never shown to guests |
+| F6-04 | RSVP + confirmation | P1 | Implemented | Mock | 24 | F6-03 | RSVP updates guest list and counts |
+| F6-05 | Guests list + hosts & co-hosts | P1 | Implemented | Mock | 40, EV03 | F6-02 | — |
+| F6-06 | Schedule, host schedule editor, add/edit item | P1 | Implemented | Mock | 22, 23, EV06 | F6-02 | — |
+| F6-07 | Settings, edit, share, completed | P1 | Implemented | Mock | EV01, EV02, EV04, EV05 | F6-02 | — |
+| F6-08 | On-device tap-through of the event journeys (host, guest, co-host, cancel, completed) | P1 | Blocked | Ops | 18–24, 40, EV01–EV06 | Simulator control | Exercised by real taps; screenshots + 121 unit tests so far |
+| F6-09 | Real invitation links, sending invitations, editable dress code / note | P2 | Blocked | API / Product | 21, EV02, EV04 | backend; product decision | Dress code and note have no edit path on the board; links appear only when real |
 
 ### F7 — Trips
 

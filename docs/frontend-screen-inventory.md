@@ -4,7 +4,7 @@ Source: `reference/voya-design-v1.html` — 97 presentations (96 screens/states 
 They are not 97 React Native screens: many are variants, sheets or states of one screen.
 Updated 2026-11-26 from the rendered board.
 
-**Coverage:** 56 implemented · 6 partial · 35 missing (of 97).
+**Coverage:** 70 implemented · 5 partial · 22 missing (of 97).
 
 **Columns.** *Implementation*: Implemented / Partial / Missing. *Interaction check*: how it was
 checked — "Screenshot" means rendered on the iOS Simulator and inspected by screenshot or deep link
@@ -120,20 +120,20 @@ were taken from the board CSS and compared side by side.
 
 | Code | Board caption | Kind | Route / component | Implementation | Interaction check | Visual | Gap | Backlog |
 |---|---|---|---|---|---|---|---|---|
-| `18` | Create Event | Screen | — | Missing | — | — |  | F6-01 |
-| `19` | Host Event page | Screen | app/plan/[id].tsx (read-only schedule) | Partial | Screenshot | Not matched | No host controls | F6-02 |
-| `20` | Guest invitation | Screen | — | Missing | — | — |  | F6-03 |
-| `21` | Guest event details | Screen | — | Missing | — | — |  | F6-03 |
-| `22` | Event schedule | Screen | — | Missing | — | — |  | F6-06 |
-| `23` | Host schedule editor | Screen | — | Missing | — | — |  | F6-06 |
-| `24` | RSVP confirmation | State | — | Missing | — | — |  | F6-04 |
-| `40` | Event — Guests | Screen | — | Missing | — | — |  | F6-05 |
-| `EV01` | Event settings | Screen | — | Missing | — | — |  | F6-07 |
-| `EV02` | Edit event details | Screen | — | Missing | — | — |  | F6-07 |
-| `EV03` | Hosts & co-hosts | Screen | — | Missing | — | — |  | F6-05 |
-| `EV04` | Share event | Screen | — | Missing | — | — |  | F6-07 |
-| `EV05` | Event completed | State | — | Missing | — | — |  | F6-07 |
-| `EV06` | Event — Add / Edit Schedule Item | Sheet | — | Missing | — | — |  | F6-06 |
+| `18` | Create Event | Screen | app/event/new.tsx | Implemented | Screenshot + unit tests | Board-matched | Cover copied to app storage; no end time unless set | F6-01 |
+| `19` | Host Event page | Screen | app/event/[id]/index.tsx (host) | Implemented | Screenshot + unit tests | Board-matched | Host-only schedule items shown with a "Hosts only" label | F6-02 |
+| `20` | Guest invitation | Screen | app/event/[id]/index.tsx (invitation), app/event/[id]/invitation.tsx | Implemented | Screenshot (host preview) + unit tests | Board-matched | Back button over the cover (board has none); serif placeholder font not used (no licensed font) | F6-03 |
+| `21` | Guest event details | Screen | app/event/[id]/index.tsx (guest) | Implemented | Screenshot (as Khaled) + unit tests | Board-matched | Guests tab shows counts only, never names | F6-03 |
+| `22` | Event schedule | Screen | app/event/[id]/schedule.tsx | Implemented | Screenshot (host and guest) + unit tests | Board-matched |  | F6-06 |
+| `23` | Host schedule editor | Screen | app/event/[id]/schedule-edit.tsx | Implemented | Screenshot + unit tests | Board-matched | No drag handles: items are ordered by start time | F6-06 |
+| `24` | RSVP confirmation | State | app/event/[id]/going.tsx | Implemented | Screenshot (as Khaled) | Board-matched | Add to calendar opens the iOS calendar sheet; success only if saved there | F6-04 |
+| `40` | Event — Guests | Screen | app/event/[id]/guests.tsx | Implemented | Screenshot + unit tests | Board-matched | "All guests" opens a status filter | F6-05 |
+| `EV01` | Event settings | Screen | app/event/[id]/settings.tsx | Implemented | Screenshot + unit tests | Board-matched | Rows follow the viewer's permissions | F6-07 |
+| `EV02` | Edit event details | Screen | app/event/[id]/edit.tsx | Implemented | Screenshot + unit tests | Board-matched | Dress code / Important note have no edit path on the board | F6-07 |
+| `EV03` | Hosts & co-hosts | Screen | app/event/[id]/hosts.tsx | Implemented | Screenshot + unit tests | Board-matched |  | F6-05 |
+| `EV04` | Share event | Sheet | app/event/[id]/settings.tsx (share sheet) | Implemented | Code only | Board-matched in code | Copy link shows "Available when invite links go live" | F6-07 |
+| `EV05` | Event completed | State | app/event/[id]/index.tsx (closed) | Implemented | Screenshot (as guest) + unit tests | Board-matched | Also renders the cancelled state | F6-07 |
+| `EV06` | Event — Add / Edit Schedule Item | Sheet | app/event/[id]/schedule-edit.tsx (item sheet) | Implemented | Unit tests | Board-matched in code | Not screenshotted (needs a tap) | F6-06 |
 
 ## Shared system states
 
