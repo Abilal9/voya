@@ -20,8 +20,13 @@ export async function signedInAs(who: string) {
   await mockServices.auth.signIn(`${who}@example.com`, 'x');
 }
 
+/** Renders the app at `url`. renderRouter switches to fake timers that start
+ * from the real clock; carry the pinned test clock (jest.setup.js) over. */
 export function open(url: string) {
-  return renderRouter('./app', { initialUrl: url });
+  const now = Date.now();
+  const r = renderRouter('./app', { initialUrl: url });
+  jest.setSystemTime(now);
+  return r;
 }
 
 export const user = () => userEvent.setup();

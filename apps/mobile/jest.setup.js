@@ -1,4 +1,23 @@
 /* global jest */
+
+// Pin "now" to the fixture anchor (src/mocks/fixtures.ts FIXTURE_ANCHOR) so
+// the suite does not depend on the wall clock: on the evening of a seeded
+// plan's date it would otherwise turn past and the tests would fail. Time
+// still moves forward from the pinned instant, so timeouts behave normally.
+{
+  const RealDate = Date;
+  const shift = new RealDate('2026-11-25T12:00:00').getTime() - RealDate.now();
+  class PinnedDate extends RealDate {
+    constructor(...args) {
+      if (args.length === 0) super(RealDate.now() + shift);
+      else super(...args);
+    }
+    static now() {
+      return RealDate.now() + shift;
+    }
+  }
+  global.Date = PinnedDate;
+}
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
 );
