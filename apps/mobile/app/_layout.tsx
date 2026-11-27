@@ -67,8 +67,13 @@ function RootNavigator() {
     void boot();
   }, [boot]);
 
+  // Hide the native splash once, after the first boot. Signing out and in again
+  // changes the status but must not hide a splash that is already gone.
+  const splashHidden = React.useRef(false);
   React.useEffect(() => {
-    if (status !== 'booting') void SplashScreen.hideAsync();
+    if (status === 'booting' || splashHidden.current) return;
+    splashHidden.current = true;
+    SplashScreen.hideAsync().catch(() => {});
   }, [status]);
 
   useProtectedRoute();
